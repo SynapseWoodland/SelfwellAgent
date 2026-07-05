@@ -15,7 +15,7 @@ pattern='#FF4D4F|#D32F2F|#007BFF'
 
 # Allow-list: this script is the only file that *defines* the forbidden
 # tokens (otherwise the check would always self-flag).
-allowlist_regex='(^|/)(scripts/check_forbidden_colors.sh|client/shared/lint-rules/)'
+allowlist_regex='(^|/)(scripts/check_forbidden_colors.sh|packages/lint-rules/)'
 
 hits=$(
   grep -rEn --exclude-dir=build --exclude-dir=.dart_tool \

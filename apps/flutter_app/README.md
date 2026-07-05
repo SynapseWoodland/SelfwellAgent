@@ -61,7 +61,7 @@ flutter_app/
    CI 通过 `scripts/check_forbidden_colors.sh` / `.ps1` 卡点。
 2. **页面 IA 锚点 1:1**：每个 page 顶部 `IA-REF` + `设计稿` + `后端端点`
    三件套注释必须齐备。
-3. **双端对同一接口**：待 Sprint SF1 接入 `client/shared/api-types/dart/`
+3. **双端对同一接口**：待 Sprint SF1 接入 `packages/api-types/dart/`
    自动生成类型，本 Sprint 不手抄 endpoint。
 4. **设计稿契约**：见 page 顶部注释，UI 调整必须先改设计稿 PR。
 5. **30 字 ACK 渲染**：`AckBubble` 默认 30 字上限 + tooltip 显示完整原文。
@@ -77,7 +77,7 @@ flutter_app/
 ## 必跑命令（commit 前）
 
 ```bash
-cd client/flutter_app
+cd apps/flutter_app
 
 # 0. flutter --version (SF0 启动前确认 3.24+)
 flutter --version

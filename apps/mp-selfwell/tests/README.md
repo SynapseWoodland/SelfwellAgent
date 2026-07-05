@@ -1,4 +1,4 @@
-# client/mp-selfwell/tests/ — 微信小程序测试（Sprint SF0 占位）
+# apps/mp-selfwell/tests/ — 微信小程序测试（Sprint SF0 占位）
 
 > 真正的 miniprogram-automator 接入在 **W5（SF4 之后）** 阶段；本 Sprint 只留 README + 1 个 mock 测试样例。
 

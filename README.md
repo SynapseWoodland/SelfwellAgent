@@ -78,7 +78,7 @@ uv run uvicorn backend.app.main:app --reload --port 8000
 ### 微信小程序
 
 ```bash
-cd client/mp-selfwell
+cd apps/mp-selfwell
 # 用微信开发者工具打开本目录
 # 替换 project.config.json 的 appid 为你的 AppID
 ```
@@ -86,7 +86,7 @@ cd client/mp-selfwell
 ### Flutter APP
 
 ```bash
-cd client/flutter_app
+cd apps/flutter_app
 flutter pub get
 flutter run -d ios
 ```
@@ -104,9 +104,10 @@ selfwell-agent/
 │   │   └── conf/          # 统一配置
 │   ├── tests/             # 测试（Golden Set / Eval Runner / pytest）
 │   └── eval/              # Eval Runner + golden_set_v1.yaml
-├── client/                # 客户端脚手架
+├── apps/                  # 客户端脚手架（monorepo: apps/ + packages/）
 │   ├── flutter_app/       # iOS Flutter APP（MVP）
 │   └── mp-selfwell/       # 微信小程序
+├── packages/              # 跨端共享（design-tokens / lint-rules / api-types）
 ├── .github/workflows/     # CI 流水线
 │   └── backend-ci.yml
 ├── pyproject.toml         # 依赖 + Lint 配置

@@ -1,4 +1,4 @@
-# client/shared — 跨端共享资产
+# packages — 跨端共享资产
 
 > Flutter APP 与 微信小程序共用的"非代码真源"。
 > **严禁两端在 page 内手抄字段、endpoint、文案**——必须从本目录统一引入。
@@ -16,7 +16,7 @@
 ## 与后端 openapi.yaml 同步
 
 ```bash
-cd client/shared
+cd packages
 bash regen.sh   # 触发 openapi-generator-cli 双端生成
 ```
 

@@ -19,7 +19,7 @@
 | `miniprogram/assets/tabbar/` | ✅ 8 张 tabBar 图标（81×81 PNG） |
 | `miniprogram/types/global.d.ts` | ✅ 类型补丁（SocketTask / wx.compressImage） |
 | `tests/smoke.test.js` | ✅ 33 项断言全部 PASS（**禁用色 0 命中**） |
-| `client/shared/api-types/{ts,dart}/` | ✅ 占位 README；SF1 接入生成 |
+| `packages/api-types/{ts,dart}/` | ✅ 占位 README；SF1 接入生成 |
 
 ## 14 个页面（与 Pixso 高保真一一对齐）
 
@@ -52,7 +52,7 @@
 ## 必跑命令（commit 前）
 
 ```bash
-cd client/mp-selfwell
+cd apps/mp-selfwell
 
 # 1) 烟雾测试（33 项断言）
 cd tests && npm install && npm test && cd ..

@@ -1,7 +1,7 @@
 """Generate tabBar icon PNGs for Selfwell 微信小程序 (SF0 scaffold).
 
 Outputs 8 PNGs (81x81 px RGBA) at:
-  client/mp-selfwell/miniprogram/assets/tabbar/{home,butler,plaza,profile}.png
+  apps/mp-selfwell/miniprogram/assets/tabbar/{home,butler,plaza,profile}.png
                                               -active.png
 
 Color palette (no forbidden colors):
@@ -12,7 +12,7 @@ Color palette (no forbidden colors):
 from PIL import Image, ImageDraw
 from pathlib import Path
 
-OUT_DIR = Path("client/mp-selfwell/miniprogram/assets/tabbar")
+OUT_DIR = Path("apps/mp-selfwell/miniprogram/assets/tabbar")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 SIZE = 81

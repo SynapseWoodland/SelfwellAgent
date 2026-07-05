@@ -1,0 +1,20 @@
+{
+  "$id": "no-forbidden-colors",
+  "$schema": "https://schemas.openpolicyagent.org/manifest/v1",
+  "description": "Reusable forbidden-hex scan for apps/ + backend/. Reads forbidden list from `packages/lint-rules/forbidden-colors.json` so the rule stays single-source.",
+  "forbiddenHex": [
+    "#FF4D4F",
+    "#D32F2F",
+    "#007BFF"
+  ],
+  "rationale": "Pixel-level禁色 — see docs/plan/mvp-implementation-plan.md §17 #11",
+  "appliesTo": [
+    "apps/flutter_app/lib/**/*.dart",
+    "apps/mp-selfwell/**/*.{ts,wxml,wxss,json}",
+    "backend/app/**/*.py"
+  ],
+  "ciCommand": {
+    "bash": "apps/flutter_app/scripts/check_forbidden_colors.sh",
+    "pwsh": "pwsh -File apps/flutter_app/scripts/check_forbidden_colors.ps1"
+  }
+}
