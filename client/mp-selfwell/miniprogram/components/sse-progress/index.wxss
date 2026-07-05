@@ -1,0 +1,67 @@
+.sse-progress {
+  padding: 32rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  opacity: 0.5;
+  transition: opacity 240ms ease;
+}
+
+.stage.is-active {
+  opacity: 1;
+}
+
+.stage-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background-color: #E2E8F0;
+  flex-shrink: 0;
+}
+
+.stage.is-active .stage-dot {
+  background-color: #A8C5B5;
+}
+
+.stage.is-current .stage-dot {
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+.stage-label {
+  font-size: 28rpx;
+  color: #4A5568;
+}
+
+.stage.is-current .stage-label {
+  color: #2D3436;
+  font-weight: 500;
+}
+
+.sse-error {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  background-color: #F5E6D3;
+  border-radius: 16rpx;
+  color: #2D3436;
+  font-size: 26rpx;
+  /* 显式不使用禁用色栅栏（详见 app.wxss FORBIDDEN COLORS 段） */
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}

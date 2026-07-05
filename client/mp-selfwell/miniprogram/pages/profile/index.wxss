@@ -1,0 +1,81 @@
+.profile {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding: 32rpx;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.profile-avatar {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 0 auto;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  font-weight: 500;
+}
+
+.profile-nickname {
+  margin-top: 16rpx;
+  font-size: 32rpx;
+  color: #2D3436;
+  font-weight: 500;
+}
+
+.profile-streak {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #718096;
+}
+
+.profile-progress {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  text-align: center;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.profile-progress-hint {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #A8C5B5;
+}
+
+.profile-list {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 0 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx 0;
+  border-bottom: 2rpx solid #E2E8F0;
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-row-label {
+  font-size: 30rpx;
+  color: #2D3436;
+}
+
+.profile-row-arrow {
+  font-size: 32rpx;
+  color: #A0AEC0;
+}

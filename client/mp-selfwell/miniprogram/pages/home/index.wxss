@@ -1,0 +1,91 @@
+.home {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding: 32rpx 32rpx 160rpx;
+}
+
+.home-greeting {
+  padding: 16rpx 0 32rpx;
+  background: linear-gradient(180deg, #F0D9C4 0%, #FAFBFC 100%);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.home-greeting-title {
+  font-size: 44rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.home-greeting-sub {
+  margin-top: 8rpx;
+  font-size: 28rpx;
+  color: #718096;
+}
+
+.home-greeting-sub .streak {
+  color: #A8C5B5;
+  font-weight: 500;
+}
+
+.home-progress {
+  margin: -16rpx 32rpx 16rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.home-card {
+  margin: 16rpx 32rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.home-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 16rpx;
+}
+
+.home-card-title-right {
+  font-size: 24rpx;
+  color: #718096;
+  font-weight: 400;
+}
+
+.home-cta {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 160rpx;
+  display: flex;
+  gap: 16rpx;
+}
+
+.home-btn {
+  flex: 1;
+  border-radius: 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  padding: 20rpx 0;
+}
+
+.home-btn--primary {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+}
+
+.home-btn--ghost {
+  background-color: #FFFFFF;
+  color: #4A5568;
+  border: 2rpx solid #E2E8F0;
+}

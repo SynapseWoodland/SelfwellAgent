@@ -1,8 +1,8 @@
 {
-  "description": "Selfwell 自愈 · 微信小程序客户端脚手架（M1-M11）",
+  "description": "Selfwell 自愈 · 微信小程序客户端（Sprint SF0 骨架）",
   "miniprogramRoot": "miniprogram/",
   "projectname": "selfwell-mp",
-  "appid": "PLACEHOLDER_FILL_AFTER_WX_REGISTRATION",
+  "appid": "wx_your_appid",
   "setting": {
     "urlCheck": false,
     "es6": true,

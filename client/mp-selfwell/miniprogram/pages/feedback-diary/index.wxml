@@ -1,0 +1,25 @@
+<view class="diary">
+  <view class="diary-card">
+    <view class="diary-title">今天的心情</view>
+    <textarea
+      class="diary-input"
+      placeholder="写下一点点，就够了"
+      maxlength="200"
+      value="{{text}}"
+      bindinput="onInput"
+    />
+    <button
+      class="diary-btn"
+      bindtap="onSubmit"
+      loading="{{submitting}}"
+      disabled="{{submitting}}"
+    >
+      写完了
+    </button>
+  </view>
+
+  <view wx:if="{{ackText}}" class="diary-ack-wrap">
+    <ack-bubble text="{{ackText}}" tone="warm" />
+    <view class="diary-ack-tip">长按查看完整回应（≤ 30 字）</view>
+  </view>
+</view>

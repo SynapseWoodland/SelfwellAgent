@@ -1,0 +1,89 @@
+.checkin {
+  min-height: 100vh;
+  padding: 32rpx;
+  background-color: #FAFBFC;
+}
+
+.checkin-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 16rpx;
+}
+
+.checkin-items {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.checkin-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #E2E8F0;
+}
+
+.checkin-item:last-child {
+  border-bottom: none;
+}
+
+.checkin-tick {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.checkin-item-title {
+  font-size: 28rpx;
+  color: #2D3436;
+}
+
+.checkin-feedback {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.checkin-feedback-title {
+  font-size: 28rpx;
+  color: #4A5568;
+  margin-bottom: 16rpx;
+}
+
+.checkin-feedback-input {
+  width: 100%;
+  height: 200rpx;
+  font-size: 28rpx;
+  color: #2D3436;
+  background-color: #FAFBFC;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+}
+
+.checkin-feedback-count {
+  margin-top: 8rpx;
+  text-align: right;
+  font-size: 22rpx;
+  color: #A0AEC0;
+}
+
+.checkin-btn {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+}

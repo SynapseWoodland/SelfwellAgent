@@ -1,51 +1,73 @@
 # Selfwell 自愈 · 微信小程序
 
-> **模块**：M1-M11（MVP 全量客户端）  
-> **后端基线**：[MVP-PRD V1.3](../../docs/PRD/MVP-PRD%20V1.3.md) + [mvp-tech-architecture V1.1.1](../../docs/architecture/mvp-tech-architecture.md)  
+> **模块**：M1-M11（MVP 全量客户端）
+> **后端基线**：[MVP-PRD V1.3](../../docs/PRD/MVP-PRD%20V1.3.md) + [mvp-tech-architecture V1.1.1](../../docs/architecture/mvp-tech-architecture.md)
+> **对齐文档**：[mvp-implementation-plan.md §15.3](../../docs/plan/mvp-implementation-plan.md) · §17 前端强约束 8 条
 > **路径约定**：`miniprogram/` 是小程序代码根目录
 
-## 当前状态（W0 占位）
+## Sprint 状态（SF0 完成 · 2026-07-06）
 
 | 项 | 状态 |
 |---|---|
-| `project.config.json` | ✅ 占位 AppID 待 W0-D1 注册后替换 |
-| `project.private.config.json` | ✅ 本地配置（不入 git） |
-| `miniprogram/app.json` | ✅ 4 TabBar + 16 页面注册 |
-| `miniprogram/app.ts` | ✅ 入口（含登录态检查） |
-| `miniprogram/app.wxss` | ✅ 全局样式（与 design-spec 对齐） |
-| `miniprogram/pages/**` | ⏳ W1-D3 起按 SPEC 逐页面实现 |
+| `project.config.json` + `project.private.config.json` | ✅ SF0 完成；appid 占位 `wx_your_appid`（W0-D1 注册后替换） |
+| `miniprogram/app.json` | ✅ 14 pages + tabBar 4 项 + requiredPrivateInfos + permission |
+| `miniprogram/app.ts` | ✅ globalData(token/userId/deviceId/clientPlatform) + onLaunch 4 步 |
+| `miniprogram/app.wxss` | ✅ 全局 token CSS 变量（与 `figma-pixso-spec/dist/tokens-flat.json` 1:1） |
+| `miniprogram/utils/` | ✅ 5 个工具：config / request / sse / picker / subscribe (+ uuid) |
+| `miniprogram/components/` | ✅ 7 个自定义组件 |
+| `miniprogram/pages/` | ✅ 14 个 page 占位 |
+| `miniprogram/assets/tabbar/` | ✅ 8 张 tabBar 图标（81×81 PNG） |
+| `miniprogram/types/global.d.ts` | ✅ 类型补丁（SocketTask / wx.compressImage） |
+| `tests/smoke.test.js` | ✅ 33 项断言全部 PASS（**禁用色 0 命中**） |
+| `client/shared/api-types/{ts,dart}/` | ✅ 占位 README；SF1 接入生成 |
 
-## 16 个页面（与 Pixso 高保真一一对应）
+## 14 个页面（与 Pixso 高保真一一对齐）
 
-| # | 页面 | 对应 SPEC |
-|---|---|---|
-| 01 | splash | — |
-| 02 | login | SPEC-M1 §2.1 |
-| 03 | home | M3 / M4 |
-| 04 | diagnosis-upload | SPEC-M2 §3 |
-| 05 | diagnosis-loading | SPEC-M2 §3 |
-| 06 | diagnosis-report | SPEC-M2 §4 |
-| 07 | butler-home | SPEC-M5 §3 |
-| 08 | checkin | SPEC-M4 §3 |
-| 09 | diary | SPEC-M7 §3 |
-| 09b | butler-compare | SPEC-M8 §3 |
-| 10 | plaza | SPEC-M6 §3 |
-| 11 | profile | M1 |
-| 12 | hug-card-day7 | SPEC-M10 §2.1 |
-| 13 | hug-card-day14 | SPEC-M10 §2.1 |
-| 14 | hug-card-day21 | SPEC-M10 §2.1 |
+| # | 页面 | 设计稿 | IA-REF | 后端 operationId |
+|---|---|---|---|---|
+| 01 | splash | 01-splash.html | §1 启动流程 / §4.1 P01 | tag=users `getCurrentUser`（可选） |
+| 02 | login | 02-login.html | §4.1 P01 | tag=auth `wxMpLogin` |
+| 03 | home | 03-home.html | §4.2 P02 P05 | tag=users `getCurrentUser` / tag=checkins `getCheckinCalendar` / tag=plans `getTodayPlan` |
+| 04 | diagnosis-upload | 04-butler-analyze-upload.html | §5 P03 上传 | tag=uploads `presignUpload` / tag=diagnosis `createDiagnosis` |
+| 05 | diagnosis-loading | 05-butler-analyze-loading.html | §5 P03 分析中 | tag=diagnosis `streamDiagnosis`（SSE） |
+| 06 | diagnosis-report | 06-butler-analyze-report.html | §5 P03 报告 | tag=diagnosis `getDiagnosis` |
+| 07 | assistant-home | 07-butler-home.html | §6 P03a | tag=assistant `assistantChat` / tag=butler `triggerRecall` |
+| 08 | plan | 07-plan.html | §7 P04 | tag=plans `generatePlan` / tag=videos `getRecommendedVideos` |
+| 09 | feedback-diary | 08-butler-diary.html | §8 P08 | tag=feedback `createFeedback` |
+| 10 | checkin | 08-checkin.html | §9 P05 | tag=checkins `createCheckin` / tag=feedback `createFeedback` |
+| 11 | recall-compare | 09-butler-compare.html | §10 P09 | tag=butler `getRecallMessages` / `listRecallHistory` |
+| 12 | community | 09-plaza.html | §11 P10 | tag=community `getCommunityPosts` / `createPost` |
+| 13 | profile | 11-profile.html | §12 P11 | tag=users `getCurrentUser` / `updatePushToken` |
+| 14 | share-hug-card | 12/13/14-hug-card-day*.html | §13 M10 | tag=share `generateSharePoster` |
 
-## W0-W1 开发顺序
+## 开发顺序（与 §1.2 Sprint 路线图对齐）
 
-1. W0-D1：注册微信小程序账号（个人主体）→ 替换 `project.config.json` 的 `appid`
-2. W0-D1：完成基础设置（名称 / 图标 / 简介）
-3. W0-D1：拿到 AppID → 填入
-4. W1-D3：实现 splash + login + home 三页（最小可运行闭环）
-5. W2-D1：补全 M1 相关页面
-6. W3-W6：按 SPEC 逐模块实现
+1. **SF0** ✅ 本 Sprint：骨架 + 14 page 占位 + 7 组件 + 4 工具
+2. **SF1**：P00 启动 + P01 微信登录 + P02 首页 + P05 打卡完成（login / home / checkin 联调）
+3. **SF2**：P03a/b/c 智能分析三段 + SSE + image-uploader
+4. **SF3**：P03a 智能管家（persona_state FSM）+ P08 心情日记（ack-bubble 30 字）
+5. **SF4**：P06 方案 / P09 对比回顾 / P10 广场 / P11 我的 + 3 张抱抱卡
+6. **SF5**：推送 4 端 SDK（FCM/APNs/HMS/email）+ wx.requestSubscribeMessage
+
+## 必跑命令（commit 前）
+
+```bash
+cd client/mp-selfwell
+
+# 1) 烟雾测试（33 项断言）
+cd tests && npm install && npm test && cd ..
+
+# 2) 像素禁用色校验（§17.11）
+grep -rE "#FF4D4F|#D32F2F|#007BFF" --include="*.wxss" --include="*.ts" --include="*.json" miniprogram/ && echo "FAIL" || echo "OK"
+
+# 3) 微信开发者工具 CLI（CI 镜像内置 cli.bat；本地开发手跑 IDE 即可）
+cli.bat project preview
+```
 
 ## 注意事项
 
 - 类目选择：**MVP 阶段选"工具-效率"**（W6 升级公司主体后切"工具-健康"）
 - 简介避免"医疗/医美/治疗"字眼，写成"AI 智能习惯陪伴 / 21 天轻自律"
 - 详见 [ADR-0005 微信小程序类目](../../docs/adr/0005-wechat-mp-category.md)
+- **像素禁用色栅栏**详见 `miniprogram/app.wxss` 顶部注释，CI grep 卡死
+- **ack-bubble ≤ 30 字**由 `utils/config.ts` 中 `ACK_MAX_CHARS` 统一约束

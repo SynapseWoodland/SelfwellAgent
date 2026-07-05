@@ -1,0 +1,28 @@
+<view class="plan">
+  <view class="plan-hero">
+    <view class="plan-title">21 天，慢慢来</view>
+    <view class="plan-sub">第 {{currentDay}} / 21 天</view>
+  </view>
+
+  <view class="plan-calendar">
+    <view
+      wx:for="{{planDays}}"
+      wx:key="*this"
+      class="plan-day {{item <= currentDay ? 'is-done' : ''}} {{item === currentDay ? 'is-current' : ''}}"
+    >
+      <text>{{item}}</text>
+    </view>
+  </view>
+
+  <view class="plan-phases">
+    <view
+      wx:for="{{phases}}"
+      wx:key="range"
+      class="plan-phase"
+    >
+      <view class="plan-phase-range">{{item.range}} 天</view>
+      <view class="plan-phase-title">{{item.title}}</view>
+      <view class="plan-phase-desc">{{item.desc}}</view>
+    </view>
+  </view>
+</view>

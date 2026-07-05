@@ -1,0 +1,19 @@
+<view class="upload">
+  <view class="upload-title">上传一张照片，开始智能分析</view>
+  <view class="upload-subtitle">我们不会保存你的照片，分析完成后即刻丢弃</view>
+
+  <image-uploader
+    value="{{imagePath}}"
+    label="选择照片"
+    bind:select="onSelectImage"
+  />
+
+  <button
+    class="upload-btn"
+    bindtap="onStartAnalyze"
+    disabled="{{!imagePath}}"
+    loading="{{uploading}}"
+  >
+    开始分析
+  </button>
+</view>

@@ -1,0 +1,36 @@
+<view class="home">
+  <view class="home-greeting">
+    <view class="home-greeting-title">{{greeting}}</view>
+    <view class="home-greeting-sub">已坚持 <text class="streak">{{streak}}</text> 天</view>
+  </view>
+
+  <view class="home-progress">
+    <progress-ring
+      percent="{{percent}}"
+      size="{{240}}"
+      label="{{percent}}%"
+      sub-label="今日完成"
+    />
+  </view>
+
+  <view class="home-card">
+    <view class="home-card-title">
+      <text>今日小动作</text>
+      <text class="home-card-title-right">{{taskCards.length}} 项</text>
+    </view>
+    <task-card
+      wx:for="{{taskCards}}"
+      wx:key="id"
+      title="{{item.title}}"
+      subtitle="{{item.subtitle}}"
+      done="{{item.done}}"
+      bind:toggle="onTaskToggle"
+      data-id="{{item.id}}"
+    />
+  </view>
+
+  <view class="home-cta">
+    <button class="home-btn home-btn--primary" bindtap="onGotoCheckin">去打卡</button>
+    <button class="home-btn home-btn--ghost" bindtap="onGotoAssistant">找管家聊聊</button>
+  </view>
+</view>

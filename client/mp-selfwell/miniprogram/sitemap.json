@@ -1,7 +1,9 @@
 {
-  "desc": "关于本文件的更多信息，请参考文档 https://developers.weixin.qq.com/miniprogram/dev/reference/configuration/sitemap.html",
-  "rules": [{
-    "action": "allow",
-    "page": "*"
-  }]
+  "desc": "Selfwell 自愈 · sitemap（rules 全开便于开发期被搜索；上线前请收窄）",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
 }

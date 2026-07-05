@@ -1,0 +1,15 @@
+<view class="plaza">
+  <view
+    wx:for="{{posts}}"
+    wx:key="id"
+    class="plaza-card"
+  >
+    <view class="plaza-user">{{item.userName}}</view>
+    <view class="plaza-text">{{item.text}}</view>
+    <view class="plaza-meta">
+      <text>♡ {{item.likes}}</text>
+    </view>
+  </view>
+
+  <view class="plaza-fab" bindtap="onTapPublish">+</view>
+</view>

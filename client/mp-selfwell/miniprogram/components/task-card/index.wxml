@@ -1,0 +1,13 @@
+<view
+  class="task-card {{done ? 'is-done' : ''}} {{disabled ? 'is-disabled' : ''}}"
+  bindtap="onTap"
+>
+  <view class="task-circle {{done ? 'is-done' : ''}}">
+    <view wx:if="{{done}}" class="task-check">✓</view>
+  </view>
+  <view class="task-content">
+    <view class="task-title {{done ? 'is-done' : ''}}">{{title}}</view>
+    <view wx:if="{{subtitle}}" class="task-subtitle">{{subtitle}}</view>
+  </view>
+  <view class="task-arrow">›</view>
+</view>

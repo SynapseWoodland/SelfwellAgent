@@ -3,49 +3,63 @@
     "miniprogram/pages/splash/index",
     "miniprogram/pages/login/index",
     "miniprogram/pages/home/index",
-    "miniprogram/pages/butler-home/index",
     "miniprogram/pages/diagnosis-upload/index",
     "miniprogram/pages/diagnosis-loading/index",
     "miniprogram/pages/diagnosis-report/index",
+    "miniprogram/pages/plan/index",
     "miniprogram/pages/checkin/index",
-    "miniprogram/pages/diary/index",
-    "miniprogram/pages/butler-compare/index",
-    "miniprogram/pages/plaza/index",
+    "miniprogram/pages/assistant-home/index",
+    "miniprogram/pages/feedback-diary/index",
+    "miniprogram/pages/recall-compare/index",
+    "miniprogram/pages/community/index",
     "miniprogram/pages/profile/index",
-    "miniprogram/pages/hug-card-day7/index",
-    "miniprogram/pages/hug-card-day14/index",
-    "miniprogram/pages/hug-card-day21/index"
+    "miniprogram/pages/share-hug-card/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#A8C5B5",
     "navigationBarTitleText": "Selfwell 自愈",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#FAF8F5"
+    "backgroundColor": "#FAFBFC",
+    "enablePullDownRefresh": false
   },
   "tabBar": {
-    "color": "#7F8B8E",
+    "color": "#718096",
     "selectedColor": "#A8C5B5",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "miniprogram/pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "miniprogram/assets/tabbar/home.png",
+        "selectedIconPath": "miniprogram/assets/tabbar/home-active.png"
       },
       {
-        "pagePath": "miniprogram/pages/butler-home/index",
-        "text": "管家"
+        "pagePath": "miniprogram/pages/assistant-home/index",
+        "text": "智能管家",
+        "iconPath": "miniprogram/assets/tabbar/butler.png",
+        "selectedIconPath": "miniprogram/assets/tabbar/butler-active.png"
       },
       {
-        "pagePath": "miniprogram/pages/plaza/index",
-        "text": "广场"
+        "pagePath": "miniprogram/pages/community/index",
+        "text": "广场",
+        "iconPath": "miniprogram/assets/tabbar/plaza.png",
+        "selectedIconPath": "miniprogram/assets/tabbar/plaza-active.png"
       },
       {
         "pagePath": "miniprogram/pages/profile/index",
-        "text": "我"
+        "text": "我的",
+        "iconPath": "miniprogram/assets/tabbar/profile.png",
+        "selectedIconPath": "miniprogram/assets/tabbar/profile-active.png"
       }
     ]
+  },
+  "requiredPrivateInfos": ["getLocation", "chooseImage"],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于定位附近健身房"
+    }
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

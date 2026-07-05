@@ -1,0 +1,36 @@
+.ack {
+  display: inline-block;
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: #2D3436;
+  word-break: break-word;
+  max-width: 560rpx;
+}
+
+.ack--warm {
+  background-color: #F0D9C4;
+}
+
+.ack--neutral {
+  background-color: #FAFBFC;
+  border: 2rpx solid #E2E8F0;
+}
+
+.ack--celebrate {
+  background-color: #F5E6D3;
+}
+
+.ack.is-truncated .ack-text {
+  /* 截断时不强制换行，确保 ≤ 30 字视觉 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 560rpx;
+}
+
+.ack-text {
+  font-size: inherit;
+  line-height: inherit;
+}

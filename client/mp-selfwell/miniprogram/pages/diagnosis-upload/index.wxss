@@ -1,0 +1,34 @@
+.upload {
+  min-height: 100vh;
+  padding: 64rpx 32rpx;
+  background-color: #FAFBFC;
+}
+
+.upload-title {
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #2D3436;
+  text-align: center;
+}
+
+.upload-subtitle {
+  margin-top: 16rpx;
+  margin-bottom: 64rpx;
+  font-size: 26rpx;
+  color: #718096;
+  text-align: center;
+}
+
+.upload-btn {
+  margin-top: 64rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.upload-btn[disabled] {
+  background-color: #E2E8F0;
+  color: #A0AEC0;
+}

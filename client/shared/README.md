@@ -1,26 +1,30 @@
-# Client · Shared
+# client/shared — 跨端共享资产
 
-`client/shared/` 是 Flutter APP + 微信小程序**双端共享**的真源目录，
-由 SF0 阶段 Flutter worker 占位（README 注明待 Sprint SF1 双端对齐）。
+> Flutter APP 与 微信小程序共用的"非代码真源"。
+> **严禁两端在 page 内手抄字段、endpoint、文案**——必须从本目录统一引入。
 
-## 子目录
+## 目录
 
-| 路径 | 用途 | Sprint |
-|------|------|--------|
-| `api-types/dart/`  | `openapi-generator-cli` 自动生成的 Dart 类型（占位） | SF1 |
-| `api-types/ts/`    | 同上，TypeScript 输出（待微信小程序 worker 启用） | SF1 |
-| `design-tokens.json` | 跨端 Design Tokens（与 `docs/design/figma-pixso-spec/dist/tokens-flat.json` 同步） | SF0 ✅ |
-| `i18n/`             | zh-CN / en 文案池（待建） | SF1 |
-| `lint-rules/`       | 跨端 OPA 规则 / 禁色 / 禁词 regex | SF0 ✅ |
+| 目录 | 用途 | Sprint 节点 |
+|------|------|-------------|
+| `api-types/dart/` | 自动生成的 Dart 类型（Flutter 端） | SF1 |
+| `api-types/ts/`   | 自动生成的 TS 类型（微信小程序端） | SF1 |
+| `design-tokens.json` | Design Tokens 单源（CI 卡 hash） | SF1 |
+| `forbidden-words.json` | 与 `docs/design/forbidden-words.md` 同步 | SF0 末 / SF1 |
+| `i18n/zh-CN.json` | 中文文案池（推送模板等共用） | SF5 |
 
-## 强制契约
+## 与后端 openapi.yaml 同步
 
-1. **真源锁定**：`docs/design/figma-pixso-spec/dist/tokens-flat.json` 为
-   唯一真源；CI 比对 `design-tokens.json::$sha256.selfFileSha256` 与
-   `design-tokens.json::$sha256.upstreamSourceSha256` 防止漂移。
-2. **禁色表**：`lint-rules/no-forbidden-colors.json` 列出 `#FF4D4F` /
-   `#D32F2F` / `#007BFF` 三色，CI 用
-   `client/flutter_app/scripts/check_forbidden_colors.{sh,ps1}` 扫描所有
-   端（Flutter + 小程序 + 后端 PIL 合成输出）。
-3. **生成器基线**：SF1 接入 openapi-generator，详见
-   `docs/plan/mvp-implementation-plan.md` §16.2。
+```bash
+cd client/shared
+bash regen.sh   # 触发 openapi-generator-cli 双端生成
+```
+
+CI 卡点：
+- `design-tokens.json` 的 hash 必须等于 `docs/design/figma-pixso-spec/dist/tokens-flat.json` 派生的 hash
+- `forbidden-words.json` 必须在 ack-pool.yaml / recall-forbidden-words.yaml 基础上对齐
+
+## SF0 占位
+
+- 仅 `api-types/dart/README.md` 与 `api-types/ts/README.md`，无产物生成
+- SF1 后由 CI 接管自动生成

@@ -1,0 +1,24 @@
+<view class="login">
+  <view class="login-hero">
+    <view class="login-logo">自愈</view>
+    <view class="login-tag">慢慢自律，慢慢成为更好的自己</view>
+  </view>
+
+  <view class="login-card">
+    <view class="login-title">微信一键登录</view>
+    <view class="login-desc">使用微信账号快速进入自愈空间</view>
+    <button
+      class="login-btn"
+      bindtap="onTapLogin"
+      disabled="{{loading}}"
+      loading="{{loading}}"
+    >
+      微信登录
+    </button>
+
+    <view class="login-agree">
+      <switch checked="{{agreed}}" bindchange="onToggleAgree" color="#A8C5B5" />
+      <view class="login-agree-text">我已阅读并同意《隐私政策》《用户协议》</view>
+    </view>
+  </view>
+</view>

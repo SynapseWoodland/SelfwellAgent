@@ -1,0 +1,22 @@
+<!-- greeting -->
+<view wx:if="{{state === 'greeting'}}" class="bubble bubble-greeting">
+  <view wx:if="{{title}}" class="bubble-title">{{title}}</view>
+  <view class="bubble-text">{{text}}</view>
+</view>
+
+<!-- listening (用户输入) -->
+<view wx:elif="{{state === 'listening'}}" class="bubble bubble-listening">
+  <view class="bubble-text">{{text}}</view>
+</view>
+
+<!-- thinking -->
+<view wx:elif="{{state === 'thinking'}}" class="bubble bubble-thinking">
+  <view class="thinking-dots">
+    <view class="dot" wx:for="{{dots}}" wx:key="*this"></view>
+  </view>
+</view>
+
+<!-- answer (AI 答复) -->
+<view wx:elif="{{state === 'answer'}}" class="bubble bubble-answer">
+  <view class="bubble-text">{{text}}</view>
+</view>

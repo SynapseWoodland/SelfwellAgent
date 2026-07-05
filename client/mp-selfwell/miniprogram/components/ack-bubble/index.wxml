@@ -1,0 +1,6 @@
+<view
+  class="ack ack--{{tone}} {{isTruncated ? 'is-truncated' : ''}}"
+  bindlongpress="onLongPress"
+>
+  <text class="ack-text">{{truncated}}</text>
+</view>

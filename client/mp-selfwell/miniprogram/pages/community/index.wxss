@@ -1,0 +1,49 @@
+.plaza {
+  min-height: 100vh;
+  padding: 32rpx 32rpx 160rpx;
+  background-color: #FAFBFC;
+}
+
+.plaza-card {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.plaza-user {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #4A5568;
+  margin-bottom: 8rpx;
+}
+
+.plaza-text {
+  font-size: 28rpx;
+  color: #2D3436;
+  line-height: 1.6;
+}
+
+.plaza-meta {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #A0AEC0;
+}
+
+.plaza-fab {
+  position: fixed;
+  right: 48rpx;
+  bottom: 160rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  font-size: 56rpx;
+  font-weight: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+}

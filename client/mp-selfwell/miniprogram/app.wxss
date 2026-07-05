@@ -1,26 +1,78 @@
-/* app.wxss — Selfwell 全局样式（与 design-spec.md §3 对齐） */
+/* app.wxss — Selfwell 自愈 · 全局样式
+ * ─────────────────────────────────────
+ * 与 docs/design/figma-pixso-spec/dist/tokens-flat.json 1:1 对齐。
+ * 设计基准：375 × 812（iPhone 14），rpx 体系。
+ *
+ * §13 / §17 强约束：
+ *  - 禁止的三个色码（详见 tokens-flat.json 的 forbiddenColors_NOTE 段）
+ *  - 主色 #A8C5B5（薄荷绿）；中性色 #2D3436 / #4A5568 / #718096 / #A0AEC0 / #E2E8F0
+ */
 
 page {
-  background-color: #FAF8F5;
-  color: #2C3E40;
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
-    "Helvetica Neue", Helvetica, "Hiragino Sans GB", "Microsoft YaHei",
-    Arial, sans-serif;
+  /* Color tokens */
+  --mint: #A8C5B5;
+  --cream: #F5E6D3;
+  --lavender: #D4C5E2;
+  --peach: #F0D9C4;
+  --skyblue: #B8D4E3;
+  --ink-900: #2D3436;
+  --ink-700: #4A5568;
+  --ink-500: #718096;
+  --ink-300: #A0AEC0;
+  --ink-100: #E2E8F0;
+  --bg-page: #FAFBFC;
+  --bg-card: #FFFFFF;
+  --bg-card-warm: #F5E6D3;
+  --warning: #E8B87A;
+  --success: #9DB5A0;
+
+  /* Spacing */
+  --spacing-1: 8rpx;
+  --spacing-2: 16rpx;
+  --spacing-3: 24rpx;
+  --spacing-4: 32rpx;
+  --spacing-6: 48rpx;
+  --spacing-8: 64rpx;
+  --spacing-12: 96rpx;
+
+  /* Radius */
+  --radius-sm: 16rpx;
+  --radius-md: 24rpx;
+  --radius-lg: 32rpx;
+  --radius-xl: 48rpx;
+
+  background-color: #FAFBFC;
+  color: #2D3436;
+  font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+    'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
   font-size: 28rpx;
   line-height: 1.6;
 }
 
-.text-primary {
-  color: #A8C5B5;
-}
+/* ──────────────────────────────────────────────────────────────
+ * FORBIDDEN COLORS · 禁用色栅栏（违反任意一条 CI 必 FAIL）
+ * ──────────────────────────────────────────────────────────────
+ * 详见 docs/design/figma-pixso-spec/dist/tokens-flat.json
+ * 的 forbiddenColors_NOTE 段（三色码 + 原因）。
+ *
+ * 若发现需要"警示/危险/医疗"语义，请改用：
+ *   - 温和提示  #E8B87A
+ *   - 鼓励提示  #9DB5A0
+ *   - 背景卡片  #F5E6D3 / #F0D9C4
+ * ────────────────────────────────────────────────────────────── */
 
-.text-secondary {
-  color: #7F8B8E;
-}
-
+/* 通用工具类（避免在 page 内联硬编码） */
+.text-primary { color: #A8C5B5; }
+.text-secondary { color: #718096; }
+.text-muted { color: #A0AEC0; }
 .bg-card {
   background-color: #FFFFFF;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
   padding: 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.bg-warm {
+  background-color: #F5E6D3;
+  border-radius: 24rpx;
+  padding: 32rpx;
 }

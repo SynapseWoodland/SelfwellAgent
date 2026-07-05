@@ -1,0 +1,69 @@
+.task-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #E2E8F0;
+}
+
+.task-card:last-child {
+  border-bottom: none;
+}
+
+.task-card.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.task-circle {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 4rpx solid #E2E8F0;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-circle.is-done {
+  background-color: #A8C5B5;
+  border-color: #A8C5B5;
+}
+
+.task-check {
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 32rpx;
+  color: #2D3436;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.task-title.is-done {
+  color: #A0AEC0;
+  text-decoration: line-through;
+}
+
+.task-subtitle {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.task-arrow {
+  color: #A0AEC0;
+  font-size: 40rpx;
+  margin-left: 16rpx;
+  line-height: 1;
+}

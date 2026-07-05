@@ -1,0 +1,40 @@
+<view class="assistant">
+  <scroll-view class="assistant-stream" scroll-y scroll-into-view="{{lastTurnId}}">
+    <view
+      wx:for="{{turns}}"
+      wx:key="id"
+      id="{{item.id}}"
+    >
+      <persona-bubble
+        state="{{item.state}}"
+        text="{{item.text}}"
+        title="{{item.title}}"
+      />
+    </view>
+  </scroll-view>
+
+  <view class="assistant-entries">
+    <view
+      wx:for="{{entryCards}}"
+      wx:key="id"
+      class="assistant-entry"
+      bindtap="onTapEntry"
+      data-id="{{item.id}}"
+    >
+      <view class="assistant-entry-title">{{item.title}}</view>
+      <view class="assistant-entry-sub">{{item.subtitle}}</view>
+    </view>
+  </view>
+
+  <view class="assistant-inputbar">
+    <input
+      class="assistant-input"
+      placeholder="说点什么…"
+      value="{{inputText}}"
+      bindinput="onInput"
+      confirm-type="send"
+      bindconfirm="onSend"
+    />
+    <view class="assistant-send" bindtap="onSend">发送</view>
+  </view>
+</view>

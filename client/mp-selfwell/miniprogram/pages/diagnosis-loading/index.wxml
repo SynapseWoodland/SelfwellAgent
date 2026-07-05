@@ -1,0 +1,8 @@
+<view class="loading">
+  <view class="loading-hero">
+    <view class="loading-title">正在为你分析…</view>
+    <view class="loading-sub">诊断 ID: {{diagnosisId}}</view>
+  </view>
+
+  <sse-progress current="{{currentStage}}" error-text="{{errorText}}" />
+</view>

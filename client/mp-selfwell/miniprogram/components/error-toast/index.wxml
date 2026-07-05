@@ -1,0 +1,3 @@
+<view wx:if="{{visible}}" class="toast toast--{{kind}}" bindtap="dismiss">
+  <text class="toast-text">{{text}}</text>
+</view>

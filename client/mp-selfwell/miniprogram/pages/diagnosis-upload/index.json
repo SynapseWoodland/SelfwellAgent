@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "智能分析 · 上传",
+  "usingComponents": {
+    "image-uploader": "/miniprogram/components/image-uploader/index"
+  }
+}

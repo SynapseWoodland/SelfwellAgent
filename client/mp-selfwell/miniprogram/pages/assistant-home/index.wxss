@@ -1,0 +1,72 @@
+.assistant {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #FAFBFC;
+}
+
+.assistant-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16rpx;
+}
+
+.assistant-entries {
+  padding: 16rpx;
+  background-color: #FFFFFF;
+  display: flex;
+  gap: 16rpx;
+  overflow-x: auto;
+  border-top: 2rpx solid #E2E8F0;
+}
+
+.assistant-entry {
+  flex-shrink: 0;
+  width: 360rpx;
+  background-color: #F5E6D3;
+  border-radius: 24rpx;
+  padding: 24rpx;
+}
+
+.assistant-entry-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.assistant-entry-sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #4A5568;
+}
+
+.assistant-inputbar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx 32rpx;
+  background-color: #FFFFFF;
+  border-top: 2rpx solid #E2E8F0;
+}
+
+.assistant-input {
+  flex: 1;
+  height: 80rpx;
+  padding: 0 24rpx;
+  background-color: #FAFBFC;
+  border-radius: 48rpx;
+  font-size: 28rpx;
+  color: #2D3436;
+}
+
+.assistant-send {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  font-weight: 500;
+}

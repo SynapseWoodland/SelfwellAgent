@@ -1,0 +1,18 @@
+<view class="recall">
+  <view class="recall-title">每 7 天的你</view>
+  <view
+    wx:for="{{snapshots}}"
+    wx:key="day"
+    class="recall-card"
+  >
+    <view class="recall-day">第 {{item.day}} 天</view>
+    <view
+      wx:for="{{item.highlights}}"
+      wx:for-item="h"
+      wx:key="*this"
+      class="recall-highlight"
+    >
+      · {{h}}
+    </view>
+  </view>
+</view>

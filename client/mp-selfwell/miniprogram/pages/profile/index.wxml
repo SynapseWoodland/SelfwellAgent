@@ -1,0 +1,23 @@
+<view class="profile">
+  <view class="profile-header">
+    <view class="profile-avatar">自</view>
+    <view class="profile-nickname">{{nickname}}</view>
+    <view class="profile-streak">已坚持 {{streak}} 天</view>
+  </view>
+
+  <view class="profile-progress">
+    <progress-ring percent="{{percent}}" size="{{160}}" label="{{streak}}" sub-label="天" />
+    <view class="profile-progress-hint" bindtap="onGotoShare">领取抱抱卡 ›</view>
+  </view>
+
+  <view class="profile-list">
+    <view
+      wx:for="{{settings}}"
+      wx:key="id"
+      class="profile-row"
+    >
+      <text class="profile-row-label">{{item.label}}</text>
+      <text class="profile-row-arrow">›</text>
+    </view>
+  </view>
+</view>

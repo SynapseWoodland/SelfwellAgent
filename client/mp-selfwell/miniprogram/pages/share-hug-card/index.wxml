@@ -1,0 +1,10 @@
+<view class="hug">
+  <view class="hug-card">
+    <view class="hug-badge">{{card.badge}}</view>
+    <view class="hug-title">{{card.title}}</view>
+    <view class="hug-sub">{{card.subtitle}}</view>
+    <view class="hug-emoji">🤗</view>
+  </view>
+
+  <button class="hug-btn" open-type="share">分享给朋友</button>
+</view>

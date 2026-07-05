@@ -1,0 +1,26 @@
+<view class="report">
+  <view class="report-card">
+    <view class="report-card-title">改善方向</view>
+    <view
+      wx:for="{{report.improvements}}"
+      wx:key="*this"
+      class="report-improvement"
+    >
+      · {{item}}
+    </view>
+  </view>
+
+  <view class="report-card">
+    <view class="report-card-title">参考标签</view>
+    <view class="report-tags">
+      <view
+        wx:for="{{report.tags}}"
+        wx:key="*this"
+        class="report-tag"
+      >#{{item}}</view>
+    </view>
+  </view>
+
+  <button class="report-btn report-btn--primary" bindtap="onStartPlan">开始 21 天</button>
+  <button class="report-btn report-btn--ghost" bindtap="onBackHome">回到首页</button>
+</view>

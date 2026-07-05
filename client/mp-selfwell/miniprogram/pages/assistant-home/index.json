@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "智能管家",
+  "usingComponents": {
+    "persona-bubble": "/miniprogram/components/persona-bubble/index"
+  }
+}

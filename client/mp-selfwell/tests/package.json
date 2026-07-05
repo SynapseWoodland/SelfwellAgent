@@ -1,0 +1,9 @@
+{
+  "name": "selfwell-mp-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Selfwell 自愈 · 微信小程序 SF0 烟雾测试占位；W5 接入 miniprogram-automator。",
+  "scripts": {
+    "test": "node smoke.test.js"
+  }
+}
