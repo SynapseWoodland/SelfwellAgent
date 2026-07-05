@@ -1,0 +1,39 @@
+# Selfwell Agent .gitattributes（2026-07-05 初始化）
+# 目的：跨平台统一换行 + 标记二进制文件，避免 CRLF 警告污染 PR diff
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 文本文件：强制 LF（Unix 风格）
+# ─────────────────────────────────────────────────────────────────────────────
+*           text=auto eol=lf
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Windows 脚本必须 CRLF（PowerShell/cmd 解释器需要）
+# ─────────────────────────────────────────────────────────────────────────────
+*.ps1       text eol=crlf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 二进制文件（避免 diff 噪声）
+# ─────────────────────────────────────────────────────────────────────────────
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.tar.gz    binary
+*.whl       binary
+*.exe       binary
+*.dll       binary
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LFS 占位（模型权重 / 大数据集；当前项目未启用）
+# *.pkl      filter=lfs diff=lfs merge=lfs -text
+# *.h5       filter=lfs diff=lfs merge=lfs -text
+# *.onnx     filter=lfs diff=lfs merge=lfs -text
+# *.pt       filter=lfs diff=lfs merge=lfs -text
+# *.pth      filter=lfs diff=lfs merge=lfs -text
+# ─────────────────────────────────────────────────────────────────────────────

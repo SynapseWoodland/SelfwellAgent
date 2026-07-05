@@ -1,0 +1,245 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# =============================================================================
+# V1.3 hatchling 打包配置：源码在 backend/，非标准 src layout
+# 包名 (`selfwell-backend` → `selfwell_backend`) 与目录名 (`backend`) 不匹配，
+# 必须显式告知 hatchling 哪些目录是 package。
+# 文档：https://hatch.pypa.io/dev/config/build/
+#
+# 决策：只打包 backend/app/ 与 backend/eval/，排除 backend/tests/ 与 conftest.py
+# （tests 由 [tool.uv] 的 dev extras 单独跑，不随 wheel 发到 prod）
+# 这一步是与上游保持一致的唯一稳定方式 —— uv.lock 同步成功并不等于 hatchling build 成功。
+# =============================================================================
+[tool.hatch.build.targets.wheel]
+only-include = ["backend/app", "backend/eval"]    # wheel 顶层结构：backend/app/... + backend/eval/...
+
+[project]
+name = "selfwell-backend"
+version = "0.1.0"
+description = "Selfwell AI Health Companion Backend"
+requires-python = ">=3.12"
+dependencies = [
+    # =====================================================================
+    # Web 框架 + ASGI（§1.1 / §8.1）
+    # =====================================================================
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    # =====================================================================
+    # 数据校验 + 配置（§7.1 Pydantic + core/config.py）
+    # =====================================================================
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",     # 统一配置入口（.env → Settings）
+    # =====================================================================
+    # 数据库 + 迁移（§4 / §1.1 PostgreSQL 15）
+    # =====================================================================
+    "sqlalchemy>=2.0.0",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    # =====================================================================
+    # 缓存 + 队列（§1.1 Redis + §3.6 _queue_for_review 审核队列）
+    # =====================================================================
+    "redis>=5.0.0",                  # M6 社区审核队列 redis.rpush
+    # =====================================================================
+    # LLM 4 级降级链（§6.1 / §10.2 V1.3 升级：4 级 + 多模态备）
+    # 主：Claude Sonnet · 备 1：GPT-4o · 备 2：Qwen VL · 备 3：DeepSeek-VL
+    # =====================================================================
+    "anthropic>=0.40.0",             # 主 · Claude Sonnet 4
+    "openai>=1.50.0",                # 备 1 · GPT-4o
+    "dashscope>=1.20.0",             # 备 2 · 通义千问 VL（阿里云）
+    # 注：DeepSeek-VL 通过 httpx 调其官方 HTTP API，不需专用 SDK
+    # =====================================================================
+    # 对象存储（§1.1 / §8.2）
+    # =====================================================================
+    "minio>=7.2.0",                  # 开发环境
+    "cos-python-sdk-v5>=1.9.0",      # ★ V1.3 new: prod env (Tencent COS)
+    # 旧 boto3 = AWS S3 SDK，与 COS 不兼容，已删除
+    # =====================================================================
+    # 推送与邮件（§9 推送门面 + w0-checklist DirectMail 备案）
+    # =====================================================================
+    "python-multipart>=0.0.12",      # FastAPI 文件上传（M2 照片 / M5 抱抱卡 / M10 相册）
+    # 阿里云 DirectMail 邮件推送（PyPI 官方包 alibabacloud-dm20151123，API 版本 2015-11-23）
+    # 文档：https://www.alibabacloud.com/help/en/direct-mail/sdk-manual
+    # 也可用 smtplib + smtpdm.aliyun.com:80（备选，本项目首选 SDK）
+    "alibabacloud-dm20151123>=1.10.0",
+    # =====================================================================
+    # 日志（统一 sink / 结构化）
+    # =====================================================================
+    "loguru>=0.7.0",
+    # =====================================================================
+    # ★ V1.3 new: MVP 缺失的核心运行时依赖（W3 checklist 补齐）
+    # =====================================================================
+    "pyjwt>=2.9.0",                  # §7.3 JWTHandler: jwt.encode/jwt.decode + JWTError
+    "pillow>=11.0.0",                # §3.5 "使用 PIL" + M10 时间轴
+    "httpx>=0.27.0",                 # §3.1 wx_client.code2session + 4 级降级 HTTP 兜底
+    "tenacity>=9.0.0",               # §10.2 4 级降级链 retry/backoff
+    "prometheus-client>=0.21.0",     # §10.3 8 项监控指标 + 告警阈值
+]  # V1.3 runtime deps total: 20 (boto3 删, 新增 6 项)
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+    # ─────────────────────────────────────────────────────────────────────────
+    # V1.3 新增：Commit 规范 + Hooks 工具链
+    # ─────────────────────────────────────────────────────────────────────────
+    # commitizen = 交互式 Conventional Commits + `cz bump` 自动 semver + CHANGELOG
+    # 文档：https://commitizen-tools.github.io/commitizen/  v4.16.4 (2026-05)
+    # 业界 2026 Python 共识：commitizen 一站式替代 commitlint + standard-version
+    # - 替代 standard-version：commitizen 已被 deprecated（npm 时代化石）
+    #   https://github.com/conventional-changelog/standard-version
+    # - 替代 commitlint：用 commitizen 的 `cz check` 子命令做 commit-msg 校验
+    #   https://commitizen-tools.github.io/commitizen/commands/check/
+    #   并在 .pre-commit-config.yaml 里挂载 commitizen hook（commit-msg stage）
+    # 关键：commitlint 是 Node.js 工具（@commitlint/cli v21.0.2），不在 PyPI 上
+    "commitizen>=4.16.0",           # 交互式 Conventional Commits + cz bump + cz check
+    "pre-commit>=4.0.0",            # pre-commit 框架（hooks 管理）
+    # ─────────────────────────────────────────────────────────────────────────
+    # ★ V1.3 新增：W3 测试就绪依赖（checklist #31/33/35）
+    # ─────────────────────────────────────────────────────────────────────────
+    "pytest-bdd>=7.0.0",            # W3 #31 Gherkin/BDD feature 10 个
+    "playwright>=1.49.0",           # W3 #33 E2E 测试基础
+    "locust>=2.32.0",               # W3 #35 Load test 准备
+    "bandit>=1.7.10",               # §10.5 工程纪律 · 1 人 AI 加速模式 · CI 安全扫描
+    "types-redis>=4.6.0",           # mypy stub for redis (补 stub)
+    "types-PyYAML>=6.0.0",          # mypy stub for PyYAML (补 stub)
+]  # V1.3 dev deps total: 16
+
+[tool.ruff]
+src = ["backend"]
+line-length = 100
+
+[tool.ruff.lint.pylint]
+# ruff 官方默认值（来源：docs.astral.sh/ruff/rules/）
+# PLR0913: 函数参数数限制；本项目阈值见 SKILL.md §五（>2 必须封装）
+max-args = 5
+# PLR0912: 函数分支数限制
+max-branches = 12
+# PLR0915: 函数语句数限制
+max-statements = 50
+# PLR1702: 嵌套块深度限制（用户要求 <=4 层，ruff 中为 preview-only）
+max-nested-blocks = 4
+
+[tool.ruff.lint]
+# ruff 默认开启：E4/E7/E9/F；本项目显式开启以下规则集
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "W",      # pycodestyle warnings
+    "S",      # flake8-bandit（安全规则，必须显式开启）
+    "I",      # isort（导入顺序）
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear（B003/B009/B010 覆盖可变默认参数/getattr/setattr）
+    "C4",     # comprehension 简化
+    "RET",    # flake8-return（早返回）
+    "SIM",    # flake8-simplify（简化布尔表达式）
+    "PLR",    # pylint 规则（PLR0912/0913/0915/1702）
+    "PLE",    # pylint errors
+    "D",      # pydocstyle（docstring）
+    "TD",     # flake8-todos（覆盖 TD003/TD004/TD005 等 TODO 规范）
+    "T10",    # flake8-debugger（覆盖 T100/T201，检测 debugger/print 调试代码残留）
+    "A",      # flake8-builtins
+    "YTT",    # flake8-2020
+    "RUF",    # ruff 特有规则
+]
+ignore = [
+    "S101",              # assert 用于测试允许
+    "PLR0912",           # 分支数过严可忽略（LLM 路由节点常见）
+    "PLR2004",           # 硬编码常量比较（配置值有时需要）
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # assert 用于测试
+    "S105",   # 测试中硬编码密钥
+    "S106",   # 测试中的密码
+    "D",      # 测试 docstring 宽松
+    "PLR2004", # 测试中的魔法数字
+    "T10",    # 测试中允许 pdb/breakpoint 调试
+    "RUF002", # 中文 docstring 含全角标点是预期，不视为歧义
+]
+"backend/eval/**" = [
+    "RUF002", # 中文 docstring 含全角标点是预期，不视为歧义
+    "RUF003", # 中文注释含全角标点是预期
+    "D400",   # 中文 docstring 第一行不以 ASCII . 结尾
+    "D415",   # 中文 docstring 第一行不以 ASCII ?/! 结尾
+]
+"**/__init__.py" = ["F401"]   # __init__ 允许未使用导入
+
+[tool.jscpd]
+# 代码重复率检查（用户要求 <=4%）
+threshold = 4.0
+reporters = ["console", "json"]
+output = "reports/jscpd"
+ignore = [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/tests/**",
+    "**/migrations/**",
+    "**/*.generated.*",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+# =============================================================================
+# V1.3 新增：Commitizen 配置（交互式 Conventional Commits，中文模板）
+# =============================================================================
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_provider = "pep621"
+update_changelog_on_bump = true
+major_version_zero = true  # 0.x.y 阶段不强制 SemVer 兼容性
+changelog_start_rev = "v0.1.0"
+changelog_pattern = "CHANGELOG.md"
+changelog_format = """
+## {version} ({date})
+
+### 🚀 Features
+{features}
+
+### 🐛 Bug Fixes
+{fixes}
+
+### 📝 Documentation
+{docs}
+
+### 🔧 Maintenance
+{others}
+
+### ⚠️ BREAKING CHANGES
+{breaking_changes}
+"""
+# 类型白名单（与 commitizen schema 保持一致）
+allowed_types = [
+    "feat",     # 新功能
+    "fix",      # 修复 bug
+    "docs",     # 文档变更
+    "style",    # 代码格式（不影响功能）
+    "refactor", # 重构
+    "perf",     # 性能优化
+    "test",     # 测试
+    "build",    # 构建系统 / 依赖变更
+    "ci",       # CI 配置变更
+    "chore",    # 其他杂项
+    "revert",   # 回滚
+]
+
+# =============================================================================
+# V1.3 已删除：standard-version 配置（PyPI 已 deprecated）
+# 替代：commitizen `cz bump` 已接管 CHANGELOG + semver bump 全流程
+# 详见 [tool.commitizen] 上方注释
+# =============================================================================
+# V1.3 已删除：commitlint 配置（commitlint 是 Node.js 工具，不在 PyPI）
+# 替代：commitizen `cz check` 子命令 + pre-commit hook 自动校验 commit-msg
+# https://commitizen-tools.github.io/commitizen/commands/check/
+# =============================================================================

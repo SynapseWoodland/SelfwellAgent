@@ -1,0 +1,72 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "build",
+        "ci",
+        "chore",
+        "revert"
+      ]
+    ],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "subject-empty": [2, "never"],
+    "subject-full-stop": [2, "never", "."],
+    "subject-max-length": [2, "always", 72],
+    "subject-min-length": [2, "always", 4],
+    "body-leading-blank": [2, "always"],
+    "body-max-line-length": [2, "always", 100],
+    "footer-leading-blank": [2, "always"],
+    "footer-max-line-length": [2, "always", 100],
+    "header-max-length": [2, "always", 72],
+    "scope-case": [2, "always", "lower-case"],
+    "scope-empty": [0, "always"],
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "backend",
+        "client",
+        "ci",
+        "deps",
+        "docs",
+        "config",
+        "schema",
+        "eval",
+        "golden",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5",
+        "m6",
+        "m7a",
+        "m7b",
+        "m8",
+        "m9",
+        "m10",
+        "m11"
+      ]
+    ]
+  },
+  "prompt": {
+    "questions": [
+      "type",
+      "scope",
+      "subject",
+      "body",
+      "breaking",
+      "footer"
+    ]
+  }
+}

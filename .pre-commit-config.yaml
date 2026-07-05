@@ -1,0 +1,68 @@
+# =============================================================================
+# SelfwellAgent pre-commit 框架配置（V1.3）
+#
+# 安装：uv run pre-commit install
+# 触发：git commit 时自动跑
+# 跳过：git commit --no-verify（紧急情况）
+# 手动跑全部：uv run pre-commit run --all-files
+#
+# 注：pre-commit 框架（Python）替代了 git core hooks 的 .git/hooks/
+# 优势：跨平台（Windows/Mac/Linux）、配置 YAML（不入 .git/hooks/，可入仓）、可分享
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. pre-commit hooks（commit 前，对 staged 文件跑 lint + format）
+# ─────────────────────────────────────────────────────────────────────────────
+repos:
+  # ──────────────────────────────────────────────
+  # A. 标准工具链：ruff lint + format（fast）
+  # ──────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # L0 — ruff lint
+      - id: ruff
+        name: L0 — ruff lint (staged only)
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/.*\.py$
+
+      # L1 — ruff format
+      - id: ruff-format
+        name: L1 — ruff format (staged only)
+        files: ^backend/.*\.py$
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # B. 标准工具链：标准检查
+  # ─────────────────────────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix EOF newline
+      - id: check-yaml
+        name: Validate YAML files
+        args: [--allow-multiple-documents]
+      - id: check-toml
+        name: Validate TOML files
+      - id: check-json
+        name: Validate JSON files
+      - id: check-added-large-files
+        name: Block large files (>500KB)
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+        name: Detect merge conflict markers
+      - id: detect-private-key
+        name: Block private keys (.pem/.key)
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # C. commit-msg 校验（独立 hook，由 commitlint 跑）
+  # ─────────────────────────────────────────────────────────────────────────────
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.18.0
+    hooks:
+      - id: commitlint
+        name: commitlint — Conventional Commits
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional"]

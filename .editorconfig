@@ -1,0 +1,29 @@
+# Selfwell Agent - EditorConfig
+# 防止 Cursor/PowerShell 写文件时附加 UTF-8 BOM（tomllib / uv 拒绝 BOM）
+
+root = true
+
+[*]
+charset = utf-8               # 必须 UTF-8
+end_of_line = lf              # Unix 风格换行（uv/poetry/black 全用 LF）
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# YAML（GitHub Actions / docker-compose / commitlint 配置）
+[*.{yaml,yml}]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false   # 保留末尾两个空格（强制换行语法）
+
+# TOML（pyproject.toml 关键 — 必须无 BOM）
+[*.toml]
+charset = utf-8
+end_of_line = lf
+
+# JSON
+[*.json]
+indent_size = 2

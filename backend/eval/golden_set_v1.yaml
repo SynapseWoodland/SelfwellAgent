@@ -1,0 +1,423 @@
+version: "1.0.0"
+created_at: "2026-07-04"
+created_by: "SelfwellAgent AI 架构师"
+updated_at: "2026-07-05"
+updated_by: "SelfwellAgent AI 架构师（扩 M5/M7/M8 三模块 SPEC 落地用例）"
+source:
+  - "D:\\agent-project\\SemanticMind\\backend\\eval (格式样板)"
+  - "本项目 docs/重构设计方案 + SPEC-M5/M7/M8 三份 SPEC（2026-07-05 落地）"
+
+# ============================================================
+# 约束（设计阶段）
+# 1. 业务路由回归：用自然语言问句 → 期望路由 / 拦截状态
+# 2. 沿用拦截回归编号 G-*（不混入 yaml，yaml 仅承载 GN-* 跨调用拦截 / 业务路径）
+# 3. real_data_anchors 必须引用项目内真实路径或 MCP 枚举
+# 4. confidence_min：低于该值视为回归
+# ============================================================
+
+metadata:
+  total_cases: 21     # 3 占位 + M5×6 + M7×6 + M8×6
+  schema_version: "v1.0.0"
+  # LLM 配置（代码真值，非声明值）
+  # 线上默认（本项目占位：实际 LLM 待定）
+  llm_model: "本项目默认 LLM（待定）"
+  llm_base_url: "待定"
+  # PR-D 评测校准用的模型（非默认）
+  llm_eval_experiment: "实验对比模型（待定）"
+  # Redis 命名空间（本项目占位）
+  redis_namespaces:
+    - key: "selfwell:cache:"
+      owner: "本项目 cache 模块（待定）"
+      purpose: "业务路由最终结果缓存"
+      ttl_seconds: 1800
+    - key: "selfwell:intent_cache:"
+      owner: "本项目 intent_node（待定）"
+      purpose: "意图分类结果缓存"
+      ttl_seconds: 120
+  # Qdrant collection（本项目占位）
+  qdrant_collections:
+    - key: "health_topic_collection"
+      owner: "本项目 topic_repository（待定）"
+      purpose: "健康话题向量检索"
+    - key: "encourage_script_collection"
+      owner: "本项目 script_repository（待定）"
+      purpose: "督促话术向量检索"
+  tier2_confidence_threshold: 0.7
+
+# ============================================================
+# 用例分组
+# ============================================================
+
+cases:
+
+  # ===========================================================
+  # 0. GN-CHAT-001：闲聊 / 打招呼
+  # ===========================================================
+  - id: "GN-CHAT-001"
+    tier: 0
+    category: "闲聊 / 打招呼"
+    query: "你好"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "general_chat"
+      intercept_expectation: "pass"
+      confidence_min: 0.0
+    real_data_anchors: []
+
+  # ===========================================================
+  # 1. GN-HEALTH-001：健康话题（合规，不拦截）—— 期望走报告生成路径
+  # ===========================================================
+  - id: "GN-HEALTH-001"
+    tier: 1
+    category: "肩颈拉伸 / 报告输出"
+    query: "肩颈有点酸"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "report_generate"
+      intercept_expectation: "pass"
+      confidence_min: 0.85
+    real_data_anchors:
+      - "本项目 routes/report_node.py（待 exist）"
+
+  # ===========================================================
+  # 2. GN-COMPLIANCE-001：跨调用拦截验证 —— 验证 check_input() 在路由层闸口的命中
+  # ===========================================================
+  - id: "GN-COMPLIANCE-001"
+    tier: 0
+    category: "拦截回归 / 跨调用"
+    query: "我脸需要治疗"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "blocked"            # 拦截场景专有 route 值
+      intercept_expectation: "critical_block"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "backend/services/compliance/checker.py check_input"
+
+  # ===========================================================
+  # 3. GN-M5-001：M5 输入框 A 类意图（模块跳转）
+  # 来源 SPEC-M5 §4.5 / Gherkin Feature 智能管家对话主页 / Scenario A 类
+  # ===========================================================
+  - id: "GN-M5-001"
+    tier: 2
+    category: "M5 输入框 / 模块跳转"
+    query: "帮我分析肩颈"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "module_redirect"
+      intercept_expectation: "pass"
+      confidence_min: 0.85
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=module_redirect"
+      - "backend/app/routes/assistant_node.py（待 exist）"
+
+  # ===========================================================
+  # 4. GN-M5-002：M5 输入框 B 类意图（任务/推荐快问）
+  # 来源 SPEC-M5 §4.5 / Gherkin Scenario B 类
+  # ===========================================================
+  - id: "GN-M5-002"
+    tier: 2
+    category: "M5 输入框 / 任务快问"
+    query: "今天适合做什么运动"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "read_query"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=read_query"
+
+  # ===========================================================
+  # 5. GN-M5-003：M5 输入框 C 类意图（心情倾诉，走 unknown 兜底）
+  # 来源 SPEC-M5 §4.5 / Gherkin Scenario C 类 / Scenario 未知意图
+  # ===========================================================
+  - id: "GN-M5-003"
+    tier: 2
+    category: "M5 输入框 / 心情倾诉"
+    query: "今天心情好复杂"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "unknown"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=unknown"
+
+  # ===========================================================
+  # 6. GN-M5-004：M5 输入框 D 类意图（主动回忆 / user_query）
+  # 来源 SPEC-M5 §4.5 / Gherkin Scenario D 类
+  # ===========================================================
+  - id: "GN-M5-004"
+    tier: 2
+    category: "M5 输入框 / 主动回忆"
+    query: "我想看看 7 天前的自己"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=recall"
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 trigger=user_query"
+
+  # ===========================================================
+  # 7. GN-M5-005：M5 输入框 E 类意图（医疗关键词，永远拒答）
+  # 来源 SPEC-M5 §3 / Gherkin Scenario E 类永远拒答
+  # ===========================================================
+  - id: "GN-M5-005"
+    tier: 0
+    category: "M5 输入框 / 医疗拒绝"
+    query: "怎么治疗颈椎病"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "medical_reject"
+      intercept_expectation: "critical_block"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §3 C1 + §4.5 primary_intent=medical_reject"
+
+  # ===========================================================
+  # 8. GN-M5-006：M5 输入框兜底（SmartRouter 失败 → FALLBACK_UNKNOWN）
+  # 来源 SPEC-M5 §4.1 / Gherkin Scenario 未知意图走温柔兜底
+  # ===========================================================
+  - id: "GN-M5-006"
+    tier: 0
+    category: "M5 输入框 / 兜底"
+    query: "asdfghjkl"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "general_chat"   # SmartRouter 失败 → FALLBACK_UNKNOWN 温柔兜底（非拦截）
+      intercept_expectation: "pass"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M5-persona-chat.md §4.1 降级策略"
+
+  # ===========================================================
+  # 9. GN-M7-001：M7a 纯文字反馈（mood_text）→ ACK 模板抽中
+  # 来源 SPEC-M7 §3 R4 / §4.3 / Gherkin Feature 心情日记 / Scenario 用户提交纯文字反馈
+  # ===========================================================
+  - id: "GN-M7-001"
+    tier: 2
+    category: "M7a / 纯文字反馈"
+    query: "今天感觉不错"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "feedback_create_own"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/data/ack-pool.yaml ack_pool（30 条规则模板）"
+      - "docs/data/ack-pool.yaml ack_pool.forbidden_tokens"
+      - "docs/SPEC/SPEC-M7-feedback.md §4.3 ACK_POOL + §3 R4"
+
+  # ===========================================================
+  # 10. GN-M7-002：M7a 带照片反馈（mood_photo）→ ACK 抽中 + body_part 可空
+  # 来源 SPEC-M7 §3 / Gherkin Scenario 用户提交带照片反馈
+  # ===========================================================
+  - id: "GN-M7-002"
+    tier: 2
+    category: "M7a / 带照片反馈"
+    query: "今天拍了张脸的照片"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "feedback_create_own"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/data/ack-pool.yaml ack_pool（30 条规则模板）"
+      - "docs/SPEC/SPEC-M7-feedback.md §3 mood_photo 字段约束"
+
+  # ===========================================================
+  # 11. GN-M7-003：M7b period_photo（soft-tip 补一组入口）→ body_part 必填
+  # 来源 SPEC-M7 §3 R4 / Gherkin Scenario 用户通过 soft-tip "补一组"入口提交
+  # ===========================================================
+  - id: "GN-M7-003"
+    tier: 2
+    category: "M7b / period_photo"
+    query: "补一组照片（肩颈）"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "feedback_create_own"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/data/body-parts.yaml parts[code=shoulder_neck]"
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 空态 soft-tip buttons[0]"
+
+  # ===========================================================
+  # 12. GN-M7-004：M7b body_part 枚举校验（应与 users.focus_parts 一致）
+  # 来源 SPEC-M7 §3 / Gherkin Scenario body_part 枚举与 focus_parts 对齐
+  # ===========================================================
+  - id: "GN-M7-004"
+    tier: 2
+    category: "M7b / body_part 枚举校验"
+    query: "上传一张照片 + 选部位 = 腰部"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "feedback_create_own"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/data/body-parts.yaml parts[code=waist]"
+      - "docs/data/body-parts.yaml enum_constraints.feedback_body_part_values"
+      - "docs/data/body-parts.yaml enum_constraints.users_focus_parts_values"
+
+  # ===========================================================
+  # 13. GN-M7-005：M7 白名单外调用方（feedback_service.list 被 M5 输入框读取 → 应 PermissionError）
+  # 来源 SPEC-M7 §3 R3 / Gherkin Feature 服务层白名单 / Scenario M5 输入框无法读取 photo_url
+  # ===========================================================
+  - id: "GN-M7-005"
+    tier: 0
+    category: "M7 / 服务层白名单拦截"
+    query: "看看我之前的照片"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "blocked"            # 跨调用拦截场景专有 route 值
+      intercept_expectation: "critical_block"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M7-feedback.md §3 R2 + R3 服务层白名单"
+      - "backend/services/compliance/checker.py check_input（白名单校验）"
+
+  # ===========================================================
+  # 14. GN-M7-006：M7 30 条 ACK 模板全部通过禁用词扫描（CI 守门）
+  # 来源 SPEC-M7 §3 R4 / §4.3 ACK_FORBIDDEN_TOKENS / Gherkin Scenario 30 条 ACK 模板全部通过禁用词扫描
+  # ===========================================================
+  - id: "GN-M7-006"
+    tier: 0
+    category: "M7 / ACK 模板启期校验"
+    query: "ACK 模板启期合规校验（30 条全过禁用词扫描）"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "general_chat"   # 非拦截：CI 层语义校验用例（启期断言）
+      intercept_expectation: "pass"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "docs/data/ack-pool.yaml ack_pool[*].valid=true"
+      - "docs/data/ack-pool.yaml forbidden_tokens"
+      - "docs/SPEC/SPEC-M7-feedback.md §4.3 _check_ack_safe"
+
+  # ===========================================================
+  # 15. GN-M8-001：M8 Day 7 主动触发（auto_day7，Celery Beat 8:00 扫表）
+  # 来源 SPEC-M8 §2.2 Step 1-8 / Gherkin Feature AI 主动触发（Day N）/ Scenario Day 7 早上 8:00 推送回忆气泡
+  # ===========================================================
+  - id: "GN-M8-001"
+    tier: 2
+    category: "M8 / Day 7 自动召回"
+    query: "[自动触发] auto_day7"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 trigger=auto_day7"
+      - "docs/SPEC/SPEC-M8-recall.md §4.2 RECALL_PROMPT"
+
+  # ===========================================================
+  # 16. GN-M8-002：M8 Day 14 主动触发（auto_day14）
+  # 来源 SPEC-M8 §5.1 trigger 枚举 / Gherkin Scenario Day 14 / Day 21 同样触发
+  # ===========================================================
+  - id: "GN-M8-002"
+    tier: 2
+    category: "M8 / Day 14 自动召回"
+    query: "[自动触发] auto_day14"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 trigger=auto_day14"
+
+  # ===========================================================
+  # 17. GN-M8-003：M8 用户主动触发（user_query） → 💬 入口卡点击
+  # 来源 SPEC-M8 §5.1 / Gherkin Feature 用户主动触发 / Scenario 用户点 💬 入口卡
+  # ===========================================================
+  - id: "GN-M8-003"
+    tier: 2
+    category: "M8 / 用户主动召回"
+    query: "我想看看过去的自己"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 trigger=user_query"
+      - "docs/SPEC/SPEC-M8-recall.md §2.2 trigger 枚举"
+
+  # ===========================================================
+  # 18. GN-M8-004：M8 空态 soft-tip（用户从未上传过 feedback）
+  # 来源 SPEC-M8 §5.1 空态 Response / Gherkin Feature 空态 soft-tip / Scenario 空态 soft-tip 展示
+  # ===========================================================
+  - id: "GN-M8-004"
+    tier: 2
+    category: "M8 / 空态 soft-tip"
+    query: "[用户首次触发] 无任何 feedback"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M8-recall.md §5.1 空态 Response.soft_tip.buttons"
+      - "docs/SPEC/SPEC-M8-recall.md §2.2 Step 2 空态检查"
+
+  # ===========================================================
+  # 19. GN-M8-005：M8 RecallSafetyGuard Layer 2 拦截
+  # （LLM 违规输出：含 before_after_judge 分组词的 summary → 应被命中 → safety_passed=FALSE → 安全兜底替换）
+  # 来源 SPEC-M8 §3.1 J1 + §3.3 / Gherkin Feature Recall Safety / Scenario Layer 2 敏感词 100+ 拦截
+  # ===========================================================
+  - id: "GN-M8-005"
+    tier: 0
+    category: "M8 / Safety Layer 2 拦截"
+    query: "[Safety 验证用例] before_after_judge 词组命中"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "blocked"            # Safety 拦截场景专有 route 值
+      intercept_expectation: "critical_block"
+      confidence_min: 0.0
+    real_data_anchors:
+      - "docs/data/recall-forbidden-words.yaml groups.before_after_judge.tokens（样本：进步了/改善了/变好了/比 7 天前...）"
+      - "docs/SPEC/SPEC-M8-recall.md §3.1 J1 + §3.3 + §4.1 Layer 2"
+      - "backend/services/compliance/checker.py RecallSafetyGuard（待 exist）"
+
+  # ===========================================================
+  # 20. GN-M8-006：M8 RecallRetriever 数据源白名单（不喂图片 LLM / 不用打卡天数）
+  # 来源 SPEC-M8 §4.5 ALLOWED_RETRIEVAL_SOURCES + DENIED_RETRIEVAL_SOURCES / Gherkin Feature 召回数据源规范
+  # ===========================================================
+  - id: "GN-M8-006"
+    tier: 2
+    category: "M8 / 召回数据源白名单"
+    query: "[召回数据源规范] 仅取 feedback.mood_text + plan.days.actions + photo 元数据"
+    previous_query: null
+    is_followup: false
+    expected:
+      route: "recall"
+      intercept_expectation: "pass"
+      confidence_min: 0.7
+    real_data_anchors:
+      - "docs/SPEC/SPEC-M8-recall.md §4.5 ALLOWED_RETRIEVAL_SOURCES"
+      - "docs/SPEC/SPEC-M8-recall.md §4.5 DENIED_RETRIEVAL_SOURCES"
+      - "docs/SPEC/SPEC-M8-recall.md §6 Feature 召回数据源规范"

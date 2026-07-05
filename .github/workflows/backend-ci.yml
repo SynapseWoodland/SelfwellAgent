@@ -1,0 +1,93 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "pyproject.toml"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "pyproject.toml"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  quality-gates:
+    name: L0-L4 质量门禁
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      # ──────────────────────────────────────────────
+      # L0：ruff lint
+      # ──────────────────────────────────────────────
+      - name: L0 — ruff lint
+        run: uv run ruff check backend/
+
+      # ──────────────────────────────────────────────
+      # L1：ruff format 检查
+      # ──────────────────────────────────────────────
+      - name: L1 — ruff format check
+        run: uv run ruff format --check backend/
+
+      # ──────────────────────────────────────────────
+      # L2：mypy strict
+      # ──────────────────────────────────────────────
+      - name: L2 — mypy strict
+        run: uv run mypy backend/ --strict --ignore-missing-imports
+        continue-on-error: true  # Phase 0 仍可逐步落地
+
+      # ──────────────────────────────────────────────
+      # L3：pytest（含 Golden Set / Eval Runner）
+      # ──────────────────────────────────────────────
+      - name: L3 — pytest
+        run: |
+          uv run pytest backend/tests/ -v \
+            --cov=backend \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=60
+        continue-on-error: true  # Phase 0 仍可逐步落地
+
+      # ──────────────────────────────────────────────
+      # L4：jscpd 代码重复检查（≤ 4%）
+      # ──────────────────────────────────────────────
+      - name: L4 — jscpd
+        run: |
+          uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd || true
+
+      # ──────────────────────────────────────────────
+      # Golden Set 拦截回归
+      # ──────────────────────────────────────────────
+      - name: Golden Set — input intercept
+        run: |
+          uv run pytest backend/tests/intercept/ -v
+        continue-on-error: true
+
+      # ──────────────────────────────────────────────
+      # 上传 coverage 到 Codecov
+      # ──────────────────────────────────────────────
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true

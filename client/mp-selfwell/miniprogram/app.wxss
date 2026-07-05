@@ -1,0 +1,26 @@
+/* app.wxss — Selfwell 全局样式（与 design-spec.md §3 对齐） */
+
+page {
+  background-color: #FAF8F5;
+  color: #2C3E40;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Helvetica Neue", Helvetica, "Hiragino Sans GB", "Microsoft YaHei",
+    Arial, sans-serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.text-primary {
+  color: #A8C5B5;
+}
+
+.text-secondary {
+  color: #7F8B8E;
+}
+
+.bg-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
