@@ -1,5 +1,4 @@
-"""
-Golden Set — 输入拦截测试（test_input.py）
+"""Golden Set — 输入拦截测试（test_input.py）
 
 测试场景：用户输入 → ComplianceChecker.check_input()
 期望：医疗/医美/功效承诺/颜值打分类输入被拦截，合法输入通过。
@@ -18,9 +17,7 @@ Golden Set — 输入拦截测试（test_input.py）
 """
 
 import pytest
-
 from backend.services.compliance.checker import check_input
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # G-01 ~ G-12：必须被 block（医疗 / 医美 / 功效承诺 / 颜值打分）
@@ -47,8 +44,7 @@ def test_must_block(case_id: str, text: str) -> None:
     """G-01~G-12：医疗/医美/承诺类输入，必须被 block。"""
     result = check_input(text)
     assert result["blocked"], f"[{case_id}] 输入「{text}」未被拦截（期望 block）"
-    assert result["severity"] == "critical", \
-        f"[{case_id}] 未使用 critical 级别：{result}"
+    assert result["severity"] == "critical", f"[{case_id}] 未使用 critical 级别：{result}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -107,27 +103,29 @@ def test_boundary_cases(case_id: str, text: str, expected_severity: str) -> None
         assert not result["blocked"], f"[{case_id}] 输入「{text}」被错误拦截（期望 pass）"
     else:  # warning_or_pass
         severity = result.get("severity", "")
-        assert not result["blocked"] or severity != "critical", \
+        assert not result["blocked"] or severity != "critical", (
             f"[{case_id}] 输入「{text}」被 critical 级别拦截（应为 warn/pass）"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 汇总报告
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_summary_report(capsys: pytest.CaptureFixture[str]) -> None:
     """打印 Golden Set 测试汇总。"""
     total = len(CRITICAL_BLOCK_CASES) + len(BENIGN_PASS_CASES) + len(BOUNDARY_CASES)
     summary = (
-        f"\n{'='*60}\n"
+        f"\n{'=' * 60}\n"
         f"Golden Set 输入拦截测试 — 汇总\n"
-        f"{'='*60}\n"
+        f"{'=' * 60}\n"
         f"总计 case 数量：{total}\n"
         f"  - 拦截类（G-01~G-12）：{len(CRITICAL_BLOCK_CASES)} 条\n"
         f"  - 通过类（G-13~G-22）：{len(BENIGN_PASS_CASES)} 条\n"
         f"  - 边界类（G-23~G-30）：{len(BOUNDARY_CASES)} 条\n"
         f"通过标准：100% 准确率，0 漏过\n"
-        f"{'='*60}\n"
+        f"{'=' * 60}\n"
     )
     capsys.readouterr()
     print(summary)

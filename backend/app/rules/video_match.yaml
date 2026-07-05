@@ -1,0 +1,42 @@
+# video_match · 视频匹配权重规则
+# Source: docs/spec/facts-anchor.md §5（V1.3 PRD §3.3.2）
+#   score(video) = 0.5 * 标签匹配度 + 0.3 * 时长适配度 + 0.2 * 难度适配度
+#   标签匹配度 = Jaccard(视频标签集, 智能分析标签集)
+#   时长适配度 = 1 - |视频时长 - 用户偏好时长| / 60
+#   难度适配度 = 1 - |视频难度系数 - 用户强度等级| / 5
+#
+# Sprint 0 仅声明权重 + 公式描述；Sprint 2 由 services.plans.video_matcher
+# 结合本规则 + videos 表 + users.focus_parts/intensity/preferred_time 调引擎。
+
+version: "1.0"
+source: "facts-anchor.md §5"
+description: "视频匹配权重规则（label + duration + difficulty 三因子）"
+
+rules:
+  - name: label_match
+    type: weight
+    weight: 0.5
+    description: "标签匹配度（Jaccard）"
+    config:
+      formula: "Jaccard(video_tags, user_tags)"
+
+  - name: duration_match
+    type: weight
+    weight: 0.3
+    description: "时长适配度（线性距离）"
+    config:
+      formula: "max(0, 1 - |video.duration_sec - user.preferred_duration_sec| / 60)"
+
+  - name: difficulty_match
+    type: weight
+    weight: 0.2
+    description: "难度适配度（线性距离）"
+    config:
+      formula: "max(0, 1 - |video.difficulty - user.intensity| / 5)"
+
+  - name: top_n
+    type: threshold
+    config:
+      default: 10
+      max: 50
+      description: "默认返回 Top-N 视频数量；上限 50"

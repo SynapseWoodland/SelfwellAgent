@@ -1,0 +1,263 @@
+# =============================================================================
+# Selfwell Backend · docker-compose.yaml (V1.3 · 2026-07-05)
+#
+# 数据源：docs/data/data-dictionary.md（11 张业务表 · V1.1.2）
+# 架构源：docs/architecture/mvp-tech-architecture.md §8.1 部署架构
+#
+# 服务清单：
+#   - db          PostgreSQL 18 + 初始化 SQL（db/init/00-04 + 05 verify）
+#   - redis       Redis 7-alpine（用户态缓存 / Session / 任务队列）
+#   - minio       MinIO 开发态对象存储（Storage 抽象落地）
+#   - minio-init  自动创建 selfwell bucket + access key
+#   - backend     FastAPI（uvicorn · 4 worker · 暴露 /healthz + /metrics）
+#   - prometheus  Prometheus 抓取后端 /metrics
+#
+# 用法：
+#   cp .env.example .env && vim .env       # 填密钥
+#   docker compose up -d db redis minio minio-init  # 先起基础服务
+#   docker compose up -d backend                    # 后端连 db 验证后启动
+#   docker compose ps                                # 查看状态
+#   docker compose logs -f backend                  # tail 后端日志
+#   docker compose exec db psql -U selfwell -d selfwell  # 进 DB
+# =============================================================================
+
+name: selfwell
+
+# ──────────────── 公共环境变量 ────────────────
+# 从根目录 .env 自动加载（docker compose 默认行为）
+x-common-env: &common-env
+  TZ: ${TZ:-UTC}
+  APP_ENV: ${APP_ENV:-dev}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_DB: ${POSTGRES_DB:-selfwell}
+  POSTGRES_USER: ${POSTGRES_USER:-selfwell}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_DB: ${REDIS_DB:-0}
+
+services:
+  # ═════════════════════════════════════════════════════════════════════
+  # PostgreSQL 18 + uuidv7() 内置
+  # ═════════════════════════════════════════════════════════════════════
+  db:
+    image: postgres:18-alpine
+    container_name: selfwell-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-selfwell}
+      POSTGRES_USER: ${POSTGRES_USER:-selfwell}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_dev_only}
+      # 字符集 + 时区（数据字典 §0 UTF8 / en_US）
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+      TZ: ${TZ:-UTC}
+    command:
+      - "postgres"
+      - "-c"
+      - "timezone=UTC"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "log_min_duration_statement=500ms"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      # 初始化 SQL（按字典附录 I 拆分 5 段）
+      # 首次启动自动执行 /docker-entrypoint-initdb.d/00-* → 04-* 顺序
+      # 已有数据卷时不会重跑（pgdata 已存在）—— 此时改用 docs/data/database-migrations-v1.1.1.sql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - selfwell-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-selfwell} -d ${POSTGRES_DB:-selfwell}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Redis 7-alpine · 用户态缓存 / Session / 队列
+  # ═════════════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: selfwell-redis
+    restart: unless-stopped
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--maxmemory"
+      - "256mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      # MVP 暂未设密码；生产用 requirepass 走 secrets
+      - "--save"
+      - "60"
+      - "1000"
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - selfwell-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ═════════════════════════════════════════════════════════════════════
+  # MinIO · 开发态对象存储（生产替换为腾讯云 COS，Storage 抽象透明）
+  # ═════════════════════════════════════════════════════════════════════
+  minio:
+    image: minio/minio:latest
+    container_name: selfwell-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_in_dev_only}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web Console
+    networks:
+      - selfwell-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # minio-init：一次性 init container，等 minio ready 后自动创建 bucket + 设置 lifecycle
+  minio-init:
+    image: minio/mc:latest
+    container_name: selfwell-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-change_me_in_dev_only} &&
+      mc mb --ignore-existing local/${MINIO_BUCKET:-selfwell} &&
+      mc anonymous set download local/${MINIO_BUCKET:-selfwell} || true &&
+      echo 'MinIO bucket ${MINIO_BUCKET:-selfwell} ready'
+      "
+    networks:
+      - selfwell-net
+    restart: "no"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Backend · FastAPI（uv-managed，4 worker，/healthz + /metrics）
+  # ═════════════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: selfwell-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      <<: *common-env
+      # SQLAlchemy 异步 DSN（容器内用服务名 db；驱动 = asyncpg，已在 pyproject.toml 声明）
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
+      # Alembic 同步迁移 DSN：psycopg 驱动 —— 注意：psycopg[binary] 需在 Phase 接入 Alembic 时一并加入 pyproject.toml
+      # 当前 MVP 阶段 init SQL 已覆盖全部 DDL，暂未启用 alembic upgrade head 命令
+      DATABASE_URL_SYNC: postgresql+psycopg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}/0
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+    command:
+      - "uvicorn"
+      - "backend.app.main:app"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--workers"
+      - "${UVICORN_WORKERS:-4}"
+      - "--proxy-headers"
+      - "--forwarded-allow-ips"
+      - "*"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # prometheus_client 多进程目录
+      - prom-mp:/tmp/prom_multiproc
+    networks:
+      - selfwell-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # 日志限制（防 dev 环境磁盘爆炸）
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Prometheus · 抓 backend /metrics（MVP 阶段无需 Grafana）
+  # 告警阈值见 mvp-tech-architecture.md §10.3
+  # ═════════════════════════════════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: selfwell-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    networks:
+      - selfwell-net
+    profiles:
+      - monitoring    # 默认不起；docker compose --profile monitoring up
+
+# ──────────────── 网络 ────────────────
+networks:
+  selfwell-net:
+    driver: bridge
+    name: selfwell-net
+
+# ──────────────── 卷 ────────────────
+volumes:
+  pgdata:
+    name: selfwell-pgdata
+  redisdata:
+    name: selfwell-redisdata
+  miniodata:
+    name: selfwell-miniodata
+  prometheusdata:
+    name: selfwell-prometheusdata
+  prom-mp:
+    name: selfwell-prom-mp

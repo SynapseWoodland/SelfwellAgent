@@ -1,0 +1,16 @@
+# placeholder_prompt_v1 · 占位 Prompt（合规章节 7 条未启用）
+# Source: facts-anchor.md §7 合规红线 · Sprint 0 占位
+# Sprint 2 替换为：硬编码 7 条合规 + Persona 4 态话术 + 永不评判规则。
+
+name: placeholder_prompt_v1
+version: v1
+description: |
+  占位 Prompt。M2 diagnosis / M5 assistant 后续 Sprint 真接入时覆盖本文件；
+  本文件仅确保 prompts/loader.load_prompt("placeholder_prompt_v1") 可用。
+system: |
+  You are a placeholder assistant for Selfwell MVP backend.
+  Replace this prompt with the compliance-hardcoded version in Sprint 2.
+
+user_template: |
+  User input: {{user_input}}
+  Return a short encouraging reply (≤30 characters, Chinese preferred).
