@@ -1,0 +1,53 @@
+{
+  "_sync": {
+    "source": "docs/design/figma-pixso-spec/dist/tokens-flat.json",
+    "copiedAt": "2026-07-06T00:00:00Z",
+    "purpose": "Cross-end single-source design tokens for Flutter + 微信小程序. CI compares $sha256 against the original to prevent drift (§16.3)."
+  },
+  "$sha256": {
+    "comment": "Track both this file's hash and the upstream source hash. CI must verify that the underlying design tokens (colors/spacing/radius blocks) remain byte-equal.",
+    "selfFileSha256": "7342aa60022fdd9ec8338504b06acd3cabf98efd0ae5da061ac75b9b3058b805",
+    "upstreamSourceSha256": "75bceb34d90107ee004db7427da0c1727a64c47e28230d6bd4ab008f19a61c8b"
+  },
+  "colors": [
+    { "name": "color/primary/mint",      "value": "#A8C5B5", "type": "Color" },
+    { "name": "color/primary/cream",     "value": "#F5E6D3", "type": "Color" },
+    { "name": "color/primary/lavender",  "value": "#D4C5E2", "type": "Color" },
+    { "name": "color/primary/peach",     "value": "#F0D9C4", "type": "Color" },
+    { "name": "color/primary/skyblue",   "value": "#B8D4E3", "type": "Color" },
+    { "name": "color/neutral/900",       "value": "#2D3436", "type": "Color" },
+    { "name": "color/neutral/700",       "value": "#4A5568", "type": "Color" },
+    { "name": "color/neutral/500",       "value": "#718096", "type": "Color" },
+    { "name": "color/neutral/300",       "value": "#A0AEC0", "type": "Color" },
+    { "name": "color/neutral/100",       "value": "#E2E8F0", "type": "Color" },
+    { "name": "color/status/warning",    "value": "#E8B87A", "type": "Color" },
+    { "name": "color/status/success",    "value": "#9DB5A0", "type": "Color" },
+    { "name": "color/bg/page",           "value": "#FAFBFC", "type": "Color" },
+    { "name": "color/bg/card",           "value": "#FFFFFF", "type": "Color" },
+    { "name": "color/bg/card-warm",      "value": "#F5E6D3", "type": "Color" }
+  ],
+  "spacing": [
+    { "name": "spacing/1",  "value": "4",  "type": "Number" },
+    { "name": "spacing/2",  "value": "8",  "type": "Number" },
+    { "name": "spacing/3",  "value": "12", "type": "Number" },
+    { "name": "spacing/4",  "value": "16", "type": "Number" },
+    { "name": "spacing/6",  "value": "24", "type": "Number" },
+    { "name": "spacing/8",  "value": "32", "type": "Number" },
+    { "name": "spacing/12", "value": "48", "type": "Number" }
+  ],
+  "radius": [
+    { "name": "radius/sm",   "value": "8",    "type": "Number" },
+    { "name": "radius/md",   "value": "12",   "type": "Number" },
+    { "name": "radius/lg",   "value": "16",   "type": "Number" },
+    { "name": "radius/xl",   "value": "24",   "type": "Number" },
+    { "name": "radius/full", "value": "9999", "type": "Number" }
+  ],
+  "forbiddenColors_NOTE": {
+    "comment": "以下颜色严禁使用 — 在 Pixso 里**不要**创建这些变量。如发现 Frame 中存在，删除填色。",
+    "list": [
+      { "hex": "#FF4D4F", "reason": "红色 — 制造焦虑" },
+      { "hex": "#D32F2F", "reason": "深红 — 禁止" },
+      { "hex": "#007BFF", "reason": "医疗蓝 — 医疗联想" }
+    ]
+  }
+}

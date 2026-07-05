@@ -1,20 +1,26 @@
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  rules:
-    # 项目自定义规则（与 coding-standards SKILL 对齐）
-    prefer_const_constructors: true
-    prefer_const_literals_to_create_immutables: true
-    avoid_print: false  # 开发期允许 print，生产环境禁用
-    require_trailing_commas: true
-    sized_box_for_whitespace: true
-    use_super_parameters: true
-
 analyzer:
   exclude:
     - "**/*.g.dart"
-    - "**/*.freezed.dart"
+    - "client/shared/api-types/**"
   language:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
+  errors:
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    avoid_print: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_literals_to_create_immutables: true
+    sort_child_properties_last: true
+    use_super_parameters: true
+    unawaited_futures: true
+    cancel_subscriptions: true
+    close_sinks: true

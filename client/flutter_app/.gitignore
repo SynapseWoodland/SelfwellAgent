@@ -1,4 +1,4 @@
-# Flutter
+# Build / IDE
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -6,37 +6,16 @@
 .pub-cache/
 .pub/
 build/
-*.iml
-*.ipr
-*.iws
 .idea/
 .vscode/
-
-# Android
-android/.gradle/
-android/local.properties
-android/app/release/
-android/**/GeneratedPluginRegistrant.java
-android/key.properties
-*.jks
-
-# iOS
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-ios/Flutter/Generated.xcconfig
-ios/Runner/GeneratedPluginRegistrant.*
-
-# HarmonyOS
-ohos/.gradle/
-ohos/local.properties
-ohos/**/build/
 
 # Coverage
 coverage/
 
-# Misc
+# Generated
+**/*.g.dart
+**/*.freezed.dart
+
+# OS
 .DS_Store
 Thumbs.db
-*.log
