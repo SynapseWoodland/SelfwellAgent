@@ -5,7 +5,7 @@
 > **对齐文档**：[mvp-implementation-plan.md §15.3](../../docs/plan/mvp-implementation-plan.md) · §17 前端强约束 8 条
 > **路径约定**：`miniprogram/` 是小程序代码根目录
 
-## Sprint 状态（SF0 完成 · 2026-07-06）
+## Sprint 状态（SF0 完成 · 2026-07-06 / SF1 完成 · 2026-07-06）
 
 | 项 | 状态 |
 |---|---|
@@ -13,13 +13,16 @@
 | `miniprogram/app.json` | ✅ 14 pages + tabBar 4 项 + requiredPrivateInfos + permission |
 | `miniprogram/app.ts` | ✅ globalData(token/userId/deviceId/clientPlatform) + onLaunch 4 步 |
 | `miniprogram/app.wxss` | ✅ 全局 token CSS 变量（与 `figma-pixso-spec/dist/tokens-flat.json` 1:1） |
-| `miniprogram/utils/` | ✅ 5 个工具：config / request / sse / picker / subscribe (+ uuid) |
+| `miniprogram/utils/` | ✅ 6 个工具：config / request(.ts + .js 入口) / sse / picker / subscribe / error-code (+ uuid) |
 | `miniprogram/components/` | ✅ 7 个自定义组件 |
-| `miniprogram/pages/` | ✅ 14 个 page 占位 |
+| `miniprogram/pages/` | ✅ 14 个 page；SF1 在 4 个 page（splash/login/home/checkin）落地 |
 | `miniprogram/assets/tabbar/` | ✅ 8 张 tabBar 图标（81×81 PNG） |
 | `miniprogram/types/global.d.ts` | ✅ 类型补丁（SocketTask / wx.compressImage） |
 | `tests/smoke.test.js` | ✅ 33 项断言全部 PASS（**禁用色 0 命中**） |
-| `packages/api-types/{ts,dart}/` | ✅ 占位 README；SF1 接入生成 |
+| `tests/sf1-pages.test.js` | ✅ **70 项 SF1 强约束断言全部 PASS**（含 IA-REF/FIGMA/API 三件套） |
+| `tests/sf1/{splash,login,home,checkin}-screenshot.test.js` | ✅ 4 个 page 静态渲染 stub（miniprogram-automator mock 形态） |
+| `tests/check-forbidden-colors.js` | ✅ 0 命中（区分注释 / 文档行的精确扫描） |
+| `packages/api-types/{ts,dart}/` | ⏳ 占位 README；SF2 接入生成（不在 SF1 scope） |
 
 ## 14 个页面（与 Pixso 高保真一一对齐）
 
@@ -54,13 +57,22 @@
 ```bash
 cd apps/mp-selfwell
 
-# 1) 烟雾测试（33 项断言）
+# 1) SF0 烟雾测试（33 项断言）
 cd tests && npm install && npm test && cd ..
 
-# 2) 像素禁用色校验（§17.11）
-grep -rE "#FF4D4F|#D32F2F|#007BFF" --include="*.wxss" --include="*.ts" --include="*.json" miniprogram/ && echo "FAIL" || echo "OK"
+# 2) SF1 强约束测试（70 项断言：IA-REF/FIGMA/API + 4 page 行为）
+node tests/sf1-pages.test.js
 
-# 3) 微信开发者工具 CLI（CI 镜像内置 cli.bat；本地开发手跑 IDE 即可）
+# 3) SF1 4 page 静态渲染 stub
+node tests/sf1/splash-screenshot.test.js
+node tests/sf1/login-screenshot.test.js
+node tests/sf1/home-screenshot.test.js
+node tests/sf1/checkin-screenshot.test.js
+
+# 4) 像素禁用色校验（§17.11 · 排除注释/文档）
+node tests/check-forbidden-colors.js
+
+# 5) 微信开发者工具 CLI（CI 镜像内置 cli.bat；本地开发手跑 IDE 即可）
 cli.bat project preview
 ```
 

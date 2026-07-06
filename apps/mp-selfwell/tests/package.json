@@ -1,9 +1,21 @@
 {
-  "name": "selfwell-mp-tests",
+  "name": "selfwell-mp-sf1-tests",
   "version": "0.1.0",
   "private": true,
-  "description": "Selfwell 自愈 · 微信小程序 SF0 烟雾测试占位；W5 接入 miniprogram-automator。",
+  "description": "Selfwell 自愈 · 微信小程序 SF1 页面烟雾 + 静态截图测试（miniprogram-automator mock 形态）",
   "scripts": {
-    "test": "node smoke.test.js"
+    "test": "node sf1-pages.test.js",
+    "test:splash": "node sf1/splash-screenshot.test.js",
+    "test:login": "node sf1/login-screenshot.test.js",
+    "test:home": "node sf1/home-screenshot.test.js",
+    "test:checkin": "node sf1/checkin-screenshot.test.js",
+    "test:smoke": "node smoke.test.js",
+    "test:push": "node push-payload-contract.test.js",
+    "test:forbidden": "node check-forbidden-colors.js",
+    "test:all": "node smoke.test.js && node push-payload-contract.test.js && node check-forbidden-colors.js",
+    "test:automator": "node automator/pixel-diff.test.js"
+  },
+  "devDependencies": {
+    "miniprogram-automator": "^0.13.0"
   }
 }

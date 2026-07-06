@@ -72,6 +72,10 @@ export const STORAGE_KEYS = {
   deviceId: 'device_id',
   userId: 'userId',
   logs: 'logs',
+  /** SF1 落地：与推送 token 一起复用 */
+  openidE: 'openid_e',
+  privacyAgreed: 'privacy_agreed',
+  meCached: 'me_cached',
   // 推送 token 暂存（SF5 正式接入）
   pushToken: 'push_token_wechat_mp',
 } as const;
