@@ -22,7 +22,20 @@ from fastapi import FastAPI
 from app.api.middleware.exception_handler import ExceptionHandlerMiddleware
 from app.api.middleware.rate_limit import RateLimitMiddleware
 from app.api.middleware.trace import TraceContextMiddleware
+from app.api.routers.auth import router as auth_router_legacy
+from app.api.routers.auth_v1 import router as auth_v1_router
+from app.api.routers.business_v1 import (
+    assistant_router,
+    butler_router,
+    checkin_router,
+    community_router,
+    feedback_router,
+    share_router,
+)
+from app.api.routers.diagnosis_v1 import router as diagnosis_v1_router
+from app.api.routers.plans_v1 import plans_router, videos_router
 from app.api.routers.system import router as system_router
+from app.api.routers.users_v1 import router as users_v1_router
 from app.conf.app_config import app_config
 from app.core.log import setup_logging
 
@@ -76,6 +89,18 @@ app.add_middleware(TraceContextMiddleware)  # 最后 add → 最外（第一个�
 # §四 路由注册（PR-1 仅 system router）
 # ──────────────────────────────────────────────────────────────────────────────
 app.include_router(system_router)
+app.include_router(auth_router_legacy)
+app.include_router(auth_v1_router, prefix="/api/v1")
+app.include_router(users_v1_router, prefix="/api/v1")
+app.include_router(diagnosis_v1_router, prefix="/api/v1")
+app.include_router(plans_router, prefix="/api/v1")
+app.include_router(videos_router, prefix="/api/v1")
+app.include_router(checkin_router, prefix="/api/v1")
+app.include_router(assistant_router, prefix="/api/v1")
+app.include_router(feedback_router, prefix="/api/v1")
+app.include_router(community_router, prefix="/api/v1")
+app.include_router(butler_router, prefix="/api/v1")
+app.include_router(share_router, prefix="/api/v1")
 
 
 __all__ = ["app", "lifespan"]

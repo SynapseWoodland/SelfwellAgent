@@ -105,6 +105,7 @@ dev = [
     # ★ V1.3 新增：W3 测试就绪依赖（checklist #31/33/35）
     # ─────────────────────────────────────────────────────────────────────────
     "pytest-bdd>=7.0.0",            # W3 #31 Gherkin/BDD feature 10 个
+    "pytest-httpx>=0.34.0",         # W3 #33 E2E API-level tests
     "playwright>=1.49.0",           # W3 #33 E2E 测试基础
     "locust>=2.32.0",               # W3 #35 Load test 准备
     "bandit>=1.7.10",               # §10.5 工程纪律 · 1 人 AI 加速模式 · CI 安全扫描
@@ -228,6 +229,9 @@ ignore = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = "backend"
+explicit_package_bases = true
+namespace_packages = true
 
 # =============================================================================
 # V1.3 新增：Commitizen 配置（交互式 Conventional Commits，中文模板）
