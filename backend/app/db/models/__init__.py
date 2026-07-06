@@ -12,7 +12,7 @@ from app.db.models.checkin import Checkin
 from app.db.models.feedback import Feedback
 from app.db.models.plan import Plan
 from app.db.models.post import Post
-from app.db.models.recall_attachments import RecallAttachment
+from app.db.models.recall_sessions import RecallSession
 from app.db.models.report import Report
 from app.db.models.user import User
 from app.db.models.video import Video
@@ -24,7 +24,7 @@ __all__ = [
     "Feedback",
     "Plan",
     "Post",
-    "RecallAttachment",
+    "RecallSession",
     "Report",
     "User",
     "Video",

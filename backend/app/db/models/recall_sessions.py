@@ -10,7 +10,8 @@
 - trigger (VARCHAR(32), NOT NULL) — 枚举 ``auto_day7 / auto_day14 / auto_day21 / user_manual``
 - ai_summary (TEXT, nullable)
 - ai_encourage (TEXT, nullable)
-- referenced_feedbacks / referenced_photos (JSONB, DEFAULT '[]')
+- referenced_feedbacks (JSONB, DEFAULT '[]') — 对象数组，存 {id, body_part, snippet, created_at}
+- referenced_photos (JSONB, DEFAULT '[]') — 对象数组，存 {url, caption, created_at}
 - llm_cost (DECIMAL(10,4), NOT NULL, DEFAULT 0)
 - safety_passed (BOOLEAN, NOT NULL, DEFAULT FALSE) — Recall Safety 3 层防线命中结果
 - ai_session_id (UUID, FK -> ai_sessions.id, nullable) — 延迟 FK
@@ -24,7 +25,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -45,12 +46,8 @@ if TYPE_CHECKING:
     pass
 
 
-class RecallAttachment(Base):
-    """主动回忆业务事件（M8）。
-
-    文件名沿用 ``recall_attachments.py`` 以兼容 plan §3.1 列出的命名；
-    表名严格对齐 SQL DDL ``recall_sessions``（避免引入历史漂移）。
-    """
+class RecallSession(Base):
+    """主动回忆业务事件（M8）。"""
 
     __tablename__ = "recall_sessions"
 
@@ -64,11 +61,11 @@ class RecallAttachment(Base):
     trigger: Mapped[str] = mapped_column(VARCHAR(32), nullable=False)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_encourage: Mapped[str | None] = mapped_column(Text, nullable=True)
-    referenced_feedbacks: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False, default=dict
+    referenced_feedbacks: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list
     )
-    referenced_photos: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False, default=dict
+    referenced_photos: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list
     )
     llm_cost: Mapped[Decimal] = mapped_column(
         DECIMAL(precision=10, scale=4), nullable=False, default=Decimal("0.0000")
