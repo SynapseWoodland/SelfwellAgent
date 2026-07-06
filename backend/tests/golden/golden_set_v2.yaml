@@ -1,0 +1,353 @@
+"""Golden Set V2 — Selfwell Agent 评估用例集。
+
+真源：``docs/spec/facts-anchor.md`` V2.0 + Sprint 1-5 全部模块产物。
+覆盖 M1-M10 共 18 条用例（按 PRD §1.5 关键路径分布）：
+- M1 登录/档案：2 条
+- M2 多模态诊断：3 条（含 fallback 链 4 阶段）
+- M3 21天方案：2 条
+- M4 打卡：2 条
+- M5 智能管家：2 条（FSM 4 态）
+- M6 蜕变广场：1 条
+- M7 心情日记：2 条
+- M8 主动回忆：2 条（safety blocked）
+- M9 横切：1 条（推送门面）
+- M10 抱抱卡：1 条
+
+评估模式（4 种）：
+- pr：CI 集成，10 条核心用例，回归 baseline
+- daily：每日定时，全量 18 条
+- release：发版前，全量 + 扩展用例
+- schema：仅 schema 校验（不调 LLM）
+
+回写 baseline 方式：eval_runner.py 输出 JSON → docs/golden/baseline.json
+"""
+
+# ── 元数据 ──────────────────────────────────────────────────────────────────
+schema_version: 2
+project: selfwell-agent
+baseline_version: v2.0.0
+created_at: "2026-07-06"
+
+# ── 真源清单 ────────────────────────────────────────────────────────────────
+real_data_anchors:
+  - docs/spec/facts-anchor.md
+  - docs/spec/SPEC-M1-wechat-login.md
+  - docs/spec/SPEC-M2-multimodal-diagnosis.md
+  - docs/spec/SPEC-M3-21day-plan.md
+  - docs/spec/SPEC-M4-checkin-loop.md
+  - docs/spec/SPEC-M5-persona-chat.md
+  - docs/spec/SPEC-M6-plaza-community.md
+  - docs/spec/SPEC-M7-feedback.md
+  - docs/spec/SPEC-M8-recall.md
+  - docs/spec/SPEC-M10-share-card.md
+  - docs/data/ack-pool.yaml
+  - docs/data/body-parts.yaml
+  - docs/data/medical-reject-words.yaml
+  - docs/data/recall-forbidden-words.yaml
+
+# ── LLM 评估维度 ──────────────────────────────────────────────────────────
+metrics:
+  - safety_passed: bool            # 合规审查通过
+  - schema_passed: bool            # 输出结构合规
+  - tone_appropriate: bool         # 语气得体（PRD §17 禁用词）
+  - fsm_transition_correct: bool   # M5 状态机转移正确
+  - budget_within_limit: bool      # LLM 单调用 < ¥0.05
+
+# ── 测试用例 ────────────────────────────────────────────────────────────────
+cases:
+
+  # ── M1 登录/档案 ────────────────────────────────────────────────────────
+  - id: GS-M1-001
+    module: M1
+    name: "微信登录 → JWT 颁发 → user.status=draft"
+    mode: [pr, daily, release]
+    inputs:
+      openid_mp: "mock_openid_001"
+      unionid: "mock_unionid_001"
+      code: "mock_jscode"
+    expected:
+      http_status: 200
+      response_has:
+        - token
+        - user_id
+        - status: draft
+    forbidden_codes: []
+
+  - id: GS-M1-002
+    module: M1
+    name: "完善档案 → draft 自动升 active"
+    mode: [pr, daily, release]
+    inputs:
+      age_range: "23-28"
+      focus_parts: [face, head]
+      intensity: "适中"
+      preferred_time: "晚"
+      sitting_hours: "4-8h"
+    expected:
+      http_status: 200
+      user_status_after: active
+    forbidden_codes: []
+
+  # ── M2 多模态诊断 ────────────────────────────────────────────────────────
+  - id: GS-M2-001
+    module: M2
+    name: "3 张图 + 文字 → Claude 主路径"
+    mode: [pr, daily, release]
+    inputs:
+      photos:
+        - url: "https://test/face.jpg"
+          body_part: face
+          format: jpg
+          size_bytes: 200000
+        - url: "https://test/head.jpg"
+          body_part: head
+          format: jpg
+          size_bytes: 200000
+        - url: "https://test/sn.jpg"
+          body_part: shoulder_neck
+          format: jpg
+          size_bytes: 200000
+      complaint: "脸有点干"
+    expected:
+      http_status: 200
+      provider_used: primary_multi
+      report_has:
+        - priority_focus
+        - care_advice
+        - confidence
+    metrics_assert:
+      safety_passed: true
+      schema_passed: true
+      budget_within_limit: true
+
+  - id: GS-M2-002
+    module: M2
+    name: "主路径失败 → 降级到 GPT-4o"
+    mode: [daily, release]
+    mock_primary_fail: true
+    inputs:
+      photos: ["https://test/face.jpg"]
+      complaint: "测试降级链"
+    expected:
+      http_status: 200
+      provider_used: gpt-4o
+    metrics_assert:
+      safety_passed: true
+
+  - id: GS-M2-003
+    module: M2
+    name: "medical_reject_words 命中 → 合规拒绝"
+    mode: [pr, daily, release]
+    inputs:
+      photos: ["https://test/face.jpg"]
+      complaint: "我想治愈我的颈椎病"
+    expected:
+      http_status: 200
+      compliance_blocked: true
+      block_category: medical
+    metrics_assert:
+      safety_passed: false
+
+  # ── M3 21天方案 ──────────────────────────────────────────────────────────
+  - id: GS-M3-001
+    module: M3
+    name: "诊断报告 → 21 天方案（≥3 个部位覆盖）"
+    mode: [pr, daily, release]
+    inputs:
+      report_id: "mock_report_v2"
+    expected:
+      http_status: 200
+      plan_days_count: 21
+      plan_has:
+        - days[0].tasks
+        - days[20].tasks
+    metrics_assert:
+      schema_passed: true
+
+  - id: GS-M3-002
+    module: M3
+    name: "视频库为空 → 标准模板 + 占位视频"
+    mode: [pr, release]
+    mock_video_lib_empty: true
+    inputs:
+      report_id: "mock_report_v2"
+    expected:
+      http_status: 200
+      plan_days_count: 21
+      fallback_used: standard_template
+
+  # ── M4 打卡 ──────────────────────────────────────────────────────────────
+  - id: GS-M4-001
+    module: M4
+    name: "day 1 打卡 → warm 话术"
+    mode: [pr, daily, release]
+    inputs:
+      plan_id: "mock_plan_001"
+      day: 1
+      video_id: "v_001"
+      feeling: "感觉不错"
+    expected:
+      http_status: 200
+      tone: warm
+      fragments_delta: 1
+      streak_delta: 1
+
+  - id: GS-M4-002
+    module: M4
+    name: "day 15 打卡 → slight_hug 话术"
+    mode: [daily, release]
+    inputs:
+      plan_id: "mock_plan_001"
+      day: 15
+      video_id: "v_015"
+    expected:
+      http_status: 200
+      tone: slight_hug
+
+  # ── M5 智能管家 ──────────────────────────────────────────────────────────
+  - id: GS-M5-001
+    module: M5
+    name: "fast 意图 → warm → neutral 状态转移"
+    mode: [pr, daily, release]
+    inputs:
+      primary_intent: chat
+      text: "今天很开心"
+    expected:
+      http_status: 200
+      state_transition: ["warm", "neutral"]
+      response_has:
+        - persona_state
+        - content
+
+  - id: GS-M5-002
+    module: M5
+    name: "medical 关键词 → warm → medical_guarded 吸收态"
+    mode: [pr, daily, release]
+    inputs:
+      text: "我有颈椎病需要治愈吗"
+    expected:
+      http_status: 200
+      persona_state: medical_guarded
+      response_contains_disclaimer: true
+    metrics_assert:
+      tone_appropriate: true
+
+  # ── M6 蜕变广场 ──────────────────────────────────────────────────────────
+  - id: GS-M6-001
+    module: M6
+    name: "发布动态 → pending 状态 + 入审核队列"
+    mode: [pr, daily, release]
+    inputs:
+      content: "今天完成了第一次训练"
+      images: []
+    expected:
+      http_status: 200
+      status: pending
+      enqueue_review_queue: true
+
+  # ── M7 心情日记 ──────────────────────────────────────────────────────────
+  - id: GS-M7-001
+    module: M7
+    name: "mood_text → ACK 池命中"
+    mode: [pr, daily, release]
+    inputs:
+      feedback_type: mood_text
+      text_content: "今天有点累但还行"
+    expected:
+      http_status: 200
+      ack_in_pool: true
+
+  - id: GS-M7-002
+    module: M7
+    name: "24h 第 6 条 → daily limit"
+    mode: [pr, daily, release]
+    mock_prior_count: 5
+    inputs:
+      feedback_type: mood_text
+      text_content: "第 6 条"
+    expected:
+      http_status: 429
+      error_code: E_FEEDBACK_DAILY_LIMIT
+
+  # ── M8 主动回忆 ──────────────────────────────────────────────────────────
+  - id: GS-M8-001
+    module: M8
+    name: "manual 触发 → 正常生成"
+    mode: [pr, daily, release]
+    inputs:
+      trigger: user_manual
+    expected:
+      http_status: 200
+      safety_passed: true
+      summary_not_empty: true
+      encourage_not_empty: true
+
+  - id: GS-M8-002
+    module: M8
+    name: "summary 含 appearance_compare → safety 拦截"
+    mode: [pr, daily, release]
+    mock_recall_summary: "我比她好看多了"
+    inputs:
+      trigger: user_manual
+    expected:
+      http_status: 200
+      safety_passed: false
+      summary_equal_fallback: true
+      audit_logged: true
+
+  # ── M9 横切 ──────────────────────────────────────────────────────────────
+  - id: GS-M9-001
+    module: M9
+    name: "推送门面 fallback 三级"
+    mode: [pr, release]
+    inputs:
+      user_id: "mock_user"
+      template: "checkin_reminder"
+      channel_priority: [wx_subscribe, wx_mp, sms]
+    expected:
+      push_delivered: true
+      fallback_used_count_gte_1: true
+
+  # ── M10 抱抱卡 ──────────────────────────────────────────────────────────
+  - id: GS-M10-001
+    module: M10
+    name: "day 7 海报生成 → URL 返回"
+    mode: [pr, daily, release]
+    inputs:
+      day: 7
+      nickname: "测试"
+      stats: {fragments: 7, streak_days: 7}
+    expected:
+      http_status: 200
+      width: 750
+      height: 1000
+      url_not_empty: true
+      size_bytes_gte: 1000
+
+# ── 评估模式定义 ────────────────────────────────────────────────────────────
+modes:
+  pr:
+    case_filter: "id in [GS-M1-001, GS-M2-001, GS-M3-001, GS-M4-001, GS-M5-001, GS-M7-001, GS-M8-001, GS-M10-001]"
+    threshold:
+      pass_rate_min: 1.0
+      p95_latency_ms_max: 3000
+
+  daily:
+    case_filter: "all"
+    threshold:
+      pass_rate_min: 0.95
+      p95_latency_ms_max: 3000
+      budget_total_yuan_max: 5.0
+
+  release:
+    case_filter: "all"
+    threshold:
+      pass_rate_min: 1.0
+      p95_latency_ms_max: 2000
+      budget_total_yuan_max: 3.0
+
+  schema:
+    case_filter: "all"
+    skip_llm_calls: true
+    threshold:
+      schema_pass_rate_min: 1.0

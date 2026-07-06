@@ -1,0 +1,45 @@
+# =============================================================================
+# Prometheus · prometheus.yml
+#   抓取 Selfwell Backend 的 /metrics（prometheus-client 默认多进程端口）
+#   启动方式：docker compose --profile monitoring up -d prometheus
+#   访问：http://localhost:9090
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: selfwell-dev
+    env: dev
+
+scrape_configs:
+  # ──────────────── Backend · FastAPI /metrics ────────────────
+  # prometheus_client 默认端口；容器内 8000（与 uvicorn 一致）
+  - job_name: selfwell-backend
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - backend:8000
+        labels:
+          service: backend
+          tier: api
+
+  # ──────────────── Prometheus 自身 ────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  # ──────────────── （可选）PostgreSQL exporter ────────────────
+  #   生产推荐 pgwatch2 或 postgres_exporter
+  #   当前 MVP 阶段未启用；接入见 §10.3 监控指标扩展
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # ──────────────── （可选）Redis exporter ────────────────
+  #   生产推荐 redis_exporter
+  # - job_name: redis
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']

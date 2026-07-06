@@ -1,0 +1,142 @@
+"""Prometheus 8 项告警规则（Selfwell MVP V1.3）。
+
+真源：``docs/spec/facts-anchor.md`` §10.3 + ADR-0011 + M9 推送门面。
+
+8 项告警（按优先级排序）：
+1. ``LLMDailyBudgetExceeded``  - LLM 日预算超 80%
+2. ``LLMMonthlyBudgetExceeded`` - LLM 月预算超 90%
+3. ``LLMFallbackRateHigh``      - 4 级降级链 5min 内降级率 > 30%
+4. ``DiagnosisP95TooHigh``      - /api/v1/diagnosis p95 > 5s
+5. ``ComplianceViolationSpike`` - 5min 内 compliance 拒绝 > 50 条
+6. ``RecallSafetyBlockedSpike`` - 5min 内 recall safety 拦截 > 10 条
+7. ``PersonaStateMedicalStuck`` - medical_guarded 状态卡死 > 100 活跃会话
+8. ``AuthFailureRateHigh``      - 5min 内 E_AUTH_* 失败率 > 20%
+"""
+
+groups:
+  - name: selfwell.mvp.alerts
+    interval: 30s
+    rules:
+      # ── 1. LLM 日预算告警（¥40/天，超过 80% 预警）────────────────
+      - alert: LLMDailyBudgetExceeded
+        expr: |
+          sum(increase(selfwell_llm_cost_yuan_total[1d])) > (32 * 1)
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "LLM 日预算接近上限"
+          description: |
+            当前 LLM 当日累计成本已超 ¥32（80% of ¥40/天）。
+            当前: {{ $value | humanize }} 元
+            参考: docs/spec/facts-anchor.md §4
+
+      # ── 2. LLM 月预算告警（¥700/月，超过 90% 预警）───────────────
+      - alert: LLMMonthlyBudgetExceeded
+        expr: |
+          sum(increase(selfwell_llm_cost_yuan_total[30d])) > (630 * 1)
+        for: 10m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "LLM 月预算告警"
+          description: |
+            LLM 30 天累计成本已超 ¥630（90% of ¥700/月）。
+            当前: {{ $value | humanize }} 元
+
+      # ── 3. LLM 降级链使用率过高（> 30% 表示上游模型问题）────────
+      - alert: LLMFallbackRateHigh
+        expr: |
+          (
+            sum(rate(selfwell_llm_provider_used_total{provider!~"primary_multi|primary_text"}[5m]))
+            /
+            sum(rate(selfwell_llm_provider_used_total[5m]))
+          ) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "LLM 降级链频繁触发"
+          description: |
+            5min 内降级率 {{ $value | humanizePercentage }} > 30%。
+            检查主模型 API（Claude/GPT-4o/Qwen VL）可用性。
+
+      # ── 4. /diagnosis 端点 p95 > 5s（含 8 阶段 LLM 调用）────────
+      - alert: DiagnosisP95TooHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(selfwell_http_request_duration_seconds_bucket{path="/api/v1/diagnosis"}[5m]))
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "M2 诊断接口 p95 超阈值"
+          description: |
+            /api/v1/diagnosis p95 = {{ $value | humanizeDuration }} > 5s。
+            检查 LLM 延迟 + Redis 缓存命中率。
+
+      # ── 5. Compliance 违规率突增（5min > 50 条 critical）─────────
+      - alert: ComplianceViolationSpike
+        expr: |
+          sum(increase(selfwell_compliance_violation_total{severity="critical"}[5m])) > 50
+        for: 5m
+        labels:
+          severity: critical
+          team: compliance
+        annotations:
+          summary: "合规拒绝率突增"
+          description: |
+            5min 内 critical 合规拒绝 {{ $value }} 条 > 50。
+            可能是恶意输入或规则被绕过。
+
+      # ── 6. RecallSafety 拦截率突增（5min > 10 条）────────────────
+      - alert: RecallSafetyBlockedSpike
+        expr: |
+          sum(increase(selfwell_recall_safety_blocked_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "M8 主动回忆安全拦截突增"
+          description: |
+            5min 内 recall safety 拦截 {{ $value }} 条 > 10。
+            检查 recall-forbidden-words.yaml 是否需要更新。
+
+      # ── 7. Persona FSM medical_guarded 状态卡死（> 100 活跃会话）
+      - alert: PersonaStateMedicalStuck
+        expr: |
+          selfwell_assistant_active_sessions{state="medical_guarded"} > 100
+        for: 30m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "M5 medical_guarded 状态会话过多"
+          description: |
+            当前 medical_guarded 状态活跃会话数 = {{ $value }} > 100。
+            检查是否大批量用户命中医疗关键词。
+
+      # ── 8. 鉴权失败率过高（5min > 20%）─────────────────────────
+      - alert: AuthFailureRateHigh
+        expr: |
+          (
+            sum(rate(selfwell_http_responses_total{code=~"401|403"}[5m]))
+            /
+            sum(rate(selfwell_http_responses_total[5m]))
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "鉴权失败率告警"
+          description: |
+            5min 内鉴权失败率 {{ $value | humanizePercentage }} > 20%。
+            可能是 JWT secret 泄露 / 微信 code 攻击。
