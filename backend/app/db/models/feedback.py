@@ -19,7 +19,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CHAR, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy import TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -37,9 +38,9 @@ class Feedback(Base):
 
     __tablename__ = "feedback"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        CHAR(36),
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -49,16 +50,18 @@ class Feedback(Base):
     photo_url: Mapped[str | None] = mapped_column(VARCHAR(512), nullable=True)
     body_part: Mapped[str | None] = mapped_column(VARCHAR(32), nullable=True)
     ai_ack_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36),
+        postgresql.UUID(as_uuid=True),
         ForeignKey("ai_messages.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
 
     # audit
-    created_by: Mapped[UUID | None] = mapped_column(CHAR(36), nullable=True)
-    created_time: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
-    last_updated_by: Mapped[UUID | None] = mapped_column(CHAR(36), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(VARCHAR(64), nullable=True)
+    created_time: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    last_updated_by: Mapped[str | None] = mapped_column(VARCHAR(64), nullable=True)
     last_updated_time: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )

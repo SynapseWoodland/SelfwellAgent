@@ -20,7 +20,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CHAR, DECIMAL, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy import DECIMAL, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,9 +36,11 @@ class Report(Base):
 
     __tablename__ = "reports"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        CHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     photos: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     directions: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
@@ -47,11 +50,21 @@ class Report(Base):
     llm_cost: Mapped[Decimal] = mapped_column(
         DECIMAL(precision=10, scale=4), nullable=False, default=Decimal("0.0000")
     )
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     # 审计字段
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )

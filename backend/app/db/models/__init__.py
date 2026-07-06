@@ -8,6 +8,7 @@
 实现注意：所有 ORM 在此处 import 后，调用 ``configure_mappers()`` 一次完成关系配对
 （避免 ``User.feedbacks`` 在使用 ``User(...)`` 时反向找不到 ``feedbacks`` 报错）。
 """
+
 from sqlalchemy.orm import configure_mappers
 
 from app.db.models.ai_messages import AIMessage

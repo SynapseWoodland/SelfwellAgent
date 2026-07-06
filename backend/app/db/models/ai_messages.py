@@ -31,7 +31,6 @@ from uuid import UUID
 
 from sqlalchemy import (
     BOOLEAN,
-    CHAR,
     DECIMAL,
     INTEGER,
     TIMESTAMP,
@@ -39,6 +38,7 @@ from sqlalchemy import (
     ForeignKey,
     Text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,35 +53,51 @@ class AIMessage(Base):
 
     __tablename__ = "ai_messages"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     session_id: Mapped[UUID] = mapped_column(
-        CHAR(36), ForeignKey("ai_sessions.id", ondelete="CASCADE"), nullable=False
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("ai_sessions.id", ondelete="CASCADE"),
+        nullable=False,
     )
     seq: Mapped[int] = mapped_column(INTEGER, nullable=False)
     role: Mapped[str] = mapped_column(VARCHAR(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    context_photos: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    context_photos: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
     referenced_feedback_ids: Mapped[list[UUID]] = mapped_column(
-        ARRAY(CHAR(36)), nullable=False, default=list
+        ARRAY(postgresql.UUID(as_uuid=True)), nullable=False, default=list
     )
     referenced_video_ids: Mapped[list[UUID]] = mapped_column(
-        ARRAY(CHAR(36)), nullable=False, default=list
+        ARRAY(postgresql.UUID(as_uuid=True)), nullable=False, default=list
     )
     trigger: Mapped[str | None] = mapped_column(VARCHAR(32), nullable=True)
     intent: Mapped[str | None] = mapped_column(VARCHAR(32), nullable=True)
-    llm_cost: Mapped[Decimal | None] = mapped_column(DECIMAL(precision=10, scale=4), nullable=True)
+    llm_cost: Mapped[Decimal | None] = mapped_column(
+        DECIMAL(precision=10, scale=4), nullable=True
+    )
     llm_model: Mapped[str | None] = mapped_column(VARCHAR(64), nullable=True)
     llm_latency_ms: Mapped[int | None] = mapped_column(INTEGER, nullable=True)
     safety_passed: Mapped[bool | None] = mapped_column(BOOLEAN, nullable=True)
-    safety_violations: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    safety_violations: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
     token_count: Mapped[int] = mapped_column(INTEGER, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
 
     # 审计字段
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )
 
     # relationships
     feedbacks: Mapped[list[Feedback]] = relationship(

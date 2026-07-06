@@ -33,7 +33,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CHAR, INTEGER, TIMESTAMP, VARCHAR
+from sqlalchemy import INTEGER, TIMESTAMP, VARCHAR
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,7 +52,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     unionid: Mapped[str] = mapped_column(VARCHAR(128), nullable=False, unique=True)
     openid_mp: Mapped[str | None] = mapped_column(VARCHAR(128), nullable=True)
     openid_app: Mapped[str | None] = mapped_column(VARCHAR(128), nullable=True)
@@ -68,8 +69,12 @@ class User(Base):
     push_token: Mapped[str | None] = mapped_column(VARCHAR(512), nullable=True)
     push_channel: Mapped[str | None] = mapped_column(VARCHAR(20), nullable=True)
     email: Mapped[str | None] = mapped_column(VARCHAR(254), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_active_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_active_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
     # 用户生命周期：draft（草稿 24h 内）/ active（正式）/ churned（流失）
     status: Mapped[str] = mapped_column(VARCHAR(16), nullable=False, default="draft")
     report_cache: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
@@ -77,13 +82,21 @@ class User(Base):
         TIMESTAMP(timezone=True), nullable=True
     )
     version: Mapped[int] = mapped_column(INTEGER, nullable=False, default=0)
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     # 审计字段（与 DDL §V1.1.2 附录 E 一致）
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )
 
     # relationships（与 Feedback ORM 配对）
     feedbacks: Mapped[list[Feedback]] = relationship(

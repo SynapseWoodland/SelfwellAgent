@@ -30,13 +30,13 @@ from uuid import UUID
 
 from sqlalchemy import (
     BOOLEAN,
-    CHAR,
     DECIMAL,
     TIMESTAMP,
     VARCHAR,
     ForeignKey,
     Text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -51,12 +51,16 @@ class RecallSession(Base):
 
     __tablename__ = "recall_sessions"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        CHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     plan_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36), ForeignKey("plans.id", ondelete="SET NULL"), nullable=True
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("plans.id", ondelete="SET NULL"),
+        nullable=True,
     )
     trigger: Mapped[str] = mapped_column(VARCHAR(32), nullable=False)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -72,13 +76,25 @@ class RecallSession(Base):
     )
     safety_passed: Mapped[bool] = mapped_column(BOOLEAN, nullable=False, default=False)
     ai_session_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36), ForeignKey("ai_sessions.id", ondelete="SET NULL"), nullable=True
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("ai_sessions.id", ondelete="SET NULL"),
+        nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     # 审计字段
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )

@@ -22,7 +22,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CHAR, INTEGER, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy import INTEGER, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,9 +38,11 @@ class Post(Base):
 
     __tablename__ = "posts"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        CHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     images: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
@@ -49,14 +52,28 @@ class Post(Base):
     like_count: Mapped[int] = mapped_column(INTEGER, nullable=False, default=0)
     comment_count: Mapped[int] = mapped_column(INTEGER, nullable=False, default=0)
     reviewed_by: Mapped[UUID | None] = mapped_column(
-        CHAR(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     # 审计字段
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )

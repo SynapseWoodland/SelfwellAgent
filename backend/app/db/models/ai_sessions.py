@@ -29,13 +29,13 @@ from uuid import UUID
 
 from sqlalchemy import (
     BOOLEAN,
-    CHAR,
     DECIMAL,
     INTEGER,
     TIMESTAMP,
     VARCHAR,
     ForeignKey,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -49,22 +49,30 @@ class AISession(Base):
 
     __tablename__ = "ai_sessions"
 
-    id: Mapped[UUID] = mapped_column(CHAR(36), primary_key=True)
+    id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        CHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     entry_card: Mapped[str | None] = mapped_column(VARCHAR(32), nullable=True)
     primary_intent: Mapped[str] = mapped_column(VARCHAR(32), nullable=False)
-    persona_state_start: Mapped[str] = mapped_column(VARCHAR(32), nullable=False, default="warm")
+    persona_state_start: Mapped[str] = mapped_column(
+        VARCHAR(32), nullable=False, default="warm"
+    )
     persona_state_end: Mapped[str | None] = mapped_column(VARCHAR(32), nullable=True)
     plan_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36), ForeignKey("plans.id", ondelete="SET NULL"), nullable=True
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("plans.id", ondelete="SET NULL"),
+        nullable=True,
     )
     feedback_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36), ForeignKey("feedback.id", ondelete="SET NULL"), nullable=True
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("feedback.id", ondelete="SET NULL"),
+        nullable=True,
     )
     recall_session_id: Mapped[UUID | None] = mapped_column(
-        CHAR(36),
+        postgresql.UUID(as_uuid=True),
         ForeignKey("recall_sessions.id", ondelete="SET NULL"),
         nullable=True,
     )
@@ -73,13 +81,27 @@ class AISession(Base):
         DECIMAL(precision=10, scale=4), nullable=False, default=Decimal("0.0000")
     )
     user_active: Mapped[bool] = mapped_column(BOOLEAN, nullable=False, default=True)
-    started_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_active_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    closed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_active_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
 
     # 审计字段
     created_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
-    created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+    created_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    last_updated_by: Mapped[str] = mapped_column(
+        VARCHAR(64), nullable=False, default=""
+    )
