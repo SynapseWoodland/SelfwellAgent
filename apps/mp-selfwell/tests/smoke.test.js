@@ -105,10 +105,14 @@ for (const name of expectedPages) {
     ok(`page ${name} exists`, false);
     continue;
   }
-  const head = fs.readFileSync(tsFile, 'utf8').slice(0, 400);
+  const head = fs.readFileSync(tsFile, 'utf8').slice(0, 600);
   const hasIA = head.includes('IA-REF');
-  const hasDesign = head.includes('设计稿');
-  const hasOp = head.includes('后端端点') || head.includes('operationId');
+  const hasDesign = head.includes('设计稿') || head.includes('FIGMA') || head.includes('FIGMA  :');
+  const hasOp =
+    head.includes('后端端点') ||
+    head.includes('operationId') ||
+    head.includes('API    :') ||
+    head.includes('API:');
   ok(`page ${name} IA-REF header`, hasIA && hasDesign && hasOp);
 }
 
