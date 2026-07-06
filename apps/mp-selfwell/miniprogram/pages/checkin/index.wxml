@@ -1,12 +1,27 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §4.5 P05 打卡完成
+  FIGMA  : docs/design/figma-pixso-spec/pages/08-checkin.html
+  API    : POST /checkins (openapi.yaml#CheckinsApi.createCheckin)
+           POST /feedback (openapi.yaml#FeedbackApi.createMood) [mood-only 路径]
+           GET  /plans/today (openapi.yaml#PlansApi.getTodayPlan)
+           GET  /checkins/today (openapi.yaml#CheckinsApi.getCheckinCalendar)
+  PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
+  ACK    : §§17.15 ack_text 必 ≤ ACK_MAX_CHARS（30）；超出截断 + 长按 tooltip 显示完整
+-->
 <view class="checkin">
-  <view class="checkin-title">今日已完成</view>
+  <view class="checkin-title">今日打卡</view>
+  <view class="checkin-desc">勾选你今天做到的事，给自己一个拥抱</view>
+
   <view class="checkin-items">
     <view
       wx:for="{{todayItems}}"
       wx:key="id"
-      class="checkin-item"
+      class="checkin-item {{item.done ? 'checkin-item--done' : ''}}"
+      bindtap="onToggleItem"
+      data-id="{{item.id}}"
+      data-done="{{!item.done}}"
     >
-      <view class="checkin-tick">✓</view>
+      <view class="checkin-tick">{{item.done ? '✓' : ''}}</view>
       <view class="checkin-item-title">{{item.title}}</view>
     </view>
   </view>
@@ -31,4 +46,13 @@
   >
     完成打卡
   </button>
+
+  <view wx:if="{{ack}}" class="checkin-ack">
+    <ack-bubble
+      text="{{ack.text}}"
+      tone="warm"
+      bind:longpress="onAckLongPress"
+    />
+    <view wx:if="{{ack.isTruncated}}" class="checkin-ack-hint">长按查看完整</view>
+  </view>
 </view>

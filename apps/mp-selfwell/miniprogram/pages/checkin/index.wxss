@@ -1,30 +1,36 @@
 .checkin {
   min-height: 100vh;
-  padding: 32rpx;
+  padding: 48rpx;
   background-color: #FAFBFC;
 }
 
 .checkin-title {
-  font-size: 32rpx;
-  font-weight: 500;
+  font-size: 44rpx;
+  font-weight: 600;
   color: #2D3436;
-  margin-bottom: 16rpx;
+}
+
+.checkin-desc {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #718096;
+  margin-bottom: 32rpx;
 }
 
 .checkin-items {
   background-color: #FFFFFF;
   border-radius: 24rpx;
-  padding: 16rpx 24rpx;
-  margin-bottom: 24rpx;
+  padding: 16rpx 32rpx;
+  margin-bottom: 32rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
 .checkin-item {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 0;
-  border-bottom: 2rpx solid #E2E8F0;
+  gap: 24rpx;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid #E2E8F0;
 }
 
 .checkin-item:last-child {
@@ -32,42 +38,56 @@
 }
 
 .checkin-tick {
-  width: 32rpx;
-  height: 32rpx;
+  width: 40rpx;
+  height: 40rpx;
   border-radius: 50%;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
+  border: 2rpx solid #A0AEC0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
+  font-size: 28rpx;
+  color: #FFFFFF;
+  background-color: transparent;
+}
+
+.checkin-item--done .checkin-tick {
+  background-color: #A8C5B5;
+  border-color: #A8C5B5;
+}
+
+.checkin-item--done .checkin-item-title {
+  color: #A0AEC0;
+  text-decoration: line-through;
 }
 
 .checkin-item-title {
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: #2D3436;
+  flex: 1;
 }
 
 .checkin-feedback {
   background-color: #FFFFFF;
   border-radius: 24rpx;
-  padding: 24rpx;
+  padding: 32rpx;
   margin-bottom: 32rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
 .checkin-feedback-title {
   font-size: 28rpx;
-  color: #4A5568;
+  font-weight: 500;
+  color: #2D3436;
   margin-bottom: 16rpx;
 }
 
 .checkin-feedback-input {
   width: 100%;
-  height: 200rpx;
+  min-height: 160rpx;
   font-size: 28rpx;
   color: #2D3436;
-  background-color: #FAFBFC;
+  line-height: 1.6;
+  background-color: #F5F7FA;
   border-radius: 16rpx;
   padding: 16rpx;
   box-sizing: border-box;
@@ -86,4 +106,22 @@
   border-radius: 48rpx;
   font-size: 30rpx;
   font-weight: 500;
+}
+
+.checkin-btn[disabled] {
+  background-color: #E2E8F0;
+  color: #A0AEC0;
+}
+
+.checkin-ack {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.checkin-ack-hint {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #A0AEC0;
 }

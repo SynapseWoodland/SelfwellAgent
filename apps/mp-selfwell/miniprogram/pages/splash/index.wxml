@@ -1,3 +1,9 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §1 启动流程 / §4.1 P01 登录
+  FIGMA  : docs/design/figma-pixso-spec/pages/01-splash.html
+  API    : （无外部接口；根据 storage 中 jwt 决定路由）
+  PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
+-->
 <view class="splash">
   <view class="splash-logo">自愈</view>
   <view class="splash-tagline">慢慢自律，慢慢成为更好的自己</view>

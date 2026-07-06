@@ -1,7 +1,15 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §4.2 P02 首页（今日打卡）
+  FIGMA  : docs/design/figma-pixso-spec/pages/03-home.html
+  API    : GET /users/me (openapi.yaml#UsersApi.getCurrentUser)
+           GET /checkins/today (openapi.yaml#CheckinsApi.getCheckinCalendar)
+           GET /plans/today (openapi.yaml#PlansApi.getTodayPlan)
+  PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
+-->
 <view class="home">
   <view class="home-greeting">
-    <view class="home-greeting-title">{{greeting}}</view>
-    <view class="home-greeting-sub">已坚持 <text class="streak">{{streak}}</text> 天</view>
+    <view class="home-greeting-title">{{nickname ? nickname + '，' : ''}}{{greeting}}</view>
+    <view class="home-greeting-sub">已走过 <text class="streak">{{streak}}</text> 天</view>
   </view>
 
   <view class="home-progress">

@@ -1,3 +1,9 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §4.1 P01 微信登录
+  FIGMA  : docs/design/figma-pixso-spec/pages/02-login.html
+  API    : POST /auth/wx-login (openapi.yaml#AuthApi.wxMpLogin)
+  PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
+-->
 <view class="login">
   <view class="login-hero">
     <view class="login-logo">自愈</view>

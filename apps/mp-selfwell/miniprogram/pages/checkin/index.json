@@ -1,4 +1,8 @@
 {
-  "navigationBarTitleText": "打卡",
-  "usingComponents": {}
+  "navigationBarTitleText": "今日打卡",
+  "navigationBarBackgroundColor": "#A8C5B5",
+  "navigationBarTextStyle": "white",
+  "usingComponents": {
+    "ack-bubble": "/miniprogram/components/ack-bubble/index"
+  }
 }
