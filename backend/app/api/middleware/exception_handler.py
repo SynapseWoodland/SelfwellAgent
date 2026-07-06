@@ -14,25 +14,28 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.core.errors import SelfwellError, to_error_response
 from app.core.log import logger
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from starlette.requests import Request
     from starlette.responses import Response
 
 
-class ExceptionHandlerMiddleware:
+class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
     """统一异常 → 错误响应。
 
     Usage:
         >>> app.add_middleware(ExceptionHandlerMiddleware)
     """
 
-    def __init__(self, app: object) -> None:
-        self.app = app
-
-    async def __call__(self, request: Request, call_next: object) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         from fastapi.responses import JSONResponse
 
         try:

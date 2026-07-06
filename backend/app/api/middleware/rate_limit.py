@@ -20,7 +20,11 @@ from collections import defaultdict
 from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from starlette.requests import Request
     from starlette.responses import Response
 
@@ -99,18 +103,22 @@ class InMemoryRateLimiter:
 # ─────────────────────────────────────────────────────────────────────────────
 # §三 ASGI 中间件
 # ─────────────────────────────────────────────────────────────────────────────
-class RateLimitMiddleware:
+class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate-limit middleware (per-IP token bucket).
 
     Usage:
         >>> app.add_middleware(RateLimitMiddleware, capacity=120, refill_per_sec=2.0)
     """
 
-    def __init__(self, app: object, *, capacity: int = 120, refill_per_sec: float = 2.0) -> None:
-        self.app = app
+    def __init__(
+        self, app: object, *, capacity: int = 120, refill_per_sec: float = 2.0
+    ) -> None:
+        super().__init__(app)
         self._limiter = InMemoryRateLimiter(capacity=capacity, refill_per_sec=refill_per_sec)
 
-    async def __call__(self, request: Request, call_next: object) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         key = (request.client.host if request.client else "anon") or "anon"
         if not self._limiter.check(key):
             # 触发 E_GENERAL_RATE_LIMIT（message 模糊 → 不带 Retry-After）

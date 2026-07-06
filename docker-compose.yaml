@@ -29,7 +29,7 @@ x-common-env: &common-env
   TZ: ${TZ:-UTC}
   APP_ENV: ${APP_ENV:-dev}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  #POSTGRES_HOST: ${POSTGRES_HOST:-db}
   POSTGRES_PORT: ${POSTGRES_PORT:-5432}
   POSTGRES_DB: ${POSTGRES_DB:-selfwell}
   POSTGRES_USER: ${POSTGRES_USER:-selfwell}
@@ -157,66 +157,66 @@ services:
       - selfwell-net
     restart: "no"
 
-  # ═════════════════════════════════════════════════════════════════════
-  # Backend · FastAPI（uv-managed，4 worker，/healthz + /metrics）
-  # ═════════════════════════════════════════════════════════════════════
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: selfwell-backend
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      <<: *common-env
-      # SQLAlchemy 异步 DSN（容器内用服务名 db；驱动 = asyncpg，已在 pyproject.toml 声明）
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
-      # Alembic 同步迁移 DSN：psycopg 驱动 —— 注意：psycopg[binary] 需在 Phase 接入 Alembic 时一并加入 pyproject.toml
-      # 当前 MVP 阶段 init SQL 已覆盖全部 DDL，暂未启用 alembic upgrade head 命令
-      DATABASE_URL_SYNC: postgresql+psycopg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
-      REDIS_URL: redis://redis:${REDIS_PORT:-6379}/0
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
-      ENABLE_METRICS: ${ENABLE_METRICS:-true}
-    command:
-      - "uvicorn"
-      - "backend.app.main:app"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8000"
-      - "--workers"
-      - "${UVICORN_WORKERS:-4}"
-      - "--proxy-headers"
-      - "--forwarded-allow-ips"
-      - "*"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      # prometheus_client 多进程目录
-      - prom-mp:/tmp/prom_multiproc
-    networks:
-      - selfwell-net
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    # 日志限制（防 dev 环境磁盘爆炸）
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "5"
+  # # ═════════════════════════════════════════════════════════════════════
+  # # Backend · FastAPI（uv-managed，4 worker，/healthz + /metrics）
+  # # ═════════════════════════════════════════════════════════════════════
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: backend/Dockerfile
+  #   container_name: selfwell-backend
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     <<: *common-env
+  #     # SQLAlchemy 异步 DSN（容器内用服务名 db；驱动 = asyncpg，已在 pyproject.toml 声明）
+  #     DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
+  #     # Alembic 同步迁移 DSN：psycopg 驱动 —— 注意：psycopg[binary] 需在 Phase 接入 Alembic 时一并加入 pyproject.toml
+  #     # 当前 MVP 阶段 init SQL 已覆盖全部 DDL，暂未启用 alembic upgrade head 命令
+  #     DATABASE_URL_SYNC: postgresql+psycopg://${POSTGRES_USER:-selfwell}:${POSTGRES_PASSWORD:-change_me_in_dev_only}@db:5432/${POSTGRES_DB:-selfwell}
+  #     REDIS_URL: redis://redis:${REDIS_PORT:-6379}/0
+  #     MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+  #     UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+  #     ENABLE_METRICS: ${ENABLE_METRICS:-true}
+  #   command:
+  #     - "uvicorn"
+  #     - "backend.app.main:app"
+  #     - "--host"
+  #     - "0.0.0.0"
+  #     - "--port"
+  #     - "8000"
+  #     - "--workers"
+  #     - "${UVICORN_WORKERS:-4}"
+  #     - "--proxy-headers"
+  #     - "--forwarded-allow-ips"
+  #     - "*"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   ports:
+  #     - "${BACKEND_PORT:-8000}:8000"
+  #   volumes:
+  #     # prometheus_client 多进程目录
+  #     - prom-mp:/tmp/prom_multiproc
+  #   networks:
+  #     - selfwell-net
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 30s
+  #   # 日志限制（防 dev 环境磁盘爆炸）
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "20m"
+  #       max-file: "5"
 
   # ═════════════════════════════════════════════════════════════════════
   # Prometheus · 抓 backend /metrics（MVP 阶段无需 Grafana）

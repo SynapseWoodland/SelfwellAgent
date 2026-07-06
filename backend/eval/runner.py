@@ -331,16 +331,12 @@ def run_evaluation(
         results.append(run_case(case, mock_ctx))
     elapsed_ms = int((time.perf_counter() - started) * 1000)
 
-    route_dist: Counter[RouteName] = Counter(
-        r.actual_route or "unknown" for r in results
-    )
+    route_dist: Counter[RouteName] = Counter(r.actual_route or "unknown" for r in results)
     passed = sum(1 for r in results if r.status == "pass")
     failed = sum(1 for r in results if r.status == "fail")
     skipped = sum(1 for r in results if r.status == "skipped")
 
-    intercept_blocked = sum(
-        1 for r in results if r.intercept_status == "critical_block"
-    )
+    intercept_blocked = sum(1 for r in results if r.intercept_status == "critical_block")
     intercept_block_rate = intercept_blocked / len(results) if results else 0.0
 
     confidence_hist: dict[str, int] = Counter()
@@ -369,9 +365,7 @@ def run_evaluation(
     )
 
 
-def _compare_to_baseline(
-    results: list[CaseResult], baseline: dict[str, Any]
-) -> dict[str, float]:
+def _compare_to_baseline(results: list[CaseResult], baseline: dict[str, Any]) -> dict[str, float]:
     """对比 baseline.json（与 runner 同 schema）。
 
     入参：
@@ -382,9 +376,7 @@ def _compare_to_baseline(
         每 Route 的差距 dict（百分比差）
     """
     base_dist = baseline.get("route_distribution", {})
-    cur_dist: Counter[RouteName] = Counter(
-        r.actual_route or "unknown" for r in results
-    )
+    cur_dist: Counter[RouteName] = Counter(r.actual_route or "unknown" for r in results)
     diffs: dict[str, float] = {}
     for route, base_count in base_dist.items():
         cur_count = cur_dist.get(route, 0)
