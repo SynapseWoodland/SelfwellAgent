@@ -7,6 +7,14 @@
   align-items: center;
 }
 
+/* 离屏 canvas：定位在视口外，避免遮挡 UI */
+.hug-canvas {
+  position: fixed;
+  top: -9999rpx;
+  left: -9999rpx;
+  pointer-events: none;
+}
+
 .hug-card {
   width: 100%;
   aspect-ratio: 0.75;
@@ -41,18 +49,56 @@
   color: #4A5568;
 }
 
+.hug-caption {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #718096;
+  letter-spacing: 2rpx;
+}
+
 .hug-emoji {
   margin-top: 48rpx;
   font-size: 128rpx;
   line-height: 1;
 }
 
-.hug-btn {
+.hug-actions {
   margin-top: 64rpx;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.hug-btn {
   background-color: #A8C5B5;
   color: #FFFFFF;
   border-radius: 48rpx;
   font-size: 30rpx;
   font-weight: 500;
   width: 100%;
+}
+
+.hug-btn--ghost {
+  background-color: #FFFFFF;
+  color: #4A5568;
+  border: 2rpx solid #E2E8F0;
+}
+
+.hug-server-wrap {
+  margin-top: 48rpx;
+  width: 100%;
+  text-align: center;
+}
+
+.hug-server-tip {
+  font-size: 24rpx;
+  color: #718096;
+  margin-bottom: 16rpx;
+}
+
+.hug-server-img {
+  width: 100%;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 }

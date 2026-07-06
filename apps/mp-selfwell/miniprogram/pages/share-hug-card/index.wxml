@@ -1,10 +1,34 @@
 <view class="hug">
+  <!-- 离屏 canvas（client 合成使用） -->
+  <canvas
+    type="2d"
+    id="poster-canvas"
+    class="hug-canvas"
+    style="width:750rpx;height:1000rpx;"
+  />
+
   <view class="hug-card">
     <view class="hug-badge">{{card.badge}}</view>
     <view class="hug-title">{{card.title}}</view>
     <view class="hug-sub">{{card.subtitle}}</view>
+    <view class="hug-caption">{{card.caption}}</view>
     <view class="hug-emoji">🤗</view>
   </view>
 
-  <button class="hug-btn" open-type="share">分享给朋友</button>
+  <view class="hug-actions">
+    <button class="hug-btn" open-type="share">分享给朋友</button>
+    <button
+      class="hug-btn hug-btn--ghost"
+      bindtap="onSaveToAlbum"
+      loading="{{saving}}"
+      disabled="{{saving}}"
+    >
+      保存到相册
+    </button>
+  </view>
+
+  <view wx:if="{{posterUrl}}" class="hug-server-wrap">
+    <view class="hug-server-tip">若客户端保存失败，可长按下方图片保存：</view>
+    <image class="hug-server-img" src="{{posterUrl}}" mode="widthFix" />
+  </view>
 </view>
