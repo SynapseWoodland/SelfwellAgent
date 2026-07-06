@@ -14,14 +14,14 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
 from app.llm.client import LLMClient, LLMRequest, LLMResponse
 
 if TYPE_CHECKING:
-    pass
+    from langchain_core.messages import BaseMessage
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -118,6 +118,20 @@ class MockLLMClient(LLMClient):
         sig = _signature(request)
         self._cassettes[sig] = response
         return sig
+
+    async def ainvoke(self, messages: "list[BaseMessage]", **kwargs: Any) -> "BaseMessage":
+        """LangChain 兼容接口（Sprint 2+ ``init_chat_model`` 调用）。
+
+        将 LangChain ``BaseMessage`` 列表转为内部 ``LLMRequest`` 并走 ``achat``。
+        """
+        from langchain_core.messages import AIMessage
+
+        llm_messages = [
+            LLMMessage(role=m.type, content=m.content) for m in messages
+        ]
+        request = LLMRequest(messages=llm_messages)
+        resp = await self.achat(request)
+        return AIMessage(content=resp.content)
 
 
 # Alias 方便迁移期兼容

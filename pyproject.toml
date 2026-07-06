@@ -24,7 +24,7 @@ dependencies = [
     # =====================================================================
     # Web 框架 + ASGI（§1.1 / §8.1）
     # =====================================================================
-    "fastapi>=0.115.0",
+    "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     # =====================================================================
     # 数据校验 + 配置（§7.1 Pydantic + core/config.py）
@@ -76,7 +76,8 @@ dependencies = [
     "tenacity>=9.0.0",               # §10.2 4 级降级链 retry/backoff
     "prometheus-client>=0.21.0",     # §10.3 8 项监控指标 + 告警阈值
     "langchain-core>=1.4.8",
-]  # V1.3 runtime deps total: 20 (boto3 删, 新增 6 项)
+    "langchain-openai>=0.2.0",          # init_chat_model(model_provider="openai") 实现在此包
+]  # V1.3 runtime deps total: 21
 
 [project.optional-dependencies]
 dev = [

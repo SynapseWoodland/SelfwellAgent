@@ -96,62 +96,49 @@ class StorageConfig(BaseSettings):
     minio: MinioConfig = Field(default_factory=MinioConfig)
 
 
-class AnthropicConfig(BaseSettings):
-    """Claude 主模型配置。"""
+class LLMClientConfig(BaseSettings):
+    """OpenAI 兼容 LLM 客户端统一配置（4 级降级链）。
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="ANTHROPIC_", extra="ignore")
+    全部走 OpenAI-compatible 接口（Doubao / GLM / Qwen VL / DeepSeek），无需各 SDK。
 
-    api_key: str = ""
-    model: str = "claude-sonnet-4-20250514"
-    base_url: str = ""
+    真源：``.env`` §LLM 主备。
 
+    降级链：
+        1. 主多模态（Doubao Seedream）：MULTI_*（vision / image generation）
+        2. 备多模态（Qwen VL）：BACKUP_MULTI_*（vision / image generation）
+        3. 备文本（DeepSeek VL）：BACKUP_*（text）
+        4. 主文本（GLM）：API_KEY / MODEL / BASE_URL（text only，非多模态时兜底）
 
-class OpenAIConfig(BaseSettings):
-    """GPT-4o 备 1。"""
-
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="OPENAI_", extra="ignore")
-
-    api_key: str = ""
-    model: str = "gpt-4o"
-    base_url: str = ""
-
-
-class DashscopeConfig(BaseSettings):
-    """Qwen VL 备 2。"""
-
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="DASHSCOPE_", extra="ignore")
-
-    api_key: str = ""
-    model: str = "qwen-vl-max"
-
-
-class DeepSeekConfig(BaseSettings):
-    """DeepSeek-VL 备 3（HTTP API）。"""
-
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="DEEPSEEK_", extra="ignore")
-
-    api_key: str = ""
-    model: str = "deepseek-vl"
-    base_url: str = "https://api.deepseek.com/v1"
-
-
-class LLMConfig(BaseSettings):
-    """LLM 4 级降级链统一参数。
-
-    真源：``docs/spec/facts-anchor.md`` §9 + ``docs/architecture/mvp-tech-architecture.md`` §5
+    注意：主文本（GLM）放在最末，因为其 base_url 与主多模态（Doubao）相同，
+    共享 Ark API 额度；在多模态模型全部失败后才降级到纯文本。
     """
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="LLM_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # 主多模态（Doubao Seedream）
+    multi_api_key: str = Field(default="", alias="MULTI_API_KEY")
+    multi_model: str = Field(default="doubao-seedream-5.0-lite", alias="MULTI_MODEL")
+    multi_base_url: str = Field(default="", alias="MULTI_BASE_URL")
+
+    # 主文本（GLM，Ark）
+    api_key: str = Field(default="", alias="API_KEY")
+    model: str = Field(default="glm-5.2", alias="MODEL")
+    base_url: str = Field(default="", alias="BASE_URL")
+
+    # 备多模态（Qwen VL）
+    backup_multi_api_key: str = Field(default="", alias="BACKUP_MULTI_API_KEY")
+    backup_multi_model: str = Field(default="qwen-vl-max", alias="BACKUP_MULTI_MODEL")
+
+    # 备文本（DeepSeek VL）
+    backup_api_key: str = Field(default="", alias="BACKUP_API_KEY")
+    backup_model: str = Field(default="deepseek-vl", alias="BACKUP_MODEL")
+    backup_base_url: str = Field(default="https://api.deepseek.com/v1", alias="BACKUP_BASE_URL")
+
+    # 通用参数
     temperature: float = 0.7
     max_tokens: int = 2048
     monthly_budget_yuan: int = 700  # ¥700/月上限（facts-anchor §4）
     daily_budget_yuan: int = 40  # ¥40/天上限（facts-anchor §4）
-
-    anthropic: AnthropicConfig = Field(default_factory=AnthropicConfig)
-    openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
-    dashscope: DashscopeConfig = Field(default_factory=DashscopeConfig)
-    deepseek: DeepSeekConfig = Field(default_factory=DeepSeekConfig)
 
 
 class WechatConfig(BaseSettings):
@@ -235,7 +222,7 @@ class AppConfig(BaseSettings):
     db_urls: DatabaseUrlConfig = Field(default_factory=DatabaseUrlConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
-    llm: LLMConfig = Field(default_factory=LLMConfig)
+    llm: LLMClientConfig = Field(default_factory=LLMClientConfig)
     wechat: WechatConfig = Field(default_factory=WechatConfig)
     jwt: JWTConfig = Field(default_factory=JWTConfig)
     aliyun_dm: AliyunDMConfig = Field(default_factory=AliyunDMConfig)
@@ -257,10 +244,10 @@ class AppConfig(BaseSettings):
     def is_llm_configured(self) -> bool:
         return any(
             (
-                self.llm.anthropic.api_key,
-                self.llm.openai.api_key,
-                self.llm.dashscope.api_key,
-                self.llm.deepseek.api_key,
+                self.llm.multi_api_key,
+                self.llm.backup_multi_api_key,
+                self.llm.backup_api_key,
+                self.llm.api_key,
             )
         )
 
@@ -310,21 +297,17 @@ app_config: AppConfig = AppConfig()
 
 __all__ = [
     "AliyunDMConfig",
-    "AnthropicConfig",
     "AppConfig",
     "AppEnv",
-    "DashscopeConfig",
     "DatabaseUrlConfig",
-    "DeepSeekConfig",
     "JWTConfig",
-    "LLMConfig",
+    "LLMClientConfig",
     "MinioConfig",
     "MonitoringConfig",
-    "OpenAIConfig",
     "PostgresConfig",
     "RedisConfig",
     "StorageCallbackConfig",
     "StorageConfig",
     "WechatConfig",
     "app_config",
-]  # pylint: disable=undefined-variable
+]
