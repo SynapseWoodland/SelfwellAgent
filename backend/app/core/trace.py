@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
 # ─────────────────────────────────────────────────────────────────────────────
 # §一 ContextVar（让 trace_id 在 async 链路中安全地传播）
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ def _generate_trace_id() -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # §三 FastAPI / Starlette 中间件
 # ─────────────────────────────────────────────────────────────────────────────
-class TraceContextMiddleware:
+class TraceContextMiddleware(BaseHTTPMiddleware):
     """Inject / propagate trace_id across the request lifecycle.
 
     Usage in FastAPI:
@@ -78,15 +80,17 @@ class TraceContextMiddleware:
     HEADER_REQUEST_ID = "X-Request-ID"
     HEADER_TRACEPARENT = "traceparent"
 
-    async def __call__(
+    async def dispatch(
         self,
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         # 1. 入口：解析或生成 trace / request id
+        # 优先顺序：traceparent(W3C) > X-Trace-Id(自定义) > generate
         traceparent = request.headers.get(self.HEADER_TRACEPARENT, "")
+        x_trace_id_inbound = request.headers.get(self.HEADER_TRACE_ID)
         parsed_trace_id = _parse_traceparent(traceparent) if traceparent else None
-        trace_id = parsed_trace_id or _generate_trace_id()
+        trace_id = parsed_trace_id or x_trace_id_inbound or _generate_trace_id()
         request_id = request.headers.get(self.HEADER_REQUEST_ID) or _generate_trace_id()[:16]
 
         # 2. ContextVar 注入（async 链路安全）
@@ -98,8 +102,8 @@ class TraceContextMiddleware:
         # 3. 业务执行
         response = await call_next(request)
 
-        # 4. 出口：写回 trace headers
-        response.headers[self.HEADER_TRACE_ID] = trace_id
+        # 4. 出口：写回 trace headers（按 inbound 透传 + 新生成兜底）
+        response.headers[self.HEADER_TRACE_ID] = x_trace_id_inbound or trace_id
         response.headers[self.HEADER_REQUEST_ID] = request_id
         if not response.headers.get(self.HEADER_TRACEPARENT):
             response.headers[self.HEADER_TRACEPARENT] = (

@@ -11,7 +11,8 @@ PR-1（SPEC-S1PR1-fastapi-boot）：
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Awaitable, Literal, cast
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, Literal, cast
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse

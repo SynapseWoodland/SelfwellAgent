@@ -1,0 +1,60 @@
+# .dockerignore —— 最小化构建上下文，加速 uv sync + docker build
+# 参考：https://docs.docker.com/engine/reference/builder/#dockerignore-file
+
+# ── Python 运行时产物 ──
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+build/
+dist/
+.wheels/
+
+# ── 测试与缓存 ──
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.coverage.*
+junit.xml
+reports/
+
+# ── 文档与非构建产物 ──
+docs/
+specs/
+.cursor/
+.idea/
+.vscode/
+*.md
+!backend/**/*.md
+
+# ── Git 与 CI ──
+.git/
+.gitattributes
+.github/
+
+# ── 本地配置（容器内由环境变量注入） ──
+.env
+.env.local
+.env.*.local
+
+# ── 数据 / 资源（不进镜像） ──
+data/
+fixtures/
+logs/
+*.log
+tmp/
+temp/
+
+# ── OS 噪音 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/

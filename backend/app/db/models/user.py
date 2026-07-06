@@ -35,12 +35,12 @@ from uuid import UUID
 
 from sqlalchemy import CHAR, INTEGER, TIMESTAMP, VARCHAR
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    pass
+    from app.db.models.feedback import Feedback
 
 
 class User(Base):
@@ -70,6 +70,8 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(VARCHAR(254), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     last_active_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    # 用户生命周期：draft（草稿 24h 内）/ active（正式）/ churned（流失）
+    status: Mapped[str] = mapped_column(VARCHAR(16), nullable=False, default="draft")
     report_cache: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     report_cache_expires_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
@@ -82,3 +84,8 @@ class User(Base):
     created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+
+    # relationships（与 Feedback ORM 配对）
+    feedbacks: Mapped[list[Feedback]] = relationship(
+        "Feedback", back_populates="user", lazy="raise"
+    )

@@ -40,12 +40,12 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    pass
+    from app.db.models.feedback import Feedback
 
 
 class AIMessage(Base):
@@ -82,3 +82,8 @@ class AIMessage(Base):
     created_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     last_updated_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     last_updated_by: Mapped[str] = mapped_column(VARCHAR(64), nullable=False, default="")
+
+    # relationships
+    feedbacks: Mapped[list[Feedback]] = relationship(
+        "Feedback", back_populates="ai_ack", lazy="raise"
+    )

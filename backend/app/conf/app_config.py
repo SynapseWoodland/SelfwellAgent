@@ -149,6 +149,7 @@ class WechatConfig(BaseSettings):
     mp_appid: str = ""
     mp_secret: str = ""
     mp_template_id: str = ""
+    mp_template_keywords: str = ""  # 格式：打卡时间|打卡名称|任务说明|提醒时间
 
 
 class JWTConfig(BaseSettings):

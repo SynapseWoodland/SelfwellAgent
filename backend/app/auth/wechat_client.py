@@ -6,7 +6,7 @@ httpx ≥ 0.27.0 已在 pyproject.toml 声明。
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.conf.app_config import app_config
 from app.core.errors import SelfwellError
@@ -56,4 +56,43 @@ class WeChatClient:
             WeChatClientError: 微信侧 errcode != 0。
 
         """
-        raise NotImplementedError("WeChatClient.code2session 待 Sprint 1 M1 接入 httpx")
+        import httpx
+
+        params = {
+            "appid": self._appid,
+            "secret": self._secret,
+            "js_code": js_code,
+            "grant_type": "authorization_code",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.get(self.JSC2S_URL, params=params)
+                data: dict[str, object] = resp.json()
+        except httpx.TimeoutException as exc:
+            raise WeChatClientError(
+                "微信接口调用超时",
+                code="E_AUTH_CODE_INVALID",
+                http_status=504,
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise WeChatClientError(
+                "微信接口调用失败",
+                code="E_AUTH_CODE_INVALID",
+                http_status=502,
+            ) from exc
+
+        errcode_raw = data.get("errcode")
+        errcode: int | None = int(cast(int | str, errcode_raw)) if errcode_raw is not None else None
+        if errcode is not None and errcode != 0:
+            errmsg: str = str(data.get("errmsg", "微信授权失败"))
+            raise WeChatClientError(
+                f"微信授权失败：{errmsg}",
+                code="E_AUTH_CODE_INVALID",
+                http_status=401,
+            )
+
+        result: dict[str, str] = {}
+        for key in ("openid", "session_key", "unionid"):
+            if key in data:
+                result[key] = str(data[key])
+        return result

@@ -1,3 +1,1 @@
-"""
-Selfwell Backend
-"""
+"""Selfwell Backend"""

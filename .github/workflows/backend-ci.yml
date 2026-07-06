@@ -53,7 +53,6 @@ jobs:
       # ──────────────────────────────────────────────
       - name: L2 — mypy strict
         run: uv run mypy backend/ --strict --ignore-missing-imports
-        continue-on-error: true  # Phase 0 仍可逐步落地
 
       # ──────────────────────────────────────────────
       # L3：pytest（含 Golden Set / Eval Runner）
@@ -65,7 +64,6 @@ jobs:
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-fail-under=60
-        continue-on-error: true  # Phase 0 仍可逐步落地
 
       # ──────────────────────────────────────────────
       # L4：jscpd 代码重复检查（≤ 4%）
@@ -80,7 +78,6 @@ jobs:
       - name: Golden Set — input intercept
         run: |
           uv run pytest backend/tests/intercept/ -v
-        continue-on-error: true
 
       # ──────────────────────────────────────────────
       # 上传 coverage 到 Codecov
