@@ -2,7 +2,13 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+/// Riverpod provider for the [SecureStorage] singleton. Tests override this
+/// in `ProviderScope` to inject a fake.
+final Provider<SecureStorage> secureStorageProvider =
+    Provider<SecureStorage>((_) => SecureStorage());
 
 /// Keys used across the storage layer. Centralized to avoid magic strings.
 class _Keys {

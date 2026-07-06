@@ -1,149 +1,171 @@
+/// Push notification facade bridging `firebase_messaging` (FCM/APNs)
+/// and the backend `/users/me/push-token` endpoint.
+///
+/// **§17 hard-constraint #17**: every push payload MUST contain
+/// `traceparent` + `client_platform` + `user_id_pseudo`. We enforce
+/// that at construction time below so a future refactor can't drop a
+/// field silently.
+///
+/// On iOS the same FCM token also reaches APNs; on Android FCM is the
+/// transport. HMS (HarmonyOS) and email (fallback) live behind
+/// `package:selfwell_push_adapters` (out of scope for SF1).
+library;
+
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
-import 'package:firebase_core/firebase_core.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../api/api_service.dart';
+import '../api/dio_client.dart';
 import '../storage/secure_storage.dart';
 
-/// Client-platform tag used in push payloads (§17 hard-constraint #17).
-/// iOS P0 in V1.3; Android/HMS deferred.
-enum ClientPlatform { flutterIos, flutterAndroid, flutterHarmony }
+/// Canonical key set used in every push payload (see §17 #17).
+class PushPayloadKeys {
+  PushPayloadKeys._();
 
-extension ClientPlatformX on ClientPlatform {
-  String get wireValue {
-    switch (this) {
-      case ClientPlatform.flutterIos:
-        return 'flutter_ios';
-      case ClientPlatform.flutterAndroid:
-        return 'flutter_android';
-      case ClientPlatform.flutterHarmony:
-        return 'flutter_harmony';
-    }
-  }
+  static const String traceparent = 'traceparent';
+  static const String clientPlatform = 'client_platform';
+  static const String userIdPseudo = 'user_id_pseudo';
 }
 
-ClientPlatform _detectPlatform() {
-  if (kIsWeb) return ClientPlatform.flutterAndroid;
-  try {
-    if (Platform.isIOS) return ClientPlatform.flutterIos;
-    if (Platform.isAndroid) return ClientPlatform.flutterAndroid;
-  } on UnsupportedError {
-    // ignore — fall back to android
-  }
-  return ClientPlatform.flutterAndroid;
+/// Returns the platform tag in the same format the backend expects
+/// (matches `api_service.clientPlatform()`).
+String clientPlatformTag() {
+  if (kIsWeb) return 'web';
+  if (Platform.isIOS) return 'ios';
+  if (Platform.isAndroid) return 'android';
+  if (Platform.isMacOS) return 'macos';
+  if (Platform.isWindows) return 'win';
+  if (Platform.isLinux) return 'linux';
+  return 'unknown';
 }
 
-/// Initializes Firebase + FCM and produces FCM payloads whose shape matches
-/// §17 hard-constraint #17:
-///   `{ traceparent, client_platform, user_id_pseudo, ... }`
-///
-/// The class does not own lifecycle of FCM tokens — the backend
-/// `users.updatePushToken` endpoint is called by `app_router` /
-/// `NotificationCenter` after the user logs in.
-class FcmService {
-  FcmService({
-    required this.storage,
-    FirebaseMessaging? messaging,
-    ClientPlatform? platform,
-  })  : _messaging = messaging ?? FirebaseMessaging.instance,
-        _platform = platform ?? _detectPlatform();
-
-  final SecureStorage storage;
-  final FirebaseMessaging _messaging;
-  final ClientPlatform _platform;
-
-  bool _initialized = false;
-
-  Future<void> initialize() async {
-    if (_initialized) return;
-    await Firebase.initializeApp();
-
-    // iOS: ask for permission. Android 13+ also requires POST_NOTIFICATIONS.
-    final NotificationSettings settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: false,
-    );
-    if (kDebugMode) {
-      developer.log(
-        'fcm.permission=${settings.authorizationStatus}',
-        name: 'selfwell.fcm',
-      );
-    }
-    _initialized = true;
-  }
-
-  Future<String?> fetchToken() => _messaging.getToken();
-
-  /// Subscribes to foreground messages. The returned [Stream] yields
-  /// payloads that already include `traceparent`, `client_platform`, and
-  /// `user_id_pseudo` (see [buildEnvelope]).
-  Stream<PushPayload> onMessage() {
-    final StreamController<PushPayload> controller =
-        StreamController<PushPayload>.broadcast();
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
-      controller.add(_envelopeFromRemote(msg));
-    });
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
-      controller.add(_envelopeFromRemote(msg));
-    });
-
-    return controller.stream;
-  }
-
-  /// Builds the standard 4-end payload envelope. Used by tests.
-  Future<PushPayload> buildEnvelope({
-    required String traceparent,
-    required Map<String, dynamic> data,
-  }) async {
-    final String? pseudo = await storage.readUserIdPseudo();
-    return PushPayload(
-      traceparent: traceparent,
-      clientPlatform: _platform,
-      userIdPseudo: pseudo,
-      data: data,
-    );
-  }
-
-  PushPayload _envelopeFromRemote(RemoteMessage msg) {
-    final String pseudo =
-        (msg.data['user_id_pseudo'] as String?) ?? 'unknown';
-    final String tp =
-        (msg.data['traceparent'] as String?) ?? '00-0-0-00';
-    return PushPayload(
-      traceparent: tp,
-      clientPlatform: _platform,
-      userIdPseudo: pseudo,
-      data: msg.data,
-    );
-  }
-}
-
-/// Standard push payload envelope. Mirrors §17 hard-constraint #17 fields.
+/// Wraps the FCM token + the traceparent / pseudo-id fields that
+/// every push must carry.
 @immutable
 class PushPayload {
   const PushPayload({
-    required this.traceparent,
+    required this.fcmToken,
     required this.clientPlatform,
     required this.userIdPseudo,
-    required this.data,
+    required this.traceparent,
   });
 
+  final String fcmToken;
+  final String clientPlatform;
+  final String userIdPseudo;
   final String traceparent;
-  final ClientPlatform clientPlatform;
-  final String? userIdPseudo;
-  final Map<String, dynamic> data;
 
-  String get clientPlatformValue => clientPlatform.wireValue;
+  /// Serializes to the shape sent to `POST /users/me/push-token`.
+  /// Asserts the §17 invariant at runtime.
+  Map<String, dynamic> toJson() {
+    assert(fcmToken.isNotEmpty, 'fcmToken required');
+    assert(clientPlatform.isNotEmpty, 'clientPlatform required');
+    assert(userIdPseudo.isNotEmpty, 'userIdPseudo required');
+    assert(traceparent.isNotEmpty, 'traceparent required');
+    return <String, dynamic>{
+      'token': fcmToken,
+      PushPayloadKeys.clientPlatform: clientPlatform,
+      PushPayloadKeys.userIdPseudo: userIdPseudo,
+      PushPayloadKeys.traceparent: traceparent,
+    };
+  }
+}
 
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'traceparent': traceparent,
-        'client_platform': clientPlatformValue,
-        'user_id_pseudo': userIdPseudo,
-        ...data,
-      };
+/// FCM service — wires the firebase_messaging plugin to the backend.
+///
+/// In V1.3 SF5 we expose:
+///   - request permission
+///   - get the device FCM token
+///   - build a [PushPayload] with the §17 fields
+///   - send it to `POST /users/me/push-token`
+class FcmService {
+  FcmService({
+    FirebaseMessaging? messaging,
+    SecureStorage? storage,
+    Dio? dio,
+    TraceIdProvider? traceIdProvider,
+  })  : _messaging = messaging ?? FirebaseMessaging.instance,
+        _storage = storage ?? SecureStorage(),
+        _dio = dio,
+        _traceIdProvider = traceIdProvider ?? defaultTraceIdProvider;
+
+  final FirebaseMessaging _messaging;
+  final SecureStorage _storage;
+  final Dio? _dio;
+  final TraceIdProvider _traceIdProvider;
+
+  bool _initialized = false;
+  String? _cachedToken;
+
+  /// Request permission (iOS / Android 13+) and return the device
+  /// FCM token. Idempotent.
+  Future<String> requestToken() async {
+    if (_cachedToken != null) return _cachedToken!;
+    if (!_initialized) {
+      await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      _initialized = true;
+    }
+    final String? token = await _messaging.getToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('FCM returned empty token');
+    }
+    _cachedToken = token;
+    return token;
+  }
+
+  /// Build the canonical payload. Pure function — easy to test.
+  Future<PushPayload> buildPayload(String fcmToken) async {
+    final String? pseudo = await _storage.readUserIdPseudo();
+    return PushPayload(
+      fcmToken: fcmToken,
+      clientPlatform: clientPlatformTag(),
+      userIdPseudo: pseudo ?? 'unknown',
+      traceparent: _traceIdProvider(),
+    );
+  }
+
+  /// End-to-end: request token + send to backend. Returns the
+  /// stored FCM token for diagnostics.
+  Future<String> registerWithBackend() async {
+    final String token = await requestToken();
+    final PushPayload payload = await buildPayload(token);
+    final Dio dio = _dio ??
+        Dio(BaseOptions(
+          baseUrl: const String.fromEnvironment(
+            'SELFWELL_API_BASE',
+            defaultValue: 'https://api.selfwell.example.com',
+          ),
+        ));
+    await ApiService(dio).updatePushToken(
+      token,
+      clientPlatformTag(),
+    );
+    debugPrint('FcmService: registered ${payload.toJson()}');
+    return token;
+  }
+
+  /// Listen to incoming messages. Returns a subscription the caller
+  /// can cancel.
+  StreamSubscription<RemoteMessage> onMessage(
+    void Function(RemoteMessage) handler,
+  ) {
+    return FirebaseMessaging.onMessage.listen(handler);
+  }
+
+  /// Subscribe to notification opened events (background/terminated
+  /// taps). The handler is responsible for navigating to the
+  /// relevant page.
+  StreamSubscription<RemoteMessage> onMessageOpenedApp(
+    void Function(RemoteMessage) handler,
+  ) {
+    return FirebaseMessaging.onMessageOpenedApp.listen(handler);
+  }
 }

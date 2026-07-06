@@ -1,24 +1,31 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/api/dio_client.dart';
+import 'core/auth/auth_repository.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/color_tokens.dart';
-import 'pages/splash/splash_page.dart' show secureStorageProvider;
 
 /// App entry point. Wires:
 ///   1. ProviderScope + Riverpod
 ///   2. Token bootstrap (device_id, JWT) via SecureStorage
-///   3. ThemeData from design tokens
-///   4. go_router with auth-aware redirect
+///   3. Auth state hydration from persisted JWT
+///   4. ThemeData from design tokens
+///   5. go_router with auth-aware redirect
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final ProviderContainer container = ProviderContainer();
   final SecureStorage storage = container.read(secureStorageProvider);
   await storage.ensureDeviceId();
+  // Hydrate AuthState from persisted JWT so the router's redirect picks
+  // the right landing page on cold start. Fire-and-forget: the splash
+  // page shows a spinner while this runs.
+  unawaited(container.read(authRepositoryProvider).loadFromStorage());
   runApp(
     UncontrolledProviderScope(
       container: container,

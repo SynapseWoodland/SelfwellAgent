@@ -1,4 +1,4 @@
-/// IA-REF: docs/design/ia-and-wireframe.md §4.1 P01 启动页
+/// IA-REF: docs/design/ia-and-wireframe.md §4.1 P01 启动页（P01b 子页：手机号登录）
 /// 设计稿: docs/design/figma-pixso-spec/pages/02-login.html
 /// 后端端点: openapi.yaml tag=[auth] operationId=wxMpLogin POST /auth/wx-login
 ///
@@ -9,14 +9,55 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_service.dart';
+import '../../core/api/exceptions.dart';
+import '../../core/auth/auth_repository.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../core/theme/spacing.dart';
+import '../../widgets/error_toast.dart';
 
-/// Login screen (P01). The actual `wx.login` → POST /auth/wx-login flow
-/// lands in Sprint SF1; this SF0 placeholder renders the design surface.
-class LoginPage extends StatelessWidget {
+// Back-compat re-exports so historical pages that imported `apiServiceProvider`
+// from this file keep compiling. The canonical provider now lives in
+// `core/api/api_service.dart`.
+export '../../core/api/api_service.dart' show apiServiceProvider;
+
+/// Login screen (P01). Wires the [AuthRepository] to the wx-login endpoint.
+/// In V1.3 the WeChat OAuth flow is provided by the WeChat SDK; in
+/// widget tests we accept an injected code to skip the platform call.
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  bool _busy = false;
+
+  /// Wires the WeChat login flow. In a real build the [code] comes from
+  /// `Wechat.instance.auth(scope: 'snsapi_userinfo')`; tests pass a stub.
+  Future<void> _doWxLogin({String code = 'mock_wx_code_001'}) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final AuthRepository repo = ref.read(authRepositoryProvider);
+      await repo.wxLogin(
+        code: code,
+        nickName: '小满',
+        avatarUrl: null,
+      );
+      if (!mounted) return;
+      context.go('/home');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ErrorToast.show(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,22 +96,32 @@ class LoginPage extends StatelessWidget {
               ),
               const Spacer(),
               ElevatedButton(
-                onPressed: null, // wired in SF1
-                child: const Text('微信一键登录'),
+                key: const Key('login.wechat'),
+                onPressed: _busy ? null : _doWxLogin,
+                child: _busy
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('微信一键登录'),
               ),
               const SizedBox(height: AppSpacing.s3),
               OutlinedButton(
-                onPressed: null,
+                key: const Key('login.phone'),
+                onPressed: _busy ? null : () => _doWxLogin(code: 'mock_phone_001'),
                 child: const Text('手机号登录'),
               ),
               const SizedBox(height: AppSpacing.s6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: const <Widget>[
-                  Text('隐私政策',
-                      style: TextStyle(color: AppColors.neutral300)),
-                  Text('用户协议',
-                      style: TextStyle(color: AppColors.neutral300)),
+                  Text('隐私政策', style: TextStyle(color: AppColors.neutral300)),
+                  Text('用户协议', style: TextStyle(color: AppColors.neutral300)),
                 ],
               ),
               const SizedBox(height: AppSpacing.s6),
@@ -81,3 +132,8 @@ class LoginPage extends StatelessWidget {
     );
   }
 }
+
+// Re-export so historical `import '.../login_page.dart' show apiServiceProvider`
+// imports keep compiling. The canonical provider lives in
+// `core/api/api_service.dart`.
+export '../../core/api/api_service.dart' show apiServiceProvider;

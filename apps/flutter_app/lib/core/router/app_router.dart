@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../api/api_types.dart';
+import '../../pages/assistant/assistant_home_page.dart';
+import '../../pages/checkin/checkin_page.dart';
+import '../../pages/community/community_page.dart';
+import '../../pages/diagnosis/loading/diagnosis_loading_page.dart';
+import '../../pages/diagnosis/report/diagnosis_report_page.dart';
 import '../../pages/diagnosis/upload/diagnosis_upload_page.dart';
+import '../../pages/feedback/feedback_diary_page.dart';
 import '../../pages/home/home_page.dart';
 import '../../pages/login/login_page.dart';
+import '../../pages/plan/plan_page.dart';
 import '../../pages/profile/profile_page.dart';
+import '../../pages/recall/recall_compare_page.dart';
+import '../../pages/share/hug_card_page.dart';
 import '../../pages/splash/splash_page.dart';
+import '../auth/router_refresh_notifier.dart';
 import '../storage/secure_storage.dart';
 
 /// Route names — exported as constants to avoid magic strings.
@@ -35,7 +46,7 @@ GoRouter buildAppRouter({required SecureStorage storage}) {
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: false,
-    refreshListenable: RouterRefreshNotifier(),
+    refreshListenable: routerRefreshNotifier,
     redirect: (BuildContext context, GoRouterState state) async {
       final String? token = await storage.readJwt();
       final String location = state.matchedLocation;
@@ -72,51 +83,56 @@ GoRouter buildAppRouter({required SecureStorage storage}) {
       GoRoute(
         path: '/diagnosis/loading',
         name: AppRoutes.diagnosisLoading,
-        builder: (BuildContext _, __) => const _SprintPlaceholder(
-          pageName: 'diagnosis/loading',
-        ),
+        builder: (BuildContext context, GoRouterState state) {
+          final Object? extra = state.extra;
+          final String diagnosisId = extra is String
+              ? extra
+              : (extra is DiagnosisJob ? extra.id : 'sf1-dev-diagnosis');
+          return DiagnosisLoadingPage(diagnosisId: diagnosisId);
+        },
       ),
       GoRoute(
         path: '/diagnosis/report',
         name: AppRoutes.diagnosisReport,
-        builder: (BuildContext _, __) => const _SprintPlaceholder(
-          pageName: 'diagnosis/report',
-        ),
+        builder: (BuildContext context, GoRouterState state) {
+          final Object? extra = state.extra;
+          final String id = extra is String
+              ? extra
+              : (extra is DiagnosisReport
+                  ? extra.id
+                  : 'sf1-dev-diagnosis');
+          return DiagnosisReportPage(diagnosisId: id);
+        },
       ),
       GoRoute(
         path: '/plan',
         name: AppRoutes.plan,
-        builder: (BuildContext _, __) => const _SprintPlaceholder(pageName: 'plan'),
+        builder: (BuildContext _, __) => const PlanPage(),
       ),
       GoRoute(
         path: '/checkin',
         name: AppRoutes.checkin,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'checkin'),
+        builder: (BuildContext _, __) => const CheckinPage(),
       ),
       GoRoute(
         path: '/assistant/home',
         name: AppRoutes.assistantHome,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'assistant/home'),
+        builder: (BuildContext _, __) => const AssistantHomePage(),
       ),
       GoRoute(
         path: '/feedback/diary',
         name: AppRoutes.feedbackDiary,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'feedback/diary'),
+        builder: (BuildContext _, __) => const FeedbackDiaryPage(),
       ),
       GoRoute(
         path: '/recall/compare',
         name: AppRoutes.recallCompare,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'recall/compare'),
+        builder: (BuildContext _, __) => const RecallComparePage(),
       ),
       GoRoute(
         path: '/community',
         name: AppRoutes.community,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'community'),
+        builder: (BuildContext _, __) => const CommunityPage(),
       ),
       GoRoute(
         path: '/profile',
@@ -126,33 +142,12 @@ GoRouter buildAppRouter({required SecureStorage storage}) {
       GoRoute(
         path: '/share/hug-card',
         name: AppRoutes.shareHugCard,
-        builder: (BuildContext _, __) =>
-            const _SprintPlaceholder(pageName: 'share/hug_card'),
+        builder: (BuildContext context, GoRouterState state) {
+          final String? dayParam = state.uri.queryParameters['day'];
+          final int day = int.tryParse(dayParam ?? '') ?? 14;
+          return HugCardPage(day: day);
+        },
       ),
     ],
   );
-}
-
-/// Re-fires router redirects when the auth token changes. Exposed as a
-/// public class so other layers (login flow, logout button) can call
-/// [refresh] after writing to / clearing `SecureStorage`.
-class RouterRefreshNotifier extends ChangeNotifier {
-  /// Public alias used by `buildAppRouter`.
-  // ignore: unused_element
-  void refresh() => notifyListeners();
-}
-
-/// Tiny placeholder for pages not yet implemented in SF0. Keeps the
-/// route table honest so go_router resolves every path today.
-class _SprintPlaceholder extends StatelessWidget {
-  const _SprintPlaceholder({required this.pageName});
-
-  final String pageName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text('$pageName — placeholder (SF1+)'),
-    );
-  }
 }
