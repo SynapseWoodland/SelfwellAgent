@@ -71,7 +71,7 @@ async def register_push_token(
     user.push_channel = push_channel
     user.last_active_at = now_ts
     user.last_updated_time = now_ts
-    user.last_updated_by = "push-token-register"
+    user.last_updated_by = user_id          # 当前更新用户（注册推送的人）
     await session.flush()
     return {"user_id": str(user.id), "push_channel": push_channel}
 

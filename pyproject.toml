@@ -234,6 +234,35 @@ explicit_package_bases = true
 namespace_packages = true
 
 # =============================================================================
+# FastAPI CLI 配置（src layout 兜底元数据）
+# ─────────────────────────────────────────────────────────────────────────────
+# 项目布局：backend/ 是 Python 项目根，app/ 是顶层包，
+#   main.py 用的是 from app.xxx 写法。
+# FastAPI CLI 的自动发现（fastapi dev）在 src layout 下会失败
+# （它把 entry file 所在目录加入 sys.path，导致包名变成 app 而非 backend.app）。
+# 因此本节作为文档性元数据记录 + 与 [tool.uv.scripts] 互补；
+# 实际启动用 uv run dev-backend（脚本见下）。
+# =============================================================================
+[tool.fastapi]
+# FastAPI CLI >=0.0.26 才会读 from_pyproject；老的 dev 命令在 src layout 下不会用它
+entrypoint = "backend.app.main:app"
+
+# =============================================================================
+# uv scripts（一键启动入口）
+# ─────────────────────────────────────────────────────────────────────────────
+# 与 uv 项目管理对齐：`uv run dev-backend` 等价于：
+#   uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+# uv 会自动用 .venv 的 uvicorn，并把 cwd 作为 sys.path 起点，
+# 让 `from app.xxx` 写法在 backend/ 之下能解析到。
+# 文档：https://docs.astral.sh/uv/reference/cli/#uv-run
+# =============================================================================
+[tool.uv.scripts]
+# dev backend: 监听 8000，自动 reload
+dev-backend = "uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000"
+# 同上但绑定 0.0.0.0（Docker / 局域网调试时用）
+dev-backend-public = "uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000"
+
+# =============================================================================
 # V1.3 新增：Commitizen 配置（交互式 Conventional Commits，中文模板）
 # =============================================================================
 [tool.commitizen]

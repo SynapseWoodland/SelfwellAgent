@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import time as _time
+
 import jwt as pyjwt
 from jwt.exceptions import (
     DecodeError,
@@ -75,9 +77,12 @@ def sign_access_token(
             http_status=500,
         )
     now_minutes = expires_minutes or app_config.jwt.access_token_expire_minutes
+    now_ts = int(_time.time())
     payload: dict[str, object] = {
         "sub": user_id,
         "type": "access",
+        "iat": now_ts,
+        "exp": now_ts + now_minutes * 60,
     }
     if extra_claims:
         payload.update(extra_claims)
@@ -85,7 +90,6 @@ def sign_access_token(
         payload,
         app_config.jwt.secret_key,
         algorithm=app_config.jwt.algorithm,
-        headers={"exp": now_minutes * 60},
     )
     return token
 

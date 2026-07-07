@@ -1,19 +1,19 @@
 {
   "pages": [
-    "miniprogram/pages/splash/index",
-    "miniprogram/pages/login/index",
-    "miniprogram/pages/home/index",
-    "miniprogram/pages/diagnosis-upload/index",
-    "miniprogram/pages/diagnosis-loading/index",
-    "miniprogram/pages/diagnosis-report/index",
-    "miniprogram/pages/plan/index",
-    "miniprogram/pages/checkin/index",
-    "miniprogram/pages/assistant-home/index",
-    "miniprogram/pages/feedback-diary/index",
-    "miniprogram/pages/recall-compare/index",
-    "miniprogram/pages/community/index",
-    "miniprogram/pages/profile/index",
-    "miniprogram/pages/share-hug-card/index"
+    "pages/splash/index",
+    "pages/login/index",
+    "pages/home/index",
+    "pages/diagnosis-upload/index",
+    "pages/diagnosis-loading/index",
+    "pages/diagnosis-report/index",
+    "pages/plan/index",
+    "pages/checkin/index",
+    "pages/assistant-home/index",
+    "pages/feedback-diary/index",
+    "pages/recall-compare/index",
+    "pages/community/index",
+    "pages/profile/index",
+    "pages/share-hug-card/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -30,32 +30,34 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "miniprogram/pages/home/index",
+        "pagePath": "pages/home/index",
         "text": "首页",
-        "iconPath": "miniprogram/assets/tabbar/home.png",
-        "selectedIconPath": "miniprogram/assets/tabbar/home-active.png"
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
-        "pagePath": "miniprogram/pages/assistant-home/index",
+        "pagePath": "pages/assistant-home/index",
         "text": "智能管家",
-        "iconPath": "miniprogram/assets/tabbar/butler.png",
-        "selectedIconPath": "miniprogram/assets/tabbar/butler-active.png"
+        "iconPath": "assets/tabbar/butler.png",
+        "selectedIconPath": "assets/tabbar/butler-active.png"
       },
       {
-        "pagePath": "miniprogram/pages/community/index",
+        "pagePath": "pages/community/index",
         "text": "广场",
-        "iconPath": "miniprogram/assets/tabbar/plaza.png",
-        "selectedIconPath": "miniprogram/assets/tabbar/plaza-active.png"
+        "iconPath": "assets/tabbar/plaza.png",
+        "selectedIconPath": "assets/tabbar/plaza-active.png"
       },
       {
-        "pagePath": "miniprogram/pages/profile/index",
+        "pagePath": "pages/profile/index",
         "text": "我的",
-        "iconPath": "miniprogram/assets/tabbar/profile.png",
-        "selectedIconPath": "miniprogram/assets/tabbar/profile-active.png"
+        "iconPath": "assets/tabbar/profile.png",
+        "selectedIconPath": "assets/tabbar/profile-active.png"
       }
     ]
   },
-  "requiredPrivateInfos": ["getLocation", "chooseImage"],
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "permission": {
     "scope.userLocation": {
       "desc": "用于定位附近健身房"

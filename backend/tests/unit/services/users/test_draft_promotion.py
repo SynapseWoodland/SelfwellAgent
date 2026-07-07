@@ -54,3 +54,46 @@ async def test_promote_due_drafts_empty() -> None:
     fake_session.flush = AsyncMock()
     promoted = await promote_due_drafts(fake_session)
     assert promoted == 0
+
+
+@pytest.mark.asyncio
+async def test_promote_due_drafts_audit_by_is_cron_label() -> None:
+    """Cron job 触发的转正，audit 字段必须是 "cron:promote-drafts"，不能是 user_id。
+
+    业界共识（SQL Server / Spring Data JPA / Hibernate Envers）：
+    系统动作的 audit 字段用语义化字符串，视觉上与 user_id 区分。
+    """
+    user_old = _make_user(created_hours_ago=DRAFT_TTL_HOURS + 1)
+    fake_session = AsyncMock()
+
+    first_result = MagicMock()
+    first_result.scalars.return_value.all.return_value = [user_old]
+    # user_old.created_at > threshold → 不查 feedback，直接转正
+    fake_session.execute.return_value = first_result
+    fake_session.flush = AsyncMock()
+
+    promoted = await promote_due_drafts(fake_session)
+    assert promoted == 1
+    assert user_old.status == "active"
+    # 关键断言：audit 字段必须是 cron label
+    assert user_old.last_updated_by == "cron:promote-drafts"
+    assert user_old.last_updated_by != str(user_old.id)
+
+
+@pytest.mark.asyncio
+async def test_promote_due_drafts_audit_time_is_utc() -> None:
+    """Cron job 触发时 last_updated_time 必须是 UTC。"""
+    user_old = _make_user(created_hours_ago=DRAFT_TTL_HOURS + 1)
+    fake_session = AsyncMock()
+
+    first_result = MagicMock()
+    first_result.scalars.return_value.all.return_value = [user_old]
+    fake_session.execute.return_value = first_result
+    fake_session.flush = AsyncMock()
+
+    before = datetime.now(UTC)
+    await promote_due_drafts(fake_session)
+    after = datetime.now(UTC)
+
+    assert before <= user_old.last_updated_time <= after
+    assert user_old.last_updated_time.tzinfo is not None

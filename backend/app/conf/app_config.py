@@ -12,15 +12,22 @@
 
 Sprint 0 落地：字段全集一次性补齐（POSTGRES / REDIS / LLM 4 级 / WX / JWT / MONITORING /
 NOTIFICATION / STORAGE / DirectMail 等）；后续 Sprint 可只追加。
+
+``_PROJECT_ROOT_ENV``：解析到仓库根的 ``.env``，避免在 ``backend/`` 启动时找不到文件。
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 仓库根 .env：backend/app/conf/app_config.py → 上 2 层 = 仓库根
+_PROJECT_ROOT_ENV: Path = Path(__file__).resolve().parents[2] / ".env"
+_PROJECT_ROOT_ENV_STR: str = str(_PROJECT_ROOT_ENV)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +46,7 @@ class PostgresConfig(BaseSettings):
     """PostgreSQL 连接参数（与 .env 的 POSTGRES_* 一致）。"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_PROJECT_ROOT_ENV_STR,
         env_prefix="POSTGRES_",
         extra="ignore",
         populate_by_name=True,
@@ -57,7 +64,7 @@ class PostgresConfig(BaseSettings):
 class DatabaseUrlConfig(BaseSettings):
     """DSN 字符串（与 .env 的 DATABASE_URL / DATABASE_URL_SYNC 一致）。"""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, extra="ignore")
 
     url: str = Field(default="", alias="DATABASE_URL")
     sync_url: str = Field(default="", alias="DATABASE_URL_SYNC")
@@ -66,7 +73,7 @@ class DatabaseUrlConfig(BaseSettings):
 class RedisConfig(BaseSettings):
     """Redis 连接参数。"""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="REDIS_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, env_prefix="REDIS_", extra="ignore")
 
     host: str = "localhost"
     port: int = 6379
@@ -78,7 +85,7 @@ class RedisConfig(BaseSettings):
 class MinioConfig(BaseSettings):
     """MinIO 开发态对象存储。"""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="MINIO_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, env_prefix="MINIO_", extra="ignore")
 
     endpoint: str = "localhost:9000"
     root_user: str = Field(default="minioadmin", alias="MINIO_ROOT_USER")
@@ -90,7 +97,7 @@ class MinioConfig(BaseSettings):
 class StorageConfig(BaseSettings):
     """对象存储段（MinIO / COS 二选一，由 STORAGE_PROVIDER 决定）。"""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, extra="ignore")
 
     provider: str = "minio"  # minio / cos
     minio: MinioConfig = Field(default_factory=MinioConfig)
@@ -113,7 +120,7 @@ class LLMClientConfig(BaseSettings):
     共享 Ark API 额度；在多模态模型全部失败后才降级到纯文本。
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, extra="ignore")
 
     # 主多模态（Doubao Seedream）
     multi_api_key: str = Field(default="", alias="MULTI_API_KEY")
@@ -144,18 +151,22 @@ class LLMClientConfig(BaseSettings):
 class WechatConfig(BaseSettings):
     """微信小程序 + 开放平台。"""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=_PROJECT_ROOT_ENV_STR,
+        extra="ignore",
+        populate_by_name=True,
+    )
 
-    mp_appid: str = ""
-    mp_secret: str = ""
-    mp_template_id: str = ""
-    mp_template_keywords: str = ""  # 格式：打卡时间|打卡名称|任务说明|提醒时间
+    mp_appid: str = Field(default="", alias="WX_MP_APPID")
+    mp_secret: str = Field(default="", alias="WX_MP_SECRET")
+    mp_template_id: str = Field(default="", alias="WX_MP_TEMPLATE_ID")
+    mp_template_keywords: str = Field(default="", alias="WX_MP_TEMPLATE_KEYWORDS")  # 格式：打卡时间|打卡名称|任务说明|提醒时间
 
 
 class JWTConfig(BaseSettings):
     """JWT 签名配置。"""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="JWT_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, env_prefix="JWT_", extra="ignore")
 
     secret_key: str = ""
     algorithm: str = "HS256"
@@ -165,7 +176,7 @@ class JWTConfig(BaseSettings):
 class AliyunDMConfig(BaseSettings):
     """阿里云 DirectMail（邮件兜底）。"""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="ALIYUN_DM_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT_ENV_STR, env_prefix="ALIYUN_DM_", extra="ignore")
 
     access_key_id: str = ""
     access_key_secret: str = ""
@@ -175,17 +186,24 @@ class AliyunDMConfig(BaseSettings):
 class MonitoringConfig(BaseSettings):
     """Prometheus 监控段。"""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=_PROJECT_ROOT_ENV_STR,
+        extra="ignore",
+        populate_by_name=True,
+    )
 
-    prometheus_multiproc_dir: str = "/tmp/prom_multiproc"  # noqa: S108
-    enable_metrics: bool = True
+    prometheus_multiproc_dir: str = Field(
+        default="/tmp/prom_multiproc",  # noqa: S108
+        alias="PROMETHEUS_MULTIPROC_DIR",
+    )
+    enable_metrics: bool = Field(default=True, alias="ENABLE_METRICS")
 
 
 class StorageCallbackConfig(BaseSettings):
     """对象存储回调签名。"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_PROJECT_ROOT_ENV_STR,
         env_prefix="STORAGE_CALLBACK_",
         extra="ignore",
     )
@@ -203,7 +221,7 @@ class AppConfig(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_PROJECT_ROOT_ENV_STR,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

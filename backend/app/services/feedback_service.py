@@ -178,12 +178,16 @@ async def create_feedback(
     data = validate_feedback(payload)
 
     # 每日上限（最近 24h 5 条）
+    # Feedback 表 audit 字段：created_by + created_time（无 created_at）
     from datetime import timedelta
 
     threshold = datetime.now(UTC) - timedelta(hours=24)
     stmt = (
         select(Feedback.id)
-        .where(Feedback.user_id == user_id, Feedback.created_at >= threshold)
+        .where(
+            Feedback.created_by == str(user_id),
+            Feedback.created_time >= threshold,
+        )
         .limit(MAX_DAILY_LIMIT + 1)
     )
     result = await session.execute(stmt)
@@ -199,11 +203,10 @@ async def create_feedback(
         text_content=data["text_content"],
         photo_url=data["photo_url"],
         body_part=data["body_part"],
-        created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前操作的用户
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M7",
+        last_updated_by=str(user_id),
     )
     session.add(fb)
     await session.flush()
@@ -233,8 +236,8 @@ async def list_user_feedbacks(
     """列出用户反馈。"""
     stmt = (
         select(Feedback)
-        .where(Feedback.user_id == user_id)
-        .order_by(Feedback.created_at.desc())
+        .where(Feedback.created_by == str(user_id))
+        .order_by(Feedback.created_time.desc())
         .limit(limit)
     )
     result = await session.execute(stmt)
@@ -245,7 +248,8 @@ async def list_user_feedbacks(
             "body_part": f.body_part,
             "text_content": f.text_content,
             "photo_url": f.photo_url,
-            "created_at": f.created_at.isoformat() if f.created_at else None,
+            "created_at": f.created_time.isoformat() if f.created_time else None,
+            "created_by": f.created_by,
         }
         for f in result.scalars().all()
     ]
@@ -254,13 +258,13 @@ async def list_user_feedbacks(
 __all__ = [
     "BODY_PARTS",
     "FEEDBACK_TYPES",
-    "FeedbackDailyLimitError",
-    "FeedbackError",
     "MAX_DAILY_LIMIT",
     "MAX_PHOTO_BYTES",
     "MAX_TEXT_LENGTH",
     "PHOTO_BODY_PARTS",
     "TEXT_ONLY_TYPES",
+    "FeedbackDailyLimitError",
+    "FeedbackError",
     "create_feedback",
     "list_user_feedbacks",
     "pick_ack",

@@ -86,6 +86,13 @@ async def get_session() -> AsyncIterator[AsyncSession]:
     async with sm() as session:
         try:
             yield session
+            # 请求 handler 正常返回：提交本请求内所有写操作（INSERT/UPDATE）。
+            # 业务层只 flush 不 commit，事务边界统一由 DI 收口。
+            await session.commit()
+        except Exception:
+            # handler 抛错：回滚，避免脏数据落库。
+            await session.rollback()
+            raise
         finally:
             await session.close()
 

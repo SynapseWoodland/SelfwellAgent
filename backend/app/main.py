@@ -37,20 +37,46 @@ from app.api.routers.plans_v1 import plans_router, videos_router
 from app.api.routers.system import router as system_router
 from app.api.routers.users_v1 import router as users_v1_router
 from app.conf.app_config import app_config
-from app.core.log import setup_logging
+from app.core.log import logger, setup_logging
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# §一 lifespan：启动期初始化日志 + 资源，shutdown 收尾
+# §一 lifespan：启动期初始化日志 + 配置摘要 + 三段探针，shutdown 收尾
 # ──────────────────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """FastAPI lifespan：启动期 setup_logging；shutdown 释放 DB engine。"""
-    # 启动期：loguru 工厂初始化（幂等）
+    """FastAPI lifespan。
+
+    启动期：
+    1. ``setup_logging()`` 初始化 loguru
+    2. ``run_startup_probes()`` 并发探活 db / redis / minio + 打配置摘要
+       任何探针失败都打 ERROR 日志（不 raise，让 uvicorn 继续启动）
+    3. DB engine 仍走懒加载（首次 get_engine() 时初始化），避免 import 时 DSN 解析失败
+
+    shutdown：
+    1. ``dispose_engine()`` 释放 DB 连接池
+    """
+    # 1. loguru 工厂初始化（幂等）
     setup_logging(level=app_config.log_level)
 
-    # DB engine 懒加载（在首次 get_engine() 时初始化）；此处不显式创建。
-    # 探针在 /healthz 触发时会拉起；本 lifespan 不预热，避免 import 时 DSN 解析失败。
+    # 2. Windows PowerShell stdout 中文/emoji 截断兜底
+    import sys as _sys
+    if _sys.platform == "win32":
+        try:
+            _sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+    # 3. 启动期探活：配置摘要 + db / redis / minio 探针并发
+    #    探针内部已吞所有异常 → 不会因外部服务挂掉而阻断 uvicorn 启动
+    try:
+        from app.core.startup import run_startup_probes
+
+        await run_startup_probes()
+    except Exception:
+        # 兜底：startup 模块自身出错也要让进程起来
+        logger.exception("lifespan_startup_probes_crashed")
+
     yield
 
     # 收尾期：释放 DB engine 连接池
@@ -60,8 +86,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await dispose_engine()
     except Exception:
         # dispose 失败不影响 uvicorn 正常退出；记录但不 raise
-        from app.core.log import logger
-
         logger.exception("lifespan_shutdown_dispose_engine_failed")
 
 

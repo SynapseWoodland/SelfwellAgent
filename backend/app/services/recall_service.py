@@ -26,7 +26,6 @@ from app.db.models.recall_sessions import RecallSession
 from app.errors.codes import (
     E_RECALL_DAILY_LIMIT,
     E_RECALL_EMPTY,
-    E_RECALL_LLM_ERROR,
     E_RECALL_NOT_FOUND,
     E_RECALL_SAFETY_BLOCKED,
 )
@@ -141,8 +140,8 @@ async def _load_referenced_feedbacks(
     """加载用户最近 feedbacks 作为 reference。"""
     stmt = (
         select(Feedback)
-        .where(Feedback.user_id == user_id)
-        .order_by(Feedback.created_at.desc())
+        .where(Feedback.created_by == str(user_id))
+        .order_by(Feedback.created_time.desc())
         .limit(limit)
     )
     result = await session.execute(stmt)
@@ -152,7 +151,8 @@ async def _load_referenced_feedbacks(
             "body_part": f.body_part,
             "snippet": (f.text_content or "")[:60],
             "feedback_type": f.feedback_type,
-            "created_at": f.created_at.isoformat() if f.created_at else None,
+            "created_at": f.created_time.isoformat() if f.created_time else None,
+            "created_by": f.created_by,
         }
         for f in result.scalars().all()
     ]
@@ -232,10 +232,10 @@ async def generate_recall(
         llm_cost=Decimal("0.0010"),
         safety_passed=safety_passed,
         created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前创建用户（回忆发起人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M8",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(rs)
     await session.flush()
@@ -314,12 +314,12 @@ async def get_recall_by_day(
 __all__ = [
     "DAILY_LIMIT",
     "FORBIDDEN_WORDS",
-    "RecallDailyLimitError",
-    "RecallError",
-    "RecallSafetyBlocked",
     "SAFE_FALLBACK_ENCOURAGE",
     "SAFE_FALLBACK_SUMMARY",
     "VALID_TRIGGERS",
+    "RecallDailyLimitError",
+    "RecallError",
+    "RecallSafetyBlocked",
     "generate_recall",
     "get_recall",
     "get_recall_by_day",

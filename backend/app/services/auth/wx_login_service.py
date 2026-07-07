@@ -98,8 +98,9 @@ async def _create_draft_user(  # noqa: PLR0913  draft user constructor needs 7 k
 ) -> User:
     """创建 draft 用户（status='draft'）。"""
     now_ts = datetime.now(UTC)
+    new_user_id = uuid4()
     new_user = User(
-        id=uuid4(),
+        id=new_user_id,
         unionid=unionid or f"wx_openid_{openid_mp or openid_app or uuid4()}",
         openid_mp=openid_mp,
         openid_app=openid_app,
@@ -109,10 +110,10 @@ async def _create_draft_user(  # noqa: PLR0913  draft user constructor needs 7 k
         status="draft",
         created_at=now_ts,
         last_active_at=now_ts,
-        created_by="wx-login",
+        created_by=str(new_user_id),         # 当前创建用户（新 user 自己）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="wx-login",
+        last_updated_by=str(new_user_id),
         version=0,
     )
     session.add(new_user)
@@ -137,7 +138,7 @@ async def _update_user_login(
     user.platform = platform
     user.last_active_at = datetime.now(UTC)
     user.last_updated_time = user.last_active_at
-    user.last_updated_by = "wx-login"
+    user.last_updated_by = str(user.id)  # 当前更新用户（自己登录即自己更新）
     if openid_mp and user.openid_mp != openid_mp:
         user.openid_mp = openid_mp
     if openid_app and user.openid_app != openid_app:

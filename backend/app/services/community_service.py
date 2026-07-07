@@ -24,12 +24,10 @@ from app.errors.codes import (
     E_COMMUNITY_IMAGE_TOO_LARGE,
     E_COMMUNITY_IMAGES_TOO_MANY,
     E_COMMUNITY_INVALID_INPUT,
-    E_COMMUNITY_LIKE_DUPLICATE,
     E_COMMUNITY_POST_FREQUENT,
     E_COMMUNITY_POST_NOT_FOUND,
     E_COMMUNITY_POST_PENDING,
     E_COMMUNITY_POST_REJECTED,
-    E_COMMUNITY_RATE_LIMIT,
 )
 
 MAX_CONTENT_LENGTH = 200
@@ -137,15 +135,15 @@ async def create_post(
         id=uuid4(),
         user_id=user_id,
         content=content,
-        images={"items": images},
+        images=images,
         status="pending",
         like_count=0,
         comment_count=0,
         created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前创建用户（发帖人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M6",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(post)
     await session.flush()
@@ -224,17 +222,17 @@ async def like_post(session: AsyncSession, *, user_id: str, post_id: str) -> dic
         )
     post.like_count = (post.like_count or 0) + 1
     post.last_updated_time = datetime.now(UTC)
-    post.last_updated_by = "M6-like"
+    post.last_updated_by = str(user_id)  # 当前更新用户（点赞人）
     await session.flush()
     return {"post_id": str(post.id), "like_count": post.like_count}
 
 
 __all__ = [
-    "CommunityError",
     "MAX_CONTENT_LENGTH",
     "MAX_DAILY_POSTS",
     "MAX_IMAGES",
     "MAX_IMAGE_BYTES",
+    "CommunityError",
     "PostNotFoundError",
     "PostPendingError",
     "create_post",

@@ -45,6 +45,15 @@ class CheckinError(SelfwellError):
     http_status = 400
 
 
+class CheckinDuplicateError(CheckinError):
+    """同 plan+day 重复打卡（业务层唯一会返回 409 的场景）。"""
+
+    code: str = E_CHECKIN_DUPLICATE
+    message_zh: str = "今日已打卡，请勿重复提交"
+    message_en: str = "Already checked in today"
+    http_status = 409
+
+
 class CheckinRateLimitError(CheckinError):
     code: str = E_CHECKIN_RATE_LIMIT
     message_zh: str = "打卡过于频繁"
@@ -147,7 +156,7 @@ async def create_checkin(
     dup_result = await session.execute(dup_stmt)
     existing = dup_result.scalar_one_or_none()
     if existing is not None:
-        raise CheckinError(
+        raise CheckinDuplicateError(
             "今日已打卡，请勿重复提交",
             code=E_CHECKIN_DUPLICATE,
             http_status=409,
@@ -173,10 +182,10 @@ async def create_checkin(
         video_id=video_id,
         feeling=feeling,
         created_at=now_ts,
-        created_by=str(user.id),
+        created_by=str(user.id),           # 当前创建用户（打卡人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M4",
+        last_updated_by=str(user.id),      # 当前更新用户（打卡人）
     )
     session.add(checkin)
 
@@ -193,6 +202,7 @@ async def create_checkin(
     }
     user.last_active_at = now_ts
     user.last_updated_time = now_ts
+    user.last_updated_by = str(user.id)  # 当前更新用户（打卡人）
 
     await session.flush()
 
@@ -262,12 +272,75 @@ async def list_user_checkins(
     ]
 
 
+async def get_today_checkin_summary(
+    session: AsyncSession, *, user_id: str, day_index: int = 1
+) -> dict[str, Any]:
+    """今日打卡进度（home 页用）。
+
+    Returns:
+        ``{date, total, done, percent, done_task_ids}``。
+        当日没有 plan 时返回 ``done=0, total=0``。
+
+    """
+    today = date.today()
+    # 1. 找当前用户的 active plan
+    from app.db.models.plan import Plan as _Plan
+
+    plan_stmt = (
+        select(_Plan)
+        .where(_Plan.user_id == user_id, _Plan.status == "active")
+        .order_by(_Plan.created_at.desc())
+        .limit(1)
+    )
+    plan_res = await session.execute(plan_stmt)
+    plan = plan_res.scalar_one_or_none()
+    if plan is None:
+        return {
+            "date": today.isoformat(),
+            "total": 0,
+            "done": 0,
+            "percent": 0,
+            "done_task_ids": [],
+        }
+
+    # 2. 取出 day_index 当天所有 task
+    days = plan.days.get("items", []) if isinstance(plan.days, dict) else []
+    day_item = next((d for d in days if d.get("day") == day_index), None)
+    tasks = day_item.get("tasks", []) if isinstance(day_item, dict) else []
+    task_ids = [t.get("video_id") for t in tasks if isinstance(t, dict) and t.get("video_id")]
+
+    # 3. 查该 plan + day 已打卡记录
+    stmt = (
+        select(Checkin.video_id)
+        .where(
+            Checkin.user_id == user_id,
+            Checkin.plan_id == str(plan.id),
+            Checkin.day == day_index,
+        )
+    )
+    result = await session.execute(stmt)
+    done_ids = [v for v in result.scalars().all() if v]
+
+    total = len(task_ids)
+    done = sum(1 for tid in task_ids if tid in done_ids)
+    percent = round(done / total * 100) if total > 0 else 0
+    return {
+        "date": today.isoformat(),
+        "total": total,
+        "done": done,
+        "percent": percent,
+        "done_task_ids": done_ids,
+    }
+
+
 __all__ = [
-    "CheckinError",
-    "CheckinRateLimitError",
     "MAX_FEELING_LENGTH",
     "PLAN_LENGTH",
+    "CheckinDuplicateError",
+    "CheckinError",
+    "CheckinRateLimitError",
     "create_checkin",
     "get_today_checkin",
+    "get_today_checkin_summary",
     "list_user_checkins",
 ]

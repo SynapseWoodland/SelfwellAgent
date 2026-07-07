@@ -17,7 +17,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import SelfwellError, UserInputError
+from app.core.errors import SelfwellError
 from app.core.log import logger
 from app.db.models.plan import Plan
 from app.db.models.report import Report
@@ -104,6 +104,7 @@ async def generate_plan(
 
     Returns:
         方案 dict（plan_id + 21 天映射 + 视频来源）。
+
     """
     # 1. 加载 report
     rpt_stmt = select(Report).where(Report.id == report_id, Report.user_id == user_id)
@@ -175,10 +176,10 @@ async def generate_plan(
         status="active",
         started_at=date.today(),
         created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前创建用户（方案发起人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M3",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(plan)
     await session.flush()
@@ -228,6 +229,104 @@ async def get_current_plan(session: AsyncSession, *, user_id: str) -> dict[str, 
     return await get_plan(session, user_id=user_id, plan_id=str(plan.id))
 
 
+async def get_today_plan_tasks(
+    session: AsyncSession, *, user_id: str, day_index: int | None = None
+) -> dict[str, Any]:
+    """今日任务列表（home 页用）。
+
+    Returns:
+        ``{plan_id, day_index, total_days, tasks}``。
+        - 无 active plan → ``day_index=1, total_days=21, tasks=[]``
+        - 已有 plan → 计算当前已进行到第几天（按 ``started_at`` 到今天的天数 + 1）。
+
+    """
+    from app.db.models.checkin import Checkin
+
+    stmt = (
+        select(Plan)
+        .where(Plan.user_id == user_id, Plan.status == "active")
+        .order_by(Plan.created_at.desc())
+        .limit(1)
+    )
+    res = await session.execute(stmt)
+    plan = res.scalar_one_or_none()
+    if plan is None:
+        return {
+            "plan_id": "",
+            "day_index": 1,
+            "total_days": PLAN_LENGTH_DAYS,
+            "tasks": [],
+        }
+
+    days = plan.days.get("items", []) if isinstance(plan.days, dict) else []
+    if day_index is None:
+        if plan.started_at is not None:
+            elapsed = (date.today() - plan.started_at).days + 1
+            day_index = max(1, min(PLAN_LENGTH_DAYS, elapsed))
+        else:
+            day_index = 1
+
+    day_item = next((d for d in days if d.get("day") == day_index), None)
+    raw_tasks: list[dict[str, Any]] = (
+        day_item.get("tasks", []) if isinstance(day_item, dict) else []
+    )
+
+    # 已打卡的 video_id 集合
+    done_stmt = select(Checkin.video_id).where(
+        Checkin.user_id == user_id,
+        Checkin.plan_id == str(plan.id),
+        Checkin.day == day_index,
+    )
+    done_res = await session.execute(done_stmt)
+    done_ids = {v for v in done_res.scalars().all() if v}
+
+    # 加载视频元数据（title/subtitle/cover_url/duration_sec/tags）
+    video_ids = [t.get("video_id") for t in raw_tasks if t.get("video_id")]
+    video_meta: dict[str, Video] = {}
+    if video_ids:
+        vid_stmt = select(Video).where(Video.id.in_(video_ids))
+        vid_res = await session.execute(vid_stmt)
+        for v in vid_res.scalars().all():
+            video_meta[str(v.id)] = v
+
+    tasks: list[dict[str, Any]] = []
+    for t in raw_tasks:
+        if not isinstance(t, dict):
+            continue
+        vid = t.get("video_id") or ""
+        meta = video_meta.get(vid)
+        tags = (
+            meta.tags
+            if isinstance(meta, Video) and isinstance(meta.tags, list)
+            else []
+        )
+        tasks.append(
+            {
+                "task_id": vid,
+                "title": t.get("title") or (meta.title if meta else "训练任务"),
+                "subtitle": (
+                    f"{int(meta.difficulty) if meta and meta.difficulty else '—'} · "
+                    f"{int(meta.duration_sec) // 60 if meta and meta.duration_sec else 0} 分钟"
+                    if meta
+                    else ""
+                ),
+                "video_id": vid,
+                "video_url": meta.url if meta and meta.url else "",
+                "cover_url": meta.thumbnail if meta and meta.thumbnail else "",
+                "duration_sec": int(meta.duration_sec) if meta and meta.duration_sec else 0,
+                "body_part_tags": tags,
+                "done": vid in done_ids,
+            }
+        )
+
+    return {
+        "plan_id": str(plan.id),
+        "day_index": day_index,
+        "total_days": PLAN_LENGTH_DAYS,
+        "tasks": tasks,
+    }
+
+
 async def match_videos_for_tags(
     session: AsyncSession,
     *,
@@ -252,5 +351,6 @@ __all__ = [
     "generate_plan",
     "get_current_plan",
     "get_plan",
+    "get_today_plan_tasks",
     "match_videos_for_tags",
 ]

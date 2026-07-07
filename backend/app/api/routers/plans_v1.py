@@ -13,6 +13,7 @@ from app.services.plan_service import (
     generate_plan,
     get_current_plan,
     get_plan,
+    get_today_plan_tasks,
     match_videos_for_tags,
 )
 
@@ -66,6 +67,17 @@ async def get_current_plan_endpoint(
             detail={"code": exc.code, "message_zh": exc.render_zh()},
         ) from exc
     return PlanResponse(data=result)
+
+
+@plans_router.get("/today", summary="今日方案任务（home 页用）")
+async def get_today_plan_endpoint(
+    day: int | None = Query(default=None, ge=1, le=21, description="指定第几天（默认按 started_at 推算）"),
+    _user_id: str = Depends(current_user_id),
+    session: AsyncSession = Depends(db_session),
+) -> dict:
+    """无 active plan 时返回 ``tasks=[]`` + ``day_index=1``，前端走空状态。"""
+    data = await get_today_plan_tasks(session, user_id=_user_id, day_index=day)
+    return {"code": 0, "data": data}
 
 
 @plans_router.get("/{plan_id}", response_model=PlanResponse, summary="获取方案详情")

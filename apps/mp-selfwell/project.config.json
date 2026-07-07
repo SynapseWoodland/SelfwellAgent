@@ -2,7 +2,7 @@
   "description": "Selfwell 自愈 · 微信小程序客户端（Sprint SF0 骨架）",
   "miniprogramRoot": "miniprogram/",
   "projectname": "selfwell-mp",
-  "appid": "wx_your_appid",
+  "appid": "wx9967b7cc83336b6f",
   "setting": {
     "urlCheck": false,
     "es6": true,
@@ -38,7 +38,14 @@
     "disableUseStrict": false,
     "minifyWXML": true,
     "showES6CompileOption": false,
-    "useCompilerPlugins": false
+    "useCompilerPlugins": [
+      "typescript"
+    ],
+    "condition": true,
+    "compileWorklet": false,
+    "localPlugins": false,
+    "swc": false,
+    "disableSWC": true
   },
   "compileType": "miniprogram",
   "libVersion": "2.32.3",
@@ -46,5 +53,14 @@
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
-  }
+  },
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {
+    "wxext14566970e7e9f62": "3.6.5-41"
+  },
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "projectArchitecture": "multiPlatform"
 }

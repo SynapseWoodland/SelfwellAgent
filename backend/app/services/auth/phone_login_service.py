@@ -84,8 +84,9 @@ async def _create_user_for_phone(
     session: AsyncSession, phone: str, nickname: str | None = None
 ) -> User:
     now_ts = datetime.now(UTC)
+    new_user_id = uuid4()
     new_user = User(
-        id=uuid4(),
+        id=new_user_id,
         unionid=f"phone_{phone}",
         phone=phone,
         platform="wx_mp",
@@ -94,10 +95,10 @@ async def _create_user_for_phone(
         status="draft",
         created_at=now_ts,
         last_active_at=now_ts,
-        created_by="phone-login",
+        created_by=str(new_user_id),         # 当前创建用户（新 user 自己）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="phone-login",
+        last_updated_by=str(new_user_id),
         version=0,
     )
     session.add(new_user)
@@ -176,7 +177,7 @@ async def login_via_phone(
     else:
         user.last_active_at = datetime.now(UTC)
         user.last_updated_time = user.last_active_at
-        user.last_updated_by = "phone-login"
+        user.last_updated_by = str(user.id)  # 当前更新用户（自己登录即自己更新）
 
     await session.flush()
 

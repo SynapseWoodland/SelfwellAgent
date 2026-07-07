@@ -155,7 +155,7 @@ async def update_user_profile(
         setattr(user, k, v)
     user.last_active_at = now_ts
     user.last_updated_time = now_ts
-    user.last_updated_by = "profile-update"
+    user.last_updated_by = user_id          # 当前更新用户（改自己档案的人）
     # 首登补全：5 字段齐了立即转正（AC-M1-04）
     if user.status == "draft" and _has_minimum_profile(user):
         user.status = "active"
@@ -176,16 +176,17 @@ def _has_minimum_profile(user: User) -> bool:
 
 
 def _serialize_user(user: User) -> dict[str, Any]:
-    """User ORM -> 响应 dict。"""
+    """User ORM -> 响应 dict。
+
+    字段名对齐 ``docs/api/openapi.yaml`` V1.1 + 前端 ``UserMe`` 类型。
+    """
+    cache = user.report_cache if isinstance(user.report_cache, dict) else {}
     return {
         "user_id": str(user.id),
-        "unionid": user.unionid,
-        "openid_mp": user.openid_mp,
-        "openid_app": user.openid_app,
-        "platform": user.platform,
-        "device_id": user.device_id,
-        "nickname": user.nickname,
-        "avatar": user.avatar,
+        "user_id_pseudo": str(user.id),
+        "nickname": user.nickname or "",
+        "avatar": user.avatar or "",
+        "avatar_url": user.avatar or "",
         "age_range": user.age_range,
         "focus_parts": user.focus_parts or [],
         "intensity": user.intensity,
@@ -195,7 +196,10 @@ def _serialize_user(user: User) -> dict[str, Any]:
         "email": user.email,
         "phone": user.phone,
         "status": user.status or "draft",
+        "current_streak_days": int(cache.get("streak_days", 0)),
+        "fragments": int(cache.get("fragments", 0)),
         "version": user.version,
+        "registered_at": user.created_at.isoformat() if user.created_at else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None,
     }

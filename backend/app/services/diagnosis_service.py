@@ -38,6 +38,7 @@ def _check_text_safety(text: str) -> dict[str, object]:
 
     Returns:
         ``{"passed": bool, "matches": list[str], "severity": str}``
+
     """
     result = _check_input_compliance(text)
     return {
@@ -228,7 +229,6 @@ def check_text_safety(text: str) -> dict[str, object]:
 
 
 # Patch the namespace so ``check_text_safety`` is callable.
-from app.services.compliance.checker import check_input as _check_input_compliance
 
 
 def check_text_safety(text: str) -> dict[str, object]:
@@ -236,6 +236,7 @@ def check_text_safety(text: str) -> dict[str, object]:
 
     Returns:
         ``{"passed": bool, "matches": list[str], "severity": str}``
+
     """
     result = _check_input_compliance(text)
     return {
@@ -267,6 +268,18 @@ def _rule_engine_fallback(
     }
 
 
+def _flatten_items(v: object) -> object:
+    """兜底 ``{"items": [...]}`` 嵌套 dict → list。
+
+    历史背景：旧 Sprint 2 实现的 ``user.report_cache`` 把 ``directions``/``tags`` 存为
+    ``{"items": [...]}``，导致 ``DiagnosisData`` 校验失败 (500)。
+    """
+    if isinstance(v, dict) and "items" in v:
+        items = v["items"]
+        return items if isinstance(items, list) else []
+    return v
+
+
 def _get_cached_report(user: User) -> dict[str, Any] | None:
     """7 天缓存检查（直接读 user.report_cache）。"""
     cache = user.report_cache or {}
@@ -277,8 +290,8 @@ def _get_cached_report(user: User) -> dict[str, Any] | None:
         return None
     return {
         "report_id": cache.get("report_id"),
-        "directions": cache.get("directions", []),
-        "tags": cache.get("tags", []),
+        "directions": _flatten_items(cache.get("directions", [])),
+        "tags": _flatten_items(cache.get("tags", [])),
         "summary": cache.get("summary", ""),
         "cached": True,
     }
@@ -338,10 +351,10 @@ async def create_diagnosis(
         llm_model=model,
         llm_cost=cost,
         created_at=now_ts,
-        created_by=str(user.id),
+        created_by=str(user.id),         # 当前创建用户（诊断发起人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M2",
+        last_updated_by=str(user.id),    # 当前更新用户
     )
     session.add(report)
 
@@ -355,6 +368,7 @@ async def create_diagnosis(
     user.report_cache_expires_at = now_ts + timedelta(days=CACHE_TTL_DAYS)
     user.last_active_at = now_ts
     user.last_updated_time = now_ts
+    user.last_updated_by = str(user.id)  # 当前更新用户
 
     await session.flush()
     logger.info("diagnosis_created", report_id=str(report.id), user_id=user_id, model=model)
