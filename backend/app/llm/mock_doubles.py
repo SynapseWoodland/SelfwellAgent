@@ -119,7 +119,7 @@ class MockLLMClient(LLMClient):
         self._cassettes[sig] = response
         return sig
 
-    async def ainvoke(self, messages: "list[BaseMessage]", **kwargs: Any) -> "BaseMessage":
+    async def ainvoke(self, messages: list[BaseMessage], **kwargs: Any) -> BaseMessage:
         """LangChain 兼容接口（Sprint 2+ ``init_chat_model`` 调用）。
 
         将 LangChain ``BaseMessage`` 列表转为内部 ``LLMRequest`` 并走 ``achat``。

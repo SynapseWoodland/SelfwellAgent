@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
@@ -44,7 +44,9 @@ class DiagnosisCreateRequest(BaseModel):
     """
 
     # ── 前端单图格式 ─────────────────────────────────────────────────────────
-    objectKey: str | None = Field(default=None, description="已上传图片的 objectKey（前端单图格式）")
+    objectKey: str | None = Field(
+        default=None, description="已上传图片的 objectKey（前端单图格式）"
+    )
     user_note: str | None = Field(default=None, description="用户备注（前端单图格式）")
 
     # ── 原生多图格式 ─────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ class DiagnosisCreateRequest(BaseModel):
 
         Raises:
             ValidationError: 当既无 ``photos`` 也无 ``objectKey`` 时。
+
         """
         if self.photos:
             return [p.model_dump() for p in self.photos]
@@ -95,6 +98,48 @@ class DiagnosisData(BaseModel):
     summary: str
     cached: bool = False
     llm_model: str | None = None
+
+    @field_validator("directions", mode="before")
+    @classmethod
+    def _flatten_directions(cls, v: object) -> object:
+        """兜底 LLM/缓存中可能出现的 ``{"items": [...]}`` 嵌套 dict。
+
+        历史背景：早期 Sprint 2 实现把 ``directions``/``tags`` 存为 ``{"items": [...]}``
+        形式，导致 500 (Pydantic list_type 校验失败)。当前 service 层已拍扁为 list，
+        但 user.report_cache 仍可能存在旧格式数据；本 validator 在响应构造时拍扁兜底。
+
+        Args:
+            v: 原始输入（可能是 list 或 ``{"items": [...]}`` dict）。
+
+        Returns:
+            拍扁后的 list。
+
+        """
+        if isinstance(v, dict) and "items" in v:
+            items = v["items"]
+            if not isinstance(items, list):
+                return []
+            normalized: list[dict] = []
+            for item in items:
+                if isinstance(item, str):
+                    normalized.append({"title": item, "description": item})
+                elif isinstance(item, dict):
+                    normalized.append(item)
+                else:
+                    normalized.append({"title": str(item)})
+            return normalized
+        return v
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _flatten_tags(cls, v: object) -> object:
+        """同 ``_flatten_directions``，但接受 ``{"items": [...]}`` 嵌套 dict。"""
+        if isinstance(v, dict) and "items" in v:
+            items = v["items"]
+            if not isinstance(items, list):
+                return []
+            return [str(x) for x in items]
+        return v
 
 
 class DiagnosisResponse(BaseModel):

@@ -248,9 +248,9 @@ __all__ = [
     "FORBIDDEN_COLORS",
     "POSTER_HEIGHT",
     "POSTER_WIDTH",
+    "VALID_DAYS",
     "ShareError",
     "ShareRenderError",
-    "VALID_DAYS",
     "generate_hug_card",
     "get_template_meta",
 ]

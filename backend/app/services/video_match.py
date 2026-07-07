@@ -52,6 +52,7 @@ def score_video(
 
     Returns:
         0.0 ~ 1.0 之间的得分。
+
     """
     v_tags = _parse_tags(video.get("tags"))
     r_tags = {str(t) for t in report_tags}
@@ -86,6 +87,7 @@ def rank_videos(
 
     Returns:
         排序后的视频列表（带 ``score`` 字段）。
+
     """
     scored: list[dict[str, Any]] = []
     for v in videos:

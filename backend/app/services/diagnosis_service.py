@@ -146,7 +146,12 @@ def _validate_complaint(text: str | None) -> str | None:
     return text
 
 
-def _normalize_directions(raw: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+def _normalize_directions(raw: list[dict[str, Any]] | list[str] | None) -> list[dict[str, Any]]:
+    """Normalize directions to ``list[dict]`` shape expected by ``DiagnosisData``.
+
+    历史背景：Mock LLM 与真实 LLM 可能返回 dict list（``[{"title", "description", ...}]``）
+    或 str list（``["方向 1", "方向 2", ...]``）；混合形态时拍扁为统一 dict shape。
+    """
     if not isinstance(raw, list) or len(raw) < MIN_DIRECTIONS:
         return [
             {
@@ -156,12 +161,35 @@ def _normalize_directions(raw: list[dict[str, Any]] | None) -> list[dict[str, An
             }
             for _ in range(MIN_DIRECTIONS)
         ]
-    return raw[:MAX_DIRECTIONS]
+    normalized: list[dict[str, Any]] = []
+    for item in raw[:MAX_DIRECTIONS]:
+        if isinstance(item, dict):
+            normalized.append(
+                {
+                    "title": str(item.get("title", "")),
+                    "description": str(item.get("description", "")),
+                    "video_id": item.get("video_id"),
+                }
+            )
+        elif isinstance(item, str):
+            normalized.append({"title": item, "description": "", "video_id": None})
+    # 补齐最少条数
+    while len(normalized) < MIN_DIRECTIONS:
+        normalized.append(
+            {
+                "title": "基础养护方向",
+                "description": "建议从轻柔开始，逐步建立规律作息。",
+                "video_id": None,
+            }
+        )
+    return normalized
 
 
 def _normalize_tags(raw: list[str] | None) -> list[str]:
     if not isinstance(raw, list) or len(raw) < MIN_TAGS:
-        return ["基础养护", "规律作息", "温和改善"][:MIN_TAGS]
+        # 复用兜底基础 3 条并循环补齐到 MIN_TAGS，避免 slice 出短 list
+        fallback_seed = ["基础养护", "规律作息", "温和改善"]
+        return [fallback_seed[i % len(fallback_seed)] for i in range(MIN_TAGS)]
     return [str(t) for t in raw[:MAX_TAGS]]
 
 
@@ -246,9 +274,7 @@ def check_text_safety(text: str) -> dict[str, object]:
     }
 
 
-def _rule_engine_fallback(
-    profile: dict[str, Any], complaint: str | None
-) -> dict[str, Any]:
+def _rule_engine_fallback(profile: dict[str, Any], complaint: str | None) -> dict[str, Any]:
     """规则引擎兜底：基于档案标签 + intensity 输出标准方案。"""
     parts = profile.get("focus_parts") or ["整体气色"]
     directions = []
@@ -290,8 +316,8 @@ def _get_cached_report(user: User) -> dict[str, Any] | None:
         return None
     return {
         "report_id": cache.get("report_id"),
-        "directions": _flatten_items(cache.get("directions", [])),
-        "tags": _flatten_items(cache.get("tags", [])),
+        "directions": _normalize_directions(_flatten_items(cache.get("directions", []))),
+        "tags": _normalize_tags(_flatten_items(cache.get("tags", []))),
         "summary": cache.get("summary", ""),
         "cached": True,
     }
@@ -351,10 +377,10 @@ async def create_diagnosis(
         llm_model=model,
         llm_cost=cost,
         created_at=now_ts,
-        created_by=str(user.id),         # 当前创建用户（诊断发起人）
+        created_by=str(user.id),  # 当前创建用户（诊断发起人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by=str(user.id),    # 当前更新用户
+        last_updated_by=str(user.id),  # 当前更新用户
     )
     session.add(report)
 
@@ -382,9 +408,7 @@ async def create_diagnosis(
     }
 
 
-async def get_diagnosis(
-    session: AsyncSession, *, user_id: str, report_id: str
-) -> dict[str, Any]:
+async def get_diagnosis(session: AsyncSession, *, user_id: str, report_id: str) -> dict[str, Any]:
     """获取诊断报告。"""
     stmt = select(Report).where(Report.id == report_id, Report.user_id == user_id)
     result = await session.execute(stmt)

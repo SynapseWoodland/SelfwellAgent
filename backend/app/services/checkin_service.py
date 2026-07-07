@@ -182,10 +182,10 @@ async def create_checkin(
         video_id=video_id,
         feeling=feeling,
         created_at=now_ts,
-        created_by=str(user.id),           # 当前创建用户（打卡人）
+        created_by=str(user.id),  # 当前创建用户（打卡人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by=str(user.id),      # 当前更新用户（打卡人）
+        last_updated_by=str(user.id),  # 当前更新用户（打卡人）
     )
     session.add(checkin)
 
@@ -310,13 +310,10 @@ async def get_today_checkin_summary(
     task_ids = [t.get("video_id") for t in tasks if isinstance(t, dict) and t.get("video_id")]
 
     # 3. 查该 plan + day 已打卡记录
-    stmt = (
-        select(Checkin.video_id)
-        .where(
-            Checkin.user_id == user_id,
-            Checkin.plan_id == str(plan.id),
-            Checkin.day == day_index,
-        )
+    stmt = select(Checkin.video_id).where(
+        Checkin.user_id == user_id,
+        Checkin.plan_id == str(plan.id),
+        Checkin.day == day_index,
     )
     result = await session.execute(stmt)
     done_ids = [v for v in result.scalars().all() if v]

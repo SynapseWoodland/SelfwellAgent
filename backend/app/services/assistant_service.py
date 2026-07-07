@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -30,7 +29,6 @@ from app.errors.codes import (
     E_ASSISTANT_LLM_ERROR,
     E_ASSISTANT_MESSAGE_INVALID,
     E_ASSISTANT_MESSAGE_TOO_LONG,
-    E_ASSISTANT_RATE_LIMIT,
     E_ASSISTANT_SESSION_CLOSED,
     E_ASSISTANT_SESSION_NOT_FOUND,
 )
@@ -166,6 +164,7 @@ def _normalize_entry_card(entry_card: str | None) -> tuple[str | None, bool]:
 
     Returns:
         (normalized_value, was_compat_mapped)
+
     """
     if entry_card is None:
         return None, False
@@ -186,6 +185,7 @@ def _normalize_primary_intent(primary_intent: str) -> tuple[str, bool]:
 
     Returns:
         (normalized_value, was_compat_mapped)
+
     """
     if primary_intent in PRIMARY_INTENTS:
         return primary_intent, False
@@ -397,16 +397,16 @@ async def list_messages(
 
 
 __all__ = [
-    "AssistantError",
     "DEFAULT_PRIMARY_INTENT",
     "DEFAULT_STATE",
     "ENTRY_CARDS",
     "ENTRY_CARD_COMPAT",
-    "LLMUnavailableError",
     "MAX_MESSAGE_LENGTH",
     "PERSONA_STATES",
     "PRIMARY_INTENTS",
     "PRIMARY_INTENT_COMPAT",
+    "AssistantError",
+    "LLMUnavailableError",
     "SessionClosedError",
     "SessionNotFoundError",
     "_normalize_entry_card",

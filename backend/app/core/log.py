@@ -225,6 +225,7 @@ def get_logger(name: str = "selfwell", **kwargs: Any) -> Any:
     Example:
         >>> log = get_logger("wx_login", platform="wx_mp")
         >>> log.info("wx_login_attempt", openid=openid[:12])
+
     """
     return logger.bind(name=name, **kwargs)
 

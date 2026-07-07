@@ -1,0 +1,25 @@
+{
+  "name": "mp-selfwell",
+  "version": "1.0.0",
+  "description": "Selfwell 自愈 · 微信小程序前端",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:contract": "vitest run tests/contract",
+    "test:all": "vitest run tests/"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8",
+    "typescript": "^5.6.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.8.0",
+      "onFail": "download"
+    }
+  }
+}

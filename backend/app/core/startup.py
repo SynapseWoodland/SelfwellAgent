@@ -19,7 +19,6 @@ from typing import Literal, cast
 from app.conf.app_config import app_config
 from app.core.log import logger
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # §一 类型 / 常量
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,8 +37,9 @@ async def probe_postgres() -> ProbeResult:
     实现：复用 ``app.db.session.get_engine()`` 的懒加载 engine。
     """
     try:
-        from app.db.session import get_engine
         from sqlalchemy import text
+
+        from app.db.session import get_engine
 
         engine = get_engine()
 
@@ -162,6 +162,7 @@ async def run_startup_probes() -> dict[str, ProbeResult]:
         ``{"db": ..., "redis": ..., "minio": ...}`` —— 供 lifespan 日志或 /healthz 复用。
 
     注意：本函数**不抛异常**，所有失败都已转成 ERROR 日志。
+
     """
     # 1. 启动摘要（每段是否配齐 + 关键 secret 的脱敏长度）
     logger.info(
@@ -201,12 +202,11 @@ async def run_startup_probes() -> dict[str, ProbeResult]:
     }
     if db_res == "ok" and redis_res == "ok" and minio_res == "ok":
         logger.info("startup_probes_all_ok", **results)
+    # 至少一个 down / degraded —— 显式打 ERROR 让告警捕获
+    elif db_res == "down" or redis_res == "down":
+        logger.error("startup_probes_critical_down", **results)
     else:
-        # 至少一个 down / degraded —— 显式打 ERROR 让告警捕获
-        if db_res == "down" or redis_res == "down":
-            logger.error("startup_probes_critical_down", **results)
-        else:
-            logger.warning("startup_probes_degraded", **results)
+        logger.warning("startup_probes_degraded", **results)
     return results
 
 
