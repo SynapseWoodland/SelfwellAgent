@@ -39,10 +39,39 @@ from app.errors.codes import (
 PERSONA_STATES: frozenset[str] = frozenset(
     {"warm", "neutral", "slight_hug", "medical_guarded"}
 )
-# 入口卡白名单
+# 入口卡白名单（与 DDL db/init/03-checks.sql §3.10 chk_ai_session_entry 强一致）
 ENTRY_CARDS: frozenset[str] = frozenset(
-    {"mood_diary", "checkin_done", "report_result", "recall", "general"}
+    {"smart_analyze", "mood_diary", "recall_self", "direct_input"}
 )
+# 入口卡兼容映射（旧值 → DDL 白名单），避免前端老数据 / 旧测试传非法值触发 500
+ENTRY_CARD_COMPAT: dict[str, str] = {
+    "checkin_done": "mood_diary",
+    "report_result": "smart_analyze",
+    "recall": "recall_self",
+    "general": "direct_input",
+}
+# primary_intent 白名单（与 DDL chk_ai_session_intent 强一致）
+PRIMARY_INTENTS: frozenset[str] = frozenset(
+    {
+        "module_redirect",
+        "read_query",
+        "recall",
+        "recall_ack",
+        "feedback_ack",
+        "feedback_create",
+        "medical_reject",
+        "unknown",
+    }
+)
+# primary_intent 兜底映射：非法值 / 旧枚举值 → "unknown"（最低风险）
+PRIMARY_INTENT_COMPAT: dict[str, str] = {
+    "general": "unknown",
+    "direct_chat": "unknown",
+    "chat": "unknown",
+    "checkin": "unknown",
+    "diagnosis": "module_redirect",
+}
+DEFAULT_PRIMARY_INTENT = "unknown"
 MAX_MESSAGE_LENGTH = 1000
 DEFAULT_STATE = "warm"
 # 触发 medical_guarded 的医疗关键词（最小集 + 复用 medical-reject-words）
@@ -132,16 +161,39 @@ def _render_by_state(state: str, intent: str) -> str:
     return reply
 
 
-def _validate_entry_card(entry_card: str | None) -> str | None:
+def _normalize_entry_card(entry_card: str | None) -> tuple[str | None, bool]:
+    """入口卡白名单校验 + 旧值兼容映射。
+
+    Returns:
+        (normalized_value, was_compat_mapped)
+    """
     if entry_card is None:
-        return None
-    if entry_card not in ENTRY_CARDS:
-        raise AssistantError(
-            f"entry_card 非法：{entry_card}",
-            code=E_ASSISTANT_FORBIDDEN_CALLER,
-            field="entry_card",
-        )
-    return entry_card
+        return None, False
+    if entry_card in ENTRY_CARDS:
+        return entry_card, False
+    mapped = ENTRY_CARD_COMPAT.get(entry_card)
+    if mapped is not None and mapped in ENTRY_CARDS:
+        return mapped, True
+    raise AssistantError(
+        f"entry_card 非法：{entry_card}",
+        code=E_ASSISTANT_FORBIDDEN_CALLER,
+        field="entry_card",
+    )
+
+
+def _normalize_primary_intent(primary_intent: str) -> tuple[str, bool]:
+    """primary_intent 白名单校验 + 旧值兼容映射。
+
+    Returns:
+        (normalized_value, was_compat_mapped)
+    """
+    if primary_intent in PRIMARY_INTENTS:
+        return primary_intent, False
+    mapped = PRIMARY_INTENT_COMPAT.get(primary_intent)
+    if mapped is not None and mapped in PRIMARY_INTENTS:
+        return mapped, True
+    # 兜底：未知值统一落到 unknown，避免 500
+    return DEFAULT_PRIMARY_INTENT, True
 
 
 async def create_session(
@@ -149,16 +201,31 @@ async def create_session(
     *,
     user_id: str,
     entry_card: str | None = None,
-    primary_intent: str = "general",
+    primary_intent: str = DEFAULT_PRIMARY_INTENT,
 ) -> dict[str, Any]:
     """创建会话。"""
-    ec = _validate_entry_card(entry_card)
+    ec, ec_mapped = _normalize_entry_card(entry_card)
+    pi, pi_mapped = _normalize_primary_intent(primary_intent)
+    if ec_mapped:
+        logger.warning(
+            "assistant_entry_card_compat_mapped",
+            original=entry_card,
+            normalized=ec,
+            user_id=user_id,
+        )
+    if pi_mapped:
+        logger.warning(
+            "assistant_primary_intent_compat_mapped",
+            original=primary_intent,
+            normalized=pi,
+            user_id=user_id,
+        )
     now_ts = datetime.now(UTC)
     ai_session = AISession(
         id=uuid4(),
         user_id=user_id,
         entry_card=ec,
-        primary_intent=primary_intent,
+        primary_intent=pi,
         persona_state_start=DEFAULT_STATE,
         persona_state_end=DEFAULT_STATE,
         message_count=0,
@@ -167,10 +234,10 @@ async def create_session(
         started_at=now_ts,
         last_active_at=now_ts,
         created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前创建用户（会话发起人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M5",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(ai_session)
     await session.flush()
@@ -222,10 +289,10 @@ async def send_message(
         referenced_video_ids=[],
         token_count=len(text),
         created_at=now_ts,
-        created_by=str(user_id),
+        created_by=str(user_id),         # 当前创建用户（发消息的人）
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M5",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(user_msg)
     ai_session.message_count = seq
@@ -266,10 +333,10 @@ async def send_message(
         referenced_video_ids=[],
         token_count=len(reply_text),
         created_at=now_ts,
-        created_by="assistant",
+        created_by=str(user_id),         # AI 消息由用户对话触发，记用户
         created_time=now_ts,
         last_updated_time=now_ts,
-        last_updated_by="M5",
+        last_updated_by=str(user_id),    # 当前更新用户
     )
     session.add(assistant_msg)
     ai_session.message_count = seq2
@@ -331,13 +398,19 @@ async def list_messages(
 
 __all__ = [
     "AssistantError",
+    "DEFAULT_PRIMARY_INTENT",
     "DEFAULT_STATE",
     "ENTRY_CARDS",
+    "ENTRY_CARD_COMPAT",
     "LLMUnavailableError",
     "MAX_MESSAGE_LENGTH",
     "PERSONA_STATES",
+    "PRIMARY_INTENTS",
+    "PRIMARY_INTENT_COMPAT",
     "SessionClosedError",
     "SessionNotFoundError",
+    "_normalize_entry_card",
+    "_normalize_primary_intent",
     "close_session",
     "create_session",
     "list_messages",

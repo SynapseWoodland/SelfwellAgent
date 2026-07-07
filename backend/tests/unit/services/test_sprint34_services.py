@@ -5,13 +5,18 @@ from __future__ import annotations
 import pytest
 
 from app.services.assistant_service import (
+    DEFAULT_PRIMARY_INTENT,
     DEFAULT_STATE,
     ENTRY_CARDS,
+    ENTRY_CARD_COMPAT,
     PERSONA_STATES,
+    PRIMARY_INTENTS,
+    PRIMARY_INTENT_COMPAT,
     _classify_intent,
     _next_state,
+    _normalize_entry_card,
+    _normalize_primary_intent,
     _render_by_state,
-    _validate_entry_card,
 )
 from app.services.checkin_service import (
     MAX_FEELING_LENGTH,
@@ -75,15 +80,87 @@ def test_default_state() -> None:
 
 
 def test_entry_cards_whitelist() -> None:
+    """入口卡白名单与 DDL ``chk_ai_session_entry`` 强一致（GitHub issue 94792 教训）。"""
     assert "mood_diary" in ENTRY_CARDS
-    assert "checkin_done" in ENTRY_CARDS
+    assert "recall_self" in ENTRY_CARDS
+    assert "smart_analyze" in ENTRY_CARDS
+    assert "direct_input" in ENTRY_CARDS
+    # 旧枚举值已移到 ENTRY_CARD_COMPAT，不再属于主白名单
+    for legacy in ("checkin_done", "report_result", "recall", "general"):
+        assert legacy not in ENTRY_CARDS
+        assert legacy in ENTRY_CARD_COMPAT
+
+
+def test_primary_intents_whitelist() -> None:
+    """primary_intent 白名单与 DDL ``chk_ai_session_intent`` 强一致。"""
+    for v in (
+        "module_redirect",
+        "read_query",
+        "recall",
+        "recall_ack",
+        "feedback_ack",
+        "feedback_create",
+        "medical_reject",
+        "unknown",
+    ):
+        assert v in PRIMARY_INTENTS
+
+
+def test_default_primary_intent_is_in_whitelist() -> None:
+    """默认 primary_intent 必须在 DDL 白名单内（避免 service 默认值触发 CHECK 失败）。"""
+    assert DEFAULT_PRIMARY_INTENT in PRIMARY_INTENTS
 
 
 def test_validate_entry_card_invalid() -> None:
     from app.services.assistant_service import AssistantError
 
+    # 不在白名单且无 compat 映射 → 抛错
     with pytest.raises(AssistantError):
-        _validate_entry_card("bad_card")
+        _normalize_entry_card("bad_card_xyz")
+
+
+def test_normalize_entry_card_compat_mapping() -> None:
+    """旧枚举值通过 ENTRY_CARD_COMPAT 兜底到合法白名单。"""
+    for old, expected in (
+        ("checkin_done", "mood_diary"),
+        ("report_result", "smart_analyze"),
+        ("recall", "recall_self"),
+        ("general", "direct_input"),
+    ):
+        normalized, mapped = _normalize_entry_card(old)
+        assert normalized == expected
+        assert mapped is True
+
+
+def test_normalize_entry_card_no_mapping_needed() -> None:
+    normalized, mapped = _normalize_entry_card("mood_diary")
+    assert normalized == "mood_diary"
+    assert mapped is False
+    normalized, mapped = _normalize_entry_card(None)
+    assert normalized is None
+    assert mapped is False
+
+
+def test_normalize_primary_intent_compat_mapping() -> None:
+    """primary_intent 旧值（general/chat/checkin/diagnosis）兼容映射到 DDL 白名单。"""
+    assert _normalize_primary_intent("general") == ("unknown", True)
+    assert _normalize_primary_intent("chat") == ("unknown", True)
+    assert _normalize_primary_intent("checkin") == ("unknown", True)
+    assert _normalize_primary_intent("diagnosis") == ("module_redirect", True)
+    assert _normalize_primary_intent("direct_chat") == ("unknown", True)
+
+
+def test_normalize_primary_intent_unknown_falls_back_to_default() -> None:
+    """完全不认识的值也要兜底到 unknown，不抛错、不 500。"""
+    normalized, mapped = _normalize_primary_intent("totally_garbage_value")
+    assert normalized == DEFAULT_PRIMARY_INTENT
+    assert mapped is True
+
+
+def test_normalize_primary_intent_already_in_whitelist() -> None:
+    normalized, mapped = _normalize_primary_intent("module_redirect")
+    assert normalized == "module_redirect"
+    assert mapped is False
 
 
 def test_classify_intent_medical() -> None:
