@@ -99,6 +99,18 @@ class TestDiagnosisDataFlatten:
                 summary="ok",
             )
 
+    def test_legacy_string_items_normalized_to_dicts(self) -> None:
+        """老 LLM 输出格式 ``{"items": [str, str, ...]}`` → 自动包成 ``{"title": str}``。"""
+        data = DiagnosisData(
+            directions={"items": ["每日坚持拉伸", "规律作息"]},  # type: ignore[arg-type]
+            tags=["t1"],
+            summary="ok",
+        )
+        assert data.directions == [
+            {"title": "每日坚持拉伸", "description": "每日坚持拉伸"},
+            {"title": "规律作息", "description": "规律作息"},
+        ]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. _get_cached_report 缓存读取层兜底
@@ -119,7 +131,7 @@ class TestGetCachedReportFlatten:
     """``_get_cached_report`` 拍扁兜底测试。"""
 
     def test_legacy_cache_with_items_dict_is_flattened(self) -> None:
-        """旧缓存（``{"items": [...]}`` 格式）→ 拍扁成 list 返回。"""
+        """旧缓存（``{"items": [...]}`` 格式）→ service 层拍扁成 list[dict] 返回。"""
         from datetime import UTC, datetime, timedelta
 
         user = _FakeUser(
@@ -133,8 +145,15 @@ class TestGetCachedReportFlatten:
         )
         cached = _get_cached_report(user)  # type: ignore[arg-type]
         assert cached is not None
-        assert cached["directions"] == ["d1", "d2", "d3"]
-        assert cached["tags"] == ["t1", "t2"]
+        # service 层 _normalize_directions 会把 str items 包成 dict
+        assert cached["directions"] == [
+            {"title": "d1", "description": "", "video_id": None},
+            {"title": "d2", "description": "", "video_id": None},
+            {"title": "d3", "description": "", "video_id": None},
+        ]
+        # tags 走 _normalize_tags：2 条 < MIN_TAGS=7 会用兜底 7 条
+        assert len(cached["tags"]) == 7
+        assert all(isinstance(t, str) for t in cached["tags"])
 
     def test_modern_cache_with_list_passes_through(self) -> None:
         """新缓存（list 格式）→ 直接透传。"""
@@ -143,16 +162,17 @@ class TestGetCachedReportFlatten:
         user = _FakeUser(
             report_cache={
                 "report_id": "rep_2",
-                "directions": [{"title": "a"}],
-                "tags": ["t1"],
+                "directions": [{"title": "a"}, {"title": "b"}, {"title": "c"}],
+                "tags": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
                 "summary": "modern",
             },
             expires_at=datetime.now(UTC) + timedelta(days=1),
         )
         cached = _get_cached_report(user)  # type: ignore[arg-type]
         assert cached is not None
-        assert cached["directions"] == [{"title": "a"}]
-        assert cached["tags"] == ["t1"]
+        assert len(cached["directions"]) == 3
+        assert cached["directions"][0]["title"] == "a"
+        assert cached["tags"] == ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
 
     def test_expired_cache_returns_none(self) -> None:
         """过期缓存 → None（不返回。"""
