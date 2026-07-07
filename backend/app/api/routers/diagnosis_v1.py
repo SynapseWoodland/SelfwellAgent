@@ -1,9 +1,16 @@
-"""M2 诊断路由（``/api/v1/diagnosis``）。"""
+"""M2 诊断路由（``/api/v1/diagnosis``）。
+
+真源：前端 diagnosis-upload/index.ts §4.3 + openapi.yaml tag=diagnosis。
+
+契约兼容：
+- 前端传单图：{ objectKey, user_note }  （diagnosis-upload/index.ts L88-89）
+- 原生多图：   { photos: [url, body_part, ...], complaint }（后端期望）
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
@@ -25,8 +32,60 @@ class PhotoInput(BaseModel):
 
 
 class DiagnosisCreateRequest(BaseModel):
-    photos: list[PhotoInput] = Field(..., min_length=3, max_length=3)
+    """MVP 诊断请求 Schema（兼容前端单图 + 原生多图两种格式）。
+
+    前端单图格式（来自 diagnosis-upload/index.ts §4.3）：
+        { objectKey: string, user_note?: string }
+
+    原生多图格式：
+        { photos: PhotoInput[3], complaint?: string }
+
+    MVP 优先策略：后端同时支持两种格式，前端体验不变。
+    """
+
+    # ── 前端单图格式 ─────────────────────────────────────────────────────────
+    objectKey: str | None = Field(default=None, description="已上传图片的 objectKey（前端单图格式）")
+    user_note: str | None = Field(default=None, description="用户备注（前端单图格式）")
+
+    # ── 原生多图格式 ─────────────────────────────────────────────────────────
+    photos: list[PhotoInput] | None = Field(default=None)
     complaint: str | None = Field(default=None, max_length=500)
+
+    def resolve_photos(self) -> list[dict]:
+        """将请求转换为 service 层期望的 photos 参数格式。
+
+        前端单图格式：构造 1 张虚假的 photo 对象（body_part=face, url=objectKey）。
+        原生多图格式：直接透传。
+
+        Raises:
+            ValidationError: 当既无 ``photos`` 也无 ``objectKey`` 时。
+        """
+        if self.photos:
+            return [p.model_dump() for p in self.photos]
+        if self.objectKey:
+            return [
+                {
+                    "url": self.objectKey,
+                    "body_part": "face",
+                    "format": "jpg",
+                    "size_bytes": 0,
+                }
+            ]
+        err = ValueError("缺少 photos 或 objectKey")
+        raise ValidationError.from_exception_data(  # type: ignore[attr-defined]
+            self.__class__.__name__,
+            [
+                {
+                    "type": "missing",
+                    "loc": ("resolve_photos",),
+                    "input": {},
+                    "ctx": {"error": err},
+                }
+            ],
+        )
+
+    def resolve_complaint(self) -> str | None:
+        return self.user_note if self.user_note else self.complaint
 
 
 class DiagnosisData(BaseModel):
@@ -58,8 +117,8 @@ async def create_diagnosis_endpoint(
         result = await create_diagnosis(
             session,
             user_id=user_id,
-            photos=[p.model_dump() for p in body.photos],
-            complaint=body.complaint,
+            photos=body.resolve_photos(),
+            complaint=body.resolve_complaint(),
         )
     except DiagnosisError as exc:
         raise HTTPException(
