@@ -26,6 +26,27 @@ interface PlanResp {
   phases: PlanPhase[];
   todayTasks: Array<{ id: string; title: string; subtitle: string; done: boolean }>;
 }
+
+interface PlansCurrentDayTask {
+  title: string;
+  video_id?: string;
+}
+
+interface PlansCurrentDay {
+  day: number;
+  phase: number;
+  tasks: PlansCurrentDayTask[];
+}
+
+interface PlansCurrentResp {
+  plan_id: string;
+  report_id?: string;
+  status?: string;
+  days: PlansCurrentDay[];
+  started_at?: string;
+  active_day_index?: number;
+}
+
 Page({
   data: {
     planDays: Array.from({ length: 21 }, (_, i) => i + 1),
@@ -46,13 +67,35 @@ Page({
 
   async fetchActivePlan() {
     try {
-      const resp = await get<PlanResp>('/plans/current');
+      const resp = await get<PlanResp>('/plans/today');
       if (resp) {
         this.setData({
           planId: resp.id,
           currentDay: resp.dayIndex || 1,
           phases: resp.phases?.length ? resp.phases : this.data.phases,
           todayTasks: resp.todayTasks || [],
+        });
+        return;
+      }
+    } catch {
+      /* 退化到 /plans/current */
+    }
+    try {
+      const current = await get<PlansCurrentResp>('/plans/current');
+      if (current) {
+        const dayIndex = current.active_day_index || current.days?.find((d) => d.day === current.active_day_index)?.day || 1;
+        const dayObj = (current.days || []).find((d) => d.day === dayIndex) || (current.days || [])[0];
+        const taskViews = (dayObj?.tasks || []).map((t, idx) => ({
+          id: `${current.plan_id}-${dayObj.day}-${idx}`,
+          title: t.title,
+          subtitle: '',
+          done: false,
+        }));
+        this.setData({
+          planId: current.plan_id,
+          currentDay: dayObj?.day || 1,
+          phases: this.data.phases,
+          todayTasks: taskViews,
         });
       }
     } catch {
@@ -72,5 +115,9 @@ Page({
     } finally {
       this.setData({ generating: false });
     }
+  },
+
+  onGotoCheckin() {
+    wx.navigateTo({ url: '/pages/checkin/index' });
   },
 });

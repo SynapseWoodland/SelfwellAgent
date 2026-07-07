@@ -9,7 +9,7 @@
  *  - hover/longpress 时显示完整原文（用 wx.showToast / tooltip 替代，避免换行错觉）
  *  - 类型：warm / neutral / celebrate 三档（避免焦虑色）
  */
-import { ACK_MAX_CHARS } from '../utils/config';
+import { ACK_MAX_CHARS } from '../../utils/config';
 
 type AckTone = 'warm' | 'neutral' | 'celebrate';
 

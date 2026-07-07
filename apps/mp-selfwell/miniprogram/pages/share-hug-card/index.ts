@@ -48,9 +48,14 @@ const CARDS: Record<Day, Card> = {
 };
 
 interface HugCardResp {
-  imageUrl: string;
+  /** 后端 share_router 返回 url（不是 imageUrl），与 backend/app/api/routers/business_v1.py POST /share/hug-card 对齐 */
+  url?: string;
+  imageUrl?: string; // 兼容
   day: Day;
-  generatedAt: string;
+  generatedAt?: string;
+  template?: string;
+  width?: number;
+  height?: number;
 }
 
 Page({
@@ -92,8 +97,9 @@ Page({
   async fallbackServerImage() {
     try {
       const resp = await post<HugCardResp>('/share/hug-card', { day: this.data.day });
-      if (resp?.imageUrl) {
-        this.setData({ posterUrl: resp.imageUrl });
+      const url = resp?.url || resp?.imageUrl;
+      if (url) {
+        this.setData({ posterUrl: url });
         wx.showToast({ title: '已生成服务器图，请长按保存', icon: 'none' });
       } else {
         wx.showToast({ title: '生成失败，请稍后再试', icon: 'none' });
@@ -106,7 +112,7 @@ Page({
   onShareAppMessage() {
     return {
       title: this.data.card.title,
-      path: `/miniprogram/pages/share-hug-card/index?day=${this.data.day}`,
+      path: `pages/share-hug-card/index?day=${this.data.day}`,
     };
   },
 });

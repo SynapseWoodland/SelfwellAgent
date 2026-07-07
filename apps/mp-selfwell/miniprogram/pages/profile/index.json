@@ -1,6 +1,6 @@
 {
   "navigationBarTitleText": "我的",
   "usingComponents": {
-    "progress-ring": "/miniprogram/components/progress-ring/index"
+    "progress-ring": "/components/progress-ring/index"
   }
 }

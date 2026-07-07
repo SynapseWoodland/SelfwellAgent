@@ -15,9 +15,9 @@
  *  - 401 走单独的 fast-path，其余 ApiException 保留提示但不 reset jwt
  *  - streak 数显示前 clamp 到 [0, 9999]
  */
-import { get, ApiException } from '../../utils/request';
+import { get, post, ApiException } from '../../utils/request';
 import { STORAGE_KEYS } from '../../utils/config';
-import type { UserMe, TodayPlan, CheckinToday } from '../../types/api';
+import type { UserMe, TodayPlan, CheckinToday, CreateCheckinResp } from '../../types/api';
 
 interface TodayTaskView {
   id: string;
@@ -153,7 +153,7 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
       /* ignore */
     }
     wx.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
-    setTimeout(() => wx.reLaunch({ url: '/miniprogram/pages/login/index' }), 800);
+    setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 800);
   },
 
   onTaskToggle(e: WechatMiniprogram.CustomEvent<{ id: string; done: boolean }>) {
@@ -167,17 +167,37 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
       done: completed,
       percent: total ? Math.round((completed / total) * 100) : 0,
     });
+    // 持久化打卡（POST /checkins），done=true 时记录，done=false 时按今天已勾选重新提交
+    const today = new Date().toISOString().slice(0, 10);
+    const doneIds = list.filter((t) => t.done).map((t) => t.id);
+    post<CreateCheckinResp>('/checkins', { date: today, task_ids: doneIds }).catch((err) => {
+      // 失败时回滚本地状态（只回滚这一个任务的 done 状态）
+      console.warn('[home] checkin sync fail', err);
+      const rollback = this.data.taskCards.map((t) =>
+        t.id === id ? { ...t, done: !done } : t,
+      );
+      const rollTotal = rollback.length;
+      const rollDone = rollback.filter((t) => t.done).length;
+      this.setData({
+        taskCards: rollback,
+        total: rollTotal,
+        done: rollDone,
+        percent: rollTotal ? Math.round((rollDone / rollTotal) * 100) : 0,
+      });
+      const msg = err instanceof ApiException ? err.message : '打卡失败';
+      wx.showToast({ title: msg, icon: 'none' });
+    });
   },
 
   onGotoCheckin() {
-    wx.navigateTo({ url: '/miniprogram/pages/checkin/index' });
+    wx.navigateTo({ url: '/pages/checkin/index' });
   },
 
   onGotoAssistant() {
-    wx.switchTab({ url: '/miniprogram/pages/assistant-home/index' });
+    wx.switchTab({ url: '/pages/assistant-home/index' });
   },
 
   onGotoPlan() {
-    wx.navigateTo({ url: '/miniprogram/pages/plan/index' });
+    wx.navigateTo({ url: '/pages/plan/index' });
   },
 });

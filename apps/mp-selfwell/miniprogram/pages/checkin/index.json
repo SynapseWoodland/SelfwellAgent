@@ -3,6 +3,6 @@
   "navigationBarBackgroundColor": "#A8C5B5",
   "navigationBarTextStyle": "white",
   "usingComponents": {
-    "ack-bubble": "/miniprogram/components/ack-bubble/index"
+    "ack-bubble": "/components/ack-bubble/index"
   }
 }

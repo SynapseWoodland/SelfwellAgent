@@ -65,9 +65,10 @@ Page({
     }
   },
 
-  onToggleItem(e: WechatMiniprogram.CustomEvent<{ id: string; done: boolean }>) {
-    const { id, done } = e.detail;
-    const items = this.data.todayItems.map((t) => (t.id === id ? { ...t, done } : t));
+  onToggleItem(e: WechatMiniprogram.BaseEvent) {
+    const { id, done } = e.currentTarget.dataset as { id: string; done: string };
+    const isDone = done === 'true' || done === true;
+    const items = this.data.todayItems.map((t) => (t.id === id ? { ...t, done: isDone } : t));
     this.setData({ todayItems: items });
   },
 
@@ -123,11 +124,19 @@ Page({
       }
 
       // 2) 心情反馈（与 checkin 并存时，mood_text 已上送；这里再发一次以兼容反馈独立通道）
+      //    后端 FeedbackCreate schema 要求：feedback_type(必填) + text_content
+      //    后端 ack 实际返回 string（feedback_service.create_feedback:225），不是对象
+      //    见 backend/app/api/routers/business_v1.py: FeedbackCreate
       const text = this.data.text.trim();
       if (text && !checked.length) {
-        const moodReq: CreateMoodReq = { mood_text: text };
+        const moodReq: CreateMoodReq = {
+          feedback_type: 'mood_text',
+          text_content: text,
+        };
         const moodResp = await post<CreateMoodResp>('/feedback', moodReq);
-        lastAckText = moodResp.ack.text;
+        lastAckText = typeof moodResp?.ack === 'string'
+          ? moodResp.ack
+          : (moodResp?.ack as { text?: string })?.text || '';
       }
 
       if (lastAckText) {
@@ -135,7 +144,7 @@ Page({
       }
 
       wx.showToast({ title: '打卡完成', icon: 'success' });
-      setTimeout(() => wx.reLaunch({ url: '/miniprogram/pages/home/index' }), 1200);
+      setTimeout(() => wx.reLaunch({ url: '/pages/home/index' }), 1200);
     } catch (e) {
       let msg = '提交失败，请稍后再试';
       if (e instanceof ApiException) {

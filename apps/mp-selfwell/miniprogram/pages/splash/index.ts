@@ -66,8 +66,8 @@ Page({
     const looksValid = token.length >= 16 && token.split('.').length >= 2;
     this.setData({ routed: true });
     const next = looksValid
-      ? '/miniprogram/pages/home/index'
-      : '/miniprogram/pages/login/index';
+      ? '/pages/home/index'
+      : '/pages/login/index';
     try {
       wx.reLaunch({ url: next });
     } catch (e) {

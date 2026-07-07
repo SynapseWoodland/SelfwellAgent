@@ -2,7 +2,7 @@
   "navigationBarTitleText": "自愈 · 今日",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "progress-ring": "/miniprogram/components/progress-ring/index",
-    "task-card": "/miniprogram/components/task-card/index"
+    "progress-ring": "/components/progress-ring/index",
+    "task-card": "/components/task-card/index"
   }
 }

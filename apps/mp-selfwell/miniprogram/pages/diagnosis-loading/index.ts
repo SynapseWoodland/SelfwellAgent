@@ -120,6 +120,6 @@ Page({
   },
 
   gotoReport() {
-    wx.redirectTo({ url: '/miniprogram/pages/diagnosis-report/index' });
+    wx.redirectTo({ url: '/pages/diagnosis-report/index' });
   },
 });

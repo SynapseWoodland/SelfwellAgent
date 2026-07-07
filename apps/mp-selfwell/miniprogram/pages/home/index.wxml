@@ -24,16 +24,17 @@
   <view class="home-card">
     <view class="home-card-title">
       <text>今日小动作</text>
-      <text class="home-card-title-right">{{taskCards.length}} 项</text>
+      <text class="home-card-title-right">{{done}}/{{total}} 项</text>
     </view>
+    <view class="home-card-hint">点击卡片即可打卡</view>
     <task-card
       wx:for="{{taskCards}}"
       wx:key="id"
+      id="{{item.id}}"
       title="{{item.title}}"
       subtitle="{{item.subtitle}}"
       done="{{item.done}}"
       bind:toggle="onTaskToggle"
-      data-id="{{item.id}}"
     />
   </view>
 

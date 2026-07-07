@@ -25,4 +25,33 @@
       <view class="plan-phase-desc">{{item.desc}}</view>
     </view>
   </view>
+
+  <view class="plan-tasks" wx:if="{{todayTasks.length}}">
+    <view class="plan-tasks-title">今日任务</view>
+    <view
+      wx:for="{{todayTasks}}"
+      wx:key="id"
+      class="plan-task {{item.done ? 'is-done' : ''}}"
+    >
+      <view class="plan-task-title">{{item.title}}</view>
+      <view wx:if="{{item.subtitle}}" class="plan-task-sub">{{item.subtitle}}</view>
+    </view>
+  </view>
+
+  <button
+    wx:if="{{!planId}}"
+    class="plan-btn plan-btn--primary"
+    bindtap="onGeneratePlan"
+    loading="{{generating}}"
+    disabled="{{generating}}"
+  >
+    生成方案
+  </button>
+  <button
+    wx:else
+    class="plan-btn plan-btn--ghost"
+    bindtap="onGotoCheckin"
+  >
+    今日打卡
+  </button>
 </view>

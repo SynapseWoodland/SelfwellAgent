@@ -64,7 +64,7 @@ Page({
 
     const gotoLoading = (id: string) => {
       wx.redirectTo({
-        url: `/miniprogram/pages/diagnosis-loading/index?id=${id}`,
+        url: `pages/diagnosis-loading/index?id=${id}`,
       });
     };
 

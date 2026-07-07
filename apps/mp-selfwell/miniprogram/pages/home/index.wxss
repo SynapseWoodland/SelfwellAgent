@@ -53,7 +53,13 @@
   font-size: 32rpx;
   font-weight: 500;
   color: #2D3436;
-  margin-bottom: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.home-card-hint {
+  font-size: 24rpx;
+  color: #A0AEC0;
+  margin-bottom: 12rpx;
 }
 
 .home-card-title-right {

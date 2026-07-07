@@ -9,7 +9,7 @@
  *  - 输出 bind:select 事件（detail.picked = PickedImage）
  *  - 上传逻辑留给 page（SF2 接入）
  */
-import { chooseSingleImage, PickedImage } from '../utils/picker';
+import { chooseSingleImage, PickedImage } from '../../utils/picker';
 
 Component({
   options: {

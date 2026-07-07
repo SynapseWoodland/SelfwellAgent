@@ -37,13 +37,13 @@ interface AssistantMessageResp {
 
 /** A 类意图关键词（≥ 20 条；与 §6.3 实施规范对齐） */
 const ROUTE_KEYWORDS: Array<{ kw: RegExp; module: string; page: string }> = [
-  { kw: /诊断|分析|照片|皮肤|状态/, module: 'diagnosis', page: '/miniprogram/pages/diagnosis-upload/index' },
-  { kw: /方案|计划|21天|21 天/, module: 'plan', page: '/miniprogram/pages/plan/index' },
-  { kw: /打卡|今日|完成/, module: 'checkin', page: '/miniprogram/pages/checkin/index' },
-  { kw: /日记|心情|记录|感受/, module: 'diary', page: '/miniprogram/pages/feedback-diary/index' },
-  { kw: /回忆|过去|那天/, module: 'recall', page: '/miniprogram/pages/recall-compare/index' },
-  { kw: /广场|社区|看看别人/, module: 'plaza', page: '/miniprogram/pages/community/index' },
-  { kw: /抱抱|海报|分享/, module: 'hug', page: '/miniprogram/pages/share-hug-card/index' },
+  { kw: /诊断|分析|照片|皮肤|状态/, module: 'diagnosis', page: 'pages/diagnosis-upload/index' },
+  { kw: /方案|计划|21天|21 天/, module: 'plan', page: 'pages/plan/index' },
+  { kw: /打卡|今日|完成/, module: 'checkin', page: 'pages/checkin/index' },
+  { kw: /日记|心情|记录|感受/, module: 'diary', page: 'pages/feedback-diary/index' },
+  { kw: /回忆|过去|那天/, module: 'recall', page: 'pages/recall-compare/index' },
+  { kw: /广场|社区|看看别人/, module: 'plaza', page: 'pages/community/index' },
+  { kw: /抱抱|海报|分享/, module: 'hug', page: 'pages/share-hug-card/index' },
 ];
 
 /** B 类快问正则（≥ 10 条） */
@@ -184,14 +184,14 @@ Page({
     }
   },
 
-  onTapEntry(e: WechatMiniprogram.CustomEvent<{ id: string }>) {
-    const id = e.detail?.id;
+  onTapEntry(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id: string }).id;
     if (id === 'upload') {
-      wx.navigateTo({ url: '/miniprogram/pages/diagnosis-upload/index' });
+      wx.navigateTo({ url: '/pages/diagnosis-upload/index' });
     } else if (id === 'diary') {
-      wx.navigateTo({ url: '/miniprogram/pages/feedback-diary/index' });
+      wx.navigateTo({ url: '/pages/feedback-diary/index' });
     } else if (id === 'compare') {
-      wx.navigateTo({ url: '/miniprogram/pages/recall-compare/index' });
+      wx.navigateTo({ url: '/pages/recall-compare/index' });
     }
   },
 });

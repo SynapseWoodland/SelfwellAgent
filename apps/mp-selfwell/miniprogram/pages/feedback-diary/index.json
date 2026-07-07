@@ -1,6 +1,6 @@
 {
   "navigationBarTitleText": "心情日记",
   "usingComponents": {
-    "ack-bubble": "/miniprogram/components/ack-bubble/index"
+    "ack-bubble": "/components/ack-bubble/index"
   }
 }

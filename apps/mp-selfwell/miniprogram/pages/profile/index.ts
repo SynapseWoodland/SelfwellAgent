@@ -88,13 +88,13 @@ Page({
   },
 
   onGotoShare() {
-    wx.navigateTo({ url: '/miniprogram/pages/share-hug-card/index?day=7' });
+    wx.navigateTo({ url: '/pages/share-hug-card/index?day=7' });
   },
 
-  onTapSetting(e: WechatMiniprogram.CustomEvent<{ id: string }>) {
-    const id = e.detail?.id;
+  onTapSetting(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id: string }).id;
     if (id === 'notification') {
-      this.onSubscribePush();
+      void this.onSubscribePush();
     } else if (id === 'profile') {
       wx.showToast({ title: '档案编辑（M1 SF1 接入）', icon: 'none' });
     } else {

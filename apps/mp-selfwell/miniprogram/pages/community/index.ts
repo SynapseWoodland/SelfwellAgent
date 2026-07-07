@@ -90,7 +90,7 @@ Page({
     if (!res.confirm || !res.content?.trim()) return;
     this.setData({ publishing: true });
     try {
-      const created = await post<Post>('/community/posts', { text: res.content.trim() });
+      const created = await post<Post>('/community/posts', { content: res.content.trim() });
       const newPost: Post = created ?? {
         id: 'p_' + Date.now(),
         userName: '我',

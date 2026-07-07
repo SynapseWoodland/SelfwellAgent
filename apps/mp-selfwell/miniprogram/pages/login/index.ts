@@ -14,10 +14,10 @@
  *  - 401 由 utils/request.ts 拦截器统一跳转 splash/login（这里不再处理）
  *  - 隐私协议持久化 key 抽到 STORAGE_KEYS
  */
-import { post } from '../../utils/request';
-import { CLIENT_PLATFORM, STORAGE_KEYS } from '../../utils/config';
+import { get, post } from '../../utils/request';
+import { STORAGE_KEYS } from '../../utils/config';
 import { ERR_LABEL } from '../../utils/error-code';
-import type { WxLoginReq, WxLoginResp, UserMe } from '../../types/api';
+import type { WxLoginReq, WxLoginData, UserMe } from '../../types/api';
 
 Page({
   data: {
@@ -55,39 +55,33 @@ Page({
 
     try {
       const code = await this.wxLogin();
-      const deviceId = wx.getStorageSync(STORAGE_KEYS.deviceId) || '';
-      const req: WxLoginReq = {
-        code,
-        client_platform: CLIENT_PLATFORM,
-        device_id: deviceId,
-      };
-      const resp = await post<WxLoginResp>('/auth/wx-login', req);
-
-      // §17.10：前端只持久化 user_id_pseudo 与 token
-      wx.setStorageSync(STORAGE_KEYS.jwt, resp.token);
-      wx.setStorageSync(STORAGE_KEYS.userId, resp.user_id_pseudo);
-      try {
-        wx.setStorageSync(STORAGE_KEYS.openidE, resp.openid_e);
-      } catch {
-        /* ignore */
+      const req: WxLoginReq = { code, client: 'wx_mp' };
+      const resp = await post<WxLoginData>('/auth/wx-login', req);
+      const token = resp?.access_token;
+      const userId = resp?.user_id;
+      if (!token || !userId) {
+        throw new Error('登录响应缺少 token 或 user_id');
       }
+
+      wx.setStorageSync(STORAGE_KEYS.jwt, token);
+      wx.setStorageSync(STORAGE_KEYS.userId, userId);
       const app = getApp();
       if (app?.globalData) {
-        app.globalData.token = resp.token;
-        app.globalData.userId = resp.user_id_pseudo;
+        app.globalData.token = token;
+        app.globalData.userId = userId;
       }
 
-      // 可选：拉一次 /users/me 用于后续页面渲染
+      // 可选：拉一次 /users/me（GET）用于后续页面渲染；后端不可用时不算致命
       try {
-        const me = await post<UserMe>('/users/me', {});
+        const me = await get<UserMe>('/users/me');
         wx.setStorageSync('me_cached', JSON.stringify(me));
       } catch {
-        /* 后端不可用时不算致命 */
+        /* ignore */
       }
 
       wx.showToast({ title: '登录成功', icon: 'success' });
       setTimeout(() => {
-        wx.reLaunch({ url: '/miniprogram/pages/home/index' });
+        wx.reLaunch({ url: '/pages/home/index' });
       }, 600);
     } catch (e) {
       const code =

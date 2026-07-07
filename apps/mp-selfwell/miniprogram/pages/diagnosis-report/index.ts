@@ -43,10 +43,10 @@ Page({
   },
 
   onStartPlan() {
-    wx.navigateTo({ url: '/miniprogram/pages/plan/index' });
+    wx.navigateTo({ url: '/pages/plan/index' });
   },
 
   onBackHome() {
-    wx.reLaunch({ url: '/miniprogram/pages/home/index' });
+    wx.reLaunch({ url: '/pages/home/index' });
   },
 });

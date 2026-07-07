@@ -40,20 +40,22 @@ export interface Paginated<T> {
 
 /* ─────────── M1 用户 / 登录 ─────────── */
 
+// 后端 v1 WxLoginRequest 字段名
 export interface WxLoginReq {
   code: string;
-  client_platform: ClientPlatform;
-  /** 设备 ID（来自 app.globalData.deviceId） */
-  device_id: string;
-  /** 上游 traceparent，便于跨进程串联 */
-  traceparent?: string;
+  client?: 'wx_mp' | 'ios' | 'android' | 'harmony';
+  user_profile?: { nickname?: string; avatar?: string } | null;
+}
+export interface WxLoginData {
+  user_id: string;
+  access_token: string;
+  expires_in: number;
+  is_new_user: boolean;
+  user_status: string;
 }
 export interface WxLoginResp {
-  token: string;
-  user_id_pseudo: string;
-  /** 加密 openid；后端按 §17.10 不可逆 */
-  openid_e: string;
-  expires_in: number;
+  code: number;
+  data: WxLoginData;
 }
 
 export interface UserMe {
@@ -203,8 +205,11 @@ export interface AckEntry {
 }
 
 export interface CreateMoodReq {
-  mood_text?: string;
-  mood_photo_key?: string;
+  feedback_type: 'mood_text' | 'mood_photo' | 'skin_photo';
+  text_content?: string;
+  photo_url?: string;
+  photo_size_bytes?: number;
+  body_part?: string;
 }
 export interface CreateMoodResp {
   feedback_id: string;

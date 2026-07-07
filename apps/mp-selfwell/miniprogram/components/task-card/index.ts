@@ -13,6 +13,11 @@ Component({
   },
 
   properties: {
+    /** 任务 ID */
+    id: {
+      type: String,
+      value: '',
+    },
     /** 任务名称 */
     title: {
       type: String,
@@ -42,7 +47,7 @@ Component({
       if (this.data.disabled) return;
       const next = !this.data.done;
       this.setData({ done: next });
-      this.triggerEvent('toggle', { done: next });
+      this.triggerEvent('toggle', { id: this.data.id, done: next });
     },
   },
 });

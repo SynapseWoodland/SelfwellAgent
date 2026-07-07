@@ -123,6 +123,29 @@ export function request<TRes = unknown, TReq = unknown>(
         const status = res.statusCode;
         const body = res.data as unknown;
         if (status >= 200 && status < 300) {
+          // 后端 v1 统一信封：{ code, data }。在此集中剥壳，页面直接拿 data。
+          // 非信封响应（无 numeric code）原样返回，保持向后兼容。
+          if (
+            body !== null &&
+            typeof body === 'object' &&
+            typeof (body as { code?: unknown }).code === 'number' &&
+            'data' in (body as Record<string, unknown>)
+          ) {
+            const env = body as { code: number; data: unknown; message?: string };
+            if (env.code !== 0) {
+              reject(
+                new ApiException(
+                  String(env.code),
+                  env.message ?? `业务处理失败（code=${env.code}）`,
+                  status,
+                  tp,
+                ),
+              );
+              return;
+            }
+            resolve(env.data as TRes);
+            return;
+          }
           resolve(body as TRes);
           return;
         }

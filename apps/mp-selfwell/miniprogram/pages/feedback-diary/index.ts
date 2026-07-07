@@ -14,8 +14,10 @@ import { post } from '../../utils/request';
 import { pickRandomAck } from '../../data/ack-pool';
 
 interface FeedbackResp {
-  ack_text: string;
-  ack_id: number;
+  feedback_id: string;
+  feedback_type: string;
+  /** 后端 feedback_service 返回 ack 字符串，详见 backend/app/services/feedback_service.py:225 */
+  ack: string;
 }
 
 Page({
@@ -38,8 +40,13 @@ Page({
     }
     this.setData({ submitting: true });
     try {
-      const resp = await post<FeedbackResp>('/feedback', { mood_text: text });
-      const ackText = resp?.ack_text || pickRandomAck().text;
+      // 后端 FeedbackCreate schema：feedback_type(必填) + text_content
+      // 见 backend/app/api/routers/business_v1.py: FeedbackCreate
+      const resp = await post<FeedbackResp>('/feedback', {
+        feedback_type: 'mood_text',
+        text_content: text,
+      });
+      const ackText = resp?.ack || pickRandomAck().text;
       this.setData({ ackText, text: '' });
     } catch {
       // 兜底：本地池随机 1 条

@@ -1,18 +1,31 @@
 <view class="recall">
   <view class="recall-title">每 7 天的你</view>
-  <view
-    wx:for="{{snapshots}}"
-    wx:key="day"
-    class="recall-card"
-  >
-    <view class="recall-day">第 {{item.day}} 天</view>
+  <view class="recall-tabs">
     <view
-      wx:for="{{item.highlights}}"
-      wx:for-item="h"
+      wx:for="{{days}}"
       wx:key="*this"
-      class="recall-highlight"
-    >
-      · {{h}}
-    </view>
+      class="recall-tab {{item === activeDay ? 'is-active' : ''}}"
+      bindtap="onSelectDay"
+      data-day="{{item}}"
+    >第 {{item}} 天</view>
+  </view>
+  <view class="recall-card">
+    <view wx:if="{{loading}}" class="recall-loading">加载中…</view>
+    <block wx:else>
+      <view class="recall-meta">
+        <text wx:if="{{snapshot.emotionTrend}}">{{snapshot.emotionTrend}}</text>
+        <text wx:if="{{snapshot.habitStreak}}"> · 习惯坚持 {{snapshot.habitStreak}} 天</text>
+      </view>
+      <view
+        wx:for="{{snapshot.highlights}}"
+        wx:key="*this"
+        class="recall-highlight"
+      >
+        · {{item}}
+      </view>
+      <view wx:if="{{!snapshot.highlights.length}}" class="recall-empty">
+        暂无对比数据，下次 7 天时回来看看～
+      </view>
+    </block>
   </view>
 </view>

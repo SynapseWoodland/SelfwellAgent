@@ -28,14 +28,14 @@ export const ENV_LABELS: Record<Env, string> = {
  * 注意：禁止在 page 内硬编码完整 endpoint，必须经 utils/request.ts 走 baseURL 拼接。
  */
 export const API_BASE_URL: Record<Env, string> = {
-  dev: 'https://dev-api.selfwell.app/api/v1',
+  dev: 'http://127.0.0.1:8000/api/v1',
   staging: 'https://staging-api.selfwell.app/api/v1',
   prod: 'https://api.selfwell.app/api/v1',
 };
 
 /** SSE 长连接基址（与 API 同源，path = /stream） */
 export const SSE_BASE_URL: Record<Env, string> = {
-  dev: 'wss://dev-api.selfwell.app/api/v1',
+  dev: 'ws://127.0.0.1:8000/api/v1',
   staging: 'wss://staging-api.selfwell.app/api/v1',
   prod: 'wss://api.selfwell.app/api/v1',
 };

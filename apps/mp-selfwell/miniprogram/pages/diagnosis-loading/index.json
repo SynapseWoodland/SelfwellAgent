@@ -1,6 +1,6 @@
 {
   "navigationBarTitleText": "智能分析 · 进行中",
   "usingComponents": {
-    "sse-progress": "/miniprogram/components/sse-progress/index"
+    "sse-progress": "/components/sse-progress/index"
   }
 }
