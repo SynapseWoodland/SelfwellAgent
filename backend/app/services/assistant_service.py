@@ -314,8 +314,40 @@ async def send_message(
             session_id=session_id,
         )
 
-    # 5. AI 回复（Mock LLM + 规则兜底）
-    reply_text = _render_by_state(to_state, intent)
+    # 5. AI 回复：文本 LLM 主备链 + 静态文案兜底
+    from app.llm.client import LLMMessage, TextRequest
+    from app.llm.text_chain import TextFallbackChain
+
+    fallback_reply = _render_by_state(to_state, intent)
+    reply_text = fallback_reply
+    llm_model = "static-fallback"
+    llm_cost = Decimal("0.0000")
+    if to_state != "medical_guarded":
+        request = TextRequest(
+            messages=[
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "你是 Selfwell 智能管家，只提供陪伴、习惯建议和基础调理常识。"
+                        "不得给出诊断、处方、注射、医美治疗或疗效承诺。"
+                    ),
+                ),
+                LLMMessage(role="user", content=text),
+            ],
+            metadata={"persona_state": to_state, "intent": intent, "session_id": session_id},
+        )
+        chain = TextFallbackChain(on_all_failed=lambda _request: fallback_reply)
+        try:
+            llm_result = await chain.run(request)
+            reply_text = llm_result.content.strip() or fallback_reply
+            llm_model = llm_result.provider_used
+            llm_cost = Decimal(str(llm_result.cost_yuan))
+        except Exception as exc:
+            logger.warning(
+                "assistant_text_chain_fallback",
+                error_type=type(exc).__name__,
+                error_message=str(exc)[:200],
+            )
     safety_passed = to_state != "medical_guarded"
 
     seq2 = ai_session.message_count + 1
@@ -326,9 +358,9 @@ async def send_message(
         role="assistant",
         content=reply_text,
         safety_passed=safety_passed,
-        llm_model="mock-llm",
+        llm_model=llm_model,
         llm_latency_ms=120,
-        llm_cost=Decimal("0.0010"),
+        llm_cost=llm_cost,
         referenced_feedback_ids=[],
         referenced_video_ids=[],
         token_count=len(reply_text),
@@ -340,7 +372,7 @@ async def send_message(
     )
     session.add(assistant_msg)
     ai_session.message_count = seq2
-    ai_session.total_llm_cost = (ai_session.total_llm_cost or Decimal("0")) + Decimal("0.0010")
+    ai_session.total_llm_cost = (ai_session.total_llm_cost or Decimal("0")) + llm_cost
 
     await session.flush()
     return {

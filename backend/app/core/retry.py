@@ -1,10 +1,12 @@
 """tenacity retry / backoff 工具（Sprint 0 骨架）。
 
-真源：``docs/architecture/mvp-tech-architecture.md`` §十 §10.2 LLM 4 级降级链 +
+真源：``docs/architecture/mvp-tech-architecture.md`` §十 LLM 能力分层降级 +
 ``docs/spec/facts-anchor.md`` §9 LLM 配置。
 
 约定：
-1. 所有 LLM 调用必须走降级链（本文件仅做单层 retry；降级链见 ``llm/fallback_chain.py``）
+1. 所有 LLM 调用必须按能力走对应降级链
+   - 多模态：``llm/multimodal_chain.py``
+   - 文本：``llm/text_chain.py``
 2. 指数退避：``multiplier=2``，base 0.5s → 上限 8s（与 LLM API 友好）
 3. 仅对 ``TransientError`` / ``httpx.TimeoutException`` / ``httpx.ConnectError`` /
    ``openai.APIConnectionError`` / ``anthropic.APIConnectionError`` 重试；

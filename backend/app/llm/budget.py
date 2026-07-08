@@ -4,7 +4,7 @@
 
 约定：
 1. 超日预算（¥40）立即返回 503（任何调用方）
-2. 超月预算（¥700）降级到规则引擎（见 ``fallback_chain.FallbackChain``）
+2. 超月预算（¥700）降级到规则引擎 / 静态文案（见 ``multimodal_chain`` / ``text_chain``）
 3. 预算金额按 Prometheus Counter 累计；可用 ``reset_daily()``（cron 触发）
 """
 

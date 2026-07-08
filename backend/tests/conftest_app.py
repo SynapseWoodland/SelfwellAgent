@@ -24,7 +24,7 @@ def test_engine() -> AsyncEngine | None:
 @pytest.fixture
 def mock_llm_client() -> object:
     """Mock LLM client fixture。"""
-    from app.llm.mock_doubles import MockLLMClient
+    from tests.doubles.mock_llm import MockLLMClient
 
     return MockLLMClient(default_response="(test fixture response)")
 

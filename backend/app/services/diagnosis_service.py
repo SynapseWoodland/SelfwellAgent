@@ -3,7 +3,7 @@
 真源：``docs/spec/SPEC-M2-multimodal-diagnosis.md`` + ADR-0003。
 - 6 节点子图：upload → validate → compliance → llm_diagnose → format → cache
 - 7 天 Redis 缓存（按 user_id key）
-- 4 级降级链 + 规则引擎兜底
+- 多模态主备链 + 规则引擎兜底
 - 5 条合规红线（R1-R5）1:1 进入 Prompt
 """
 
@@ -13,7 +13,8 @@ import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
-from uuid import uuid4
+from urllib.parse import quote
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,10 +84,10 @@ class DiagnosisRateLimitError(DiagnosisError):
 
 
 def _validate_photos(photos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """校验 3 张照片（face/head/shoulder_neck）。"""
-    if not isinstance(photos, list) or len(photos) != 3:
+    """校验前端单图或原生 3 图照片输入。"""
+    if not isinstance(photos, list) or len(photos) not in {1, 3}:
         raise UserInputError(
-            "需要 3 张照片",
+            "需要 1 张或 3 张照片",
             code=E_DIAGNOSIS_INVALID_INPUT,
             field="photos",
         )
@@ -193,43 +194,100 @@ def _normalize_tags(raw: list[str] | None) -> list[str]:
     return [str(t) for t in raw[:MAX_TAGS]]
 
 
+def _diagnosis_prompt(profile: dict[str, Any], complaint: str | None) -> str:
+    """构造照片诊断提示词，要求模型只返回 JSON。"""
+    return json.dumps(
+        {
+            "task": "请基于用户照片和档案生成非医疗性质的基础养护建议",
+            "profile": profile,
+            "complaint": complaint or "",
+            "output_schema": {
+                "directions": [
+                    {"title": "string", "description": "string", "video_id": "string|null"}
+                ],
+                "tags": ["string"],
+                "summary": "string",
+                "llm_cost": "number|string",
+            },
+            "safety_rules": [
+                "不要做疾病诊断",
+                "不要承诺疗效",
+                "不要给出处方、药物、注射或医美治疗建议",
+                "输出必须是 JSON，不要包含 Markdown",
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+
+def _photo_image_urls(photos: list[dict[str, Any]]) -> list[str]:
+    """提取多模态模型可用的图片地址。"""
+    from app.conf.app_config import app_config
+
+    urls: list[str] = []
+    for photo in photos:
+        url = str(photo.get("url", "")).strip()
+        if not url:
+            continue
+        if url.startswith(("http://", "https://", "data:image/")):
+            urls.append(url)
+            continue
+        storage = app_config.storage
+        if storage.provider.lower().strip() == "minio":
+            scheme = "https" if storage.minio.secure else "http"
+            key = quote(url, safe="/")
+            urls.append(f"{scheme}://{storage.minio.endpoint}/{storage.minio.bucket}/{key}")
+        else:
+            urls.append(url)
+    return urls
+
+
 async def _llm_diagnose(
     photos: list[dict[str, Any]],
     profile: dict[str, Any],
     complaint: str | None,
 ) -> tuple[dict[str, Any], Decimal, str]:
-    """调用 LLM 降级链；失败回退规则引擎。
+    """调用多模态 LLM 主备链；失败回退规则引擎。"""
+    from app.llm.client import LLMMessage, MultimodalRequest
+    from app.llm.multimodal_chain import MultimodalFallbackChain
 
-    Returns:
-        (result_dict, cost, model_name)
-
-    """
-    from app.llm.fallback_chain import FallbackChain
-
-    chain = FallbackChain(use_mock=True)
-    prompt = {
-        "photos": [p["url"] for p in photos],
-        "profile": profile,
-        "complaint": complaint or "",
-    }
+    payload = _rule_engine_fallback(profile, complaint)
+    model_used = "rule-engine"
+    chain = MultimodalFallbackChain(
+        on_all_failed=lambda _request: json.dumps(
+            _rule_engine_fallback(profile, complaint), ensure_ascii=False
+        )
+    )
+    request = MultimodalRequest(
+        messages=[LLMMessage(role="user", content=_diagnosis_prompt(profile, complaint))],
+        images=_photo_image_urls(photos),
+        metadata={"photo_count": len(photos), "profile": profile},
+    )
     try:
-        result = await chain.run(json.dumps(prompt, ensure_ascii=False))
-        # 解析 JSON（Mock LLM 可能返回固定结构）
+        result = await chain.run(request)
+        model_used = result.provider_used
         if result.provider_used == "rule-engine":
             payload = _rule_engine_fallback(profile, complaint)
         else:
             try:
-                payload = json.loads(result.content)
+                parsed = json.loads(result.content)
+                payload = parsed if isinstance(parsed, dict) else payload
             except (ValueError, TypeError):
-                payload = _rule_engine_fallback(profile, complaint)
-    except Exception:
-        logger.exception("llm_diagnose_failed")
-        payload = _rule_engine_fallback(profile, complaint)
+                logger.warning(
+                    "llm_diagnose_invalid_json",
+                    provider=result.provider_used,
+                    content_preview=result.content[:200],
+                )
+    except Exception as exc:
+        logger.warning(
+            "llm_diagnose_fallback_to_rule_engine",
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:200],
+        )
 
     directions = _normalize_directions(payload.get("directions"))
     tags = _normalize_tags(payload.get("tags"))
     summary = str(payload.get("summary", ""))
-    # 合规审查（R1-R5）
     if complaint:
         safety = _check_text_safety(complaint)
         if not safety.get("passed", True):
@@ -237,26 +295,8 @@ async def _llm_diagnose(
     return (
         {"directions": directions, "tags": tags, "summary": summary},
         Decimal(str(payload.get("llm_cost", "0.0"))),
-        result.provider_used,
+        model_used,
     )
-
-
-def check_text_safety(text: str) -> dict[str, object]:
-    """Wrapper around compliance.checker.check_input for the diagnosis service.
-
-    Returns:
-        ``{"passed": bool, "matches": list[str], "severity": str}``
-
-    """
-    result = check_text_safety._check_input(text)  # type: ignore[attr-defined]
-    return {
-        "passed": not result.get("blocked", False),
-        "matches": result.get("matches", []),
-        "severity": result.get("severity", "normal"),
-    }
-
-
-# Patch the namespace so ``check_text_safety`` is callable.
 
 
 def check_text_safety(text: str) -> dict[str, object]:
@@ -410,7 +450,13 @@ async def create_diagnosis(
 
 async def get_diagnosis(session: AsyncSession, *, user_id: str, report_id: str) -> dict[str, Any]:
     """获取诊断报告。"""
-    stmt = select(Report).where(Report.id == report_id, Report.user_id == user_id)
+    try:
+        report_uuid = UUID(str(report_id))
+        user_uuid = UUID(str(user_id))
+    except ValueError as exc:
+        raise DiagnosisNotFoundError(field="report_id") from exc
+
+    stmt = select(Report).where(Report.id == report_uuid, Report.user_id == user_uuid)
     result = await session.execute(stmt)
     report = result.scalar_one_or_none()
     if report is None or report.deleted_at is not None:
