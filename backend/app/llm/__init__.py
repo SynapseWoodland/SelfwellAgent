@@ -42,6 +42,37 @@ class ArkChatModel(BaseChatModel):
             )
         return self._client
 
+    def _extract_text_from_response(self, response: Any) -> str:
+        """从 Ark SDK Response 对象提取文本内容。
+
+        兼容新旧 SDK 响应格式：
+        - 新版(>=1.0): response.output[0].content[0].text
+        - 旧版兼容: response.output_text
+        """
+        # 优先尝试新格式: output[].content[].text
+        try:
+            if hasattr(response, "output") and response.output:
+                for item in response.output:
+                    # 检查是否是消息类型
+                    if hasattr(item, "content") and item.content:
+                        for content_item in item.content:
+                            if hasattr(content_item, "text") and content_item.text:
+                                return content_item.text
+                    # 检查是否是文本类型
+                    if hasattr(item, "text") and item.text:
+                        return item.text
+        except Exception:
+            pass
+
+        # 降级到旧版: output_text
+        try:
+            if hasattr(response, "output_text") and response.output_text:
+                return response.output_text
+        except Exception:
+            pass
+
+        return ""
+
     def _convert_messages(self, messages: list[BaseMessage]) -> list[dict[str, Any]]:
         """将 LangChain messages 转换为 Ark API 格式。"""
         ark_messages = []
@@ -78,7 +109,7 @@ class ArkChatModel(BaseChatModel):
             max_output_tokens=self.max_tokens,
         )
 
-        text_content = response.output_text or ""
+        text_content = self._extract_text_from_response(response)
         ai_msg = AIMessage(content=text_content)
 
         return ChatResult(generations=[ai_msg])
@@ -137,7 +168,7 @@ class ArkChatModel(BaseChatModel):
                 )
 
                 # 解析 JSON 并验证
-                text = response.output_text or ""
+                text = self_ref._extract_text_from_response(response)
                 parsed = _parse_json(text)
                 return schema.model_validate(parsed)
 

@@ -132,6 +132,7 @@ class MinioStorage(ObjectStorage):
             self._secret_key = config.root_password
             self._bucket = config.bucket
             self._secure = config.secure
+            self._public_host = config.public_host
         else:
             if not all(
                 v is not None for v in (endpoint, access_key, secret_key, bucket)
@@ -148,6 +149,7 @@ class MinioStorage(ObjectStorage):
             self._secret_key = secret_key
             self._bucket = bucket
             self._secure = bool(secure) if secure is not None else False
+            self._public_host = ""
         # minio SDK 自身要求 access_key / secret_key 非空；空字符串会抛 ValueError
         if not self._access_key or not self._secret_key:
             raise ValueError(
@@ -185,7 +187,8 @@ class MinioStorage(ObjectStorage):
 
         await _with_retry(_put)
         scheme = "https" if self._secure else "http"
-        return f"{scheme}://{self._endpoint}/{self._bucket}/{key}"
+        public = self._public_host or self._endpoint
+        return f"{scheme}://{public}/{self._bucket}/{key}"
 
     async def get_object(self, key: str) -> bytes:
         key = _normalize_key(key)
@@ -241,7 +244,18 @@ class MinioStorage(ObjectStorage):
                 expires=timedelta(seconds=expires_sec),
             )
 
-        return await _with_retry(_sign_get)
+        raw_url = await _with_retry(_sign_get)
+        # 方舟 LLM 运行在云端，无法访问 localhost/127.0.0.1。
+        # 若 _public_host 已配置，将 presigned URL 中的内部地址替换为公网地址，
+        # 使方舟 API 能通过公网访问 MinIO。
+        if self._public_host and raw_url:
+            from urllib.parse import urlparse, urlunparse
+
+            parsed = urlparse(raw_url)
+            # 替换 host:port 部分，保留 path、query、scheme
+            public_parsed = parsed._replace(netloc=self._public_host)
+            return urlunparse(public_parsed)
+        return raw_url
 
     async def _ensure_bucket(self) -> None:
         def _ensure() -> None:
