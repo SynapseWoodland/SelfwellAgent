@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS reports (
   summary           TEXT,
   llm_model         VARCHAR(50),
   llm_cost          DECIMAL(10,4)  NOT NULL DEFAULT 0.0000,
+  -- PR-A1 异步流水线状态机：queued / running / ready / failed
+  -- nullable=True：同步 LLM 路径不写此列，保持 NULL（向后兼容 78 个测试 + 老 report 行）
+  -- 与 backend/alembic/versions/0004_report_status.py + app/db/models/report.py 对齐
+  status            VARCHAR(16),
   created_at        TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   deleted_at        TIMESTAMPTZ,
   created_by        VARCHAR(64)    NOT NULL DEFAULT '',
