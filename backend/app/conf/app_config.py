@@ -100,6 +100,11 @@ class MinioConfig(BaseSettings):
     root_password: str = Field(default="", alias="MINIO_ROOT_PASSWORD")
     bucket: str = "selfwell"
     secure: bool = False
+    # 公网可访问的主机（供方舟 LLM 调用 MinIO presigned URL）。
+    # 开发环境：宿主机 IP/域名（如 192.168.1.100）或 ngrok/花生壳等内网穿透地址。
+    # 生产环境：MinIO 公网 LB/CNAME 或通过 nginx/Caddy 反向代理的地址。
+    # 注意：需与 MINIO_ENDPOINT 保持同端口（9000），否则 presigned URL 会失效。
+    public_host: str = Field(default="", description="MinIO 公网访问地址（不含路径）")
 
 
 class StorageConfig(BaseSettings):
@@ -408,7 +413,11 @@ class AppConfig(BaseSettings):
     tz: str = "UTC"
 
     # ── 后端服务 ──
-    backend_port: int = 8000
+    # 本地 dev 让出 8000 给 Caddy 反代(infra/caddy/Caddyfile),uvicorn 退到 8001。
+    # 生产(Dockerfile / docker-compose.yaml)走 8000,通过环境变量 BACKEND_PORT
+    # 在容器内覆盖本默认值(.env / docker compose env)。
+    # 验证: curl http://127.0.0.1:8001/api/v1/healthz
+    backend_port: int = 8001
     uvicorn_workers: int = 4
 
     # ── 业务段 ──
