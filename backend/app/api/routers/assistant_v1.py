@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
@@ -38,7 +38,27 @@ class AssistantCreate(BaseModel):
 
 
 class AssistantMessage(BaseModel):
+    """智能管家消息请求。
+
+    字段：
+    - text: 消息内容。smart_analyze 模式下为 '智能分析' 等描述性文本。
+    - image_keys: 图片 object_key 列表（可选）。有值时触发 smart_analyze 模式。
+    - body_parts: 部位标签列表（可选），如 ['face', 'neck']。
+    """
+
     text: str
+    image_keys: list[str] = Field(default_factory=list, max_length=3)
+    body_parts: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("image_keys")
+    @classmethod
+    def _validate_image_keys(cls, v: list[str]) -> list[str]:
+        if len(v) > 3:
+            raise ValueError("image_keys 最多 3 张")
+        for k in v:
+            if not k.startswith(("assistant/", "diagnosis/")):
+                raise ValueError(f"非法 object_key 前缀: {k}")
+        return v
 
 
 @assistant_router.post("/sessions")
@@ -66,14 +86,21 @@ async def send_message_endpoint(
     user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
 ) -> StreamingResponse:
-    """SSE 流式返回智能管家回复（事件：start / progress / report / end / error）。
+    """SSE 流式返回智能管家回复。
 
-    事件 schema：
-      start    data: {"step": 0}
-      progress data: {"step": 1|2|3, "percent": 33|66|100, "label": "..."}
-      report   data: {"directions": [{num, title, level, description}, ...]}
-      end      data: {"ok": true, "reply": "...", "persona_state": "...", "medical_guarded"?: bool}
-      error    data: {"code": "E_*", "message_zh": "..."}
+    事件 schema（chat 模式）：
+      token_delta data: {"token": "单字"}
+      end        data: {"ok": true, "reply": "...", "persona_state": "...", "medical_guarded"?: bool}
+
+    事件 schema（smart_analyze 模式）：
+      start      data: {"step": 0}
+      progress   data: {"step": 1|2|3, "percent": 33|66|100, "label": "..."}
+      report     data: {"directions": [{num, title, level, description}, ...]}
+      end        data: {"ok": true, "reply": "...", "persona_state": "...", "medical_guarded"?: bool}
+
+    模式路由：
+      - image_keys 有值 → smart_analyze 模式
+      - image_keys 为空 → chat 模式（token_delta 流）
 
     会话不存在 / 已关闭 → 在进入流之前以 HTTPException 抛出（保留 404 / 410 语义）。
     其它业务异常 → 在流中以 error 事件下发（前端可识别并 toast）。
@@ -116,6 +143,8 @@ async def send_message_endpoint(
             user_id=user_id,
             session_id=session_id,
             text=body.text,
+            image_keys=body.image_keys,
+            body_parts=body.body_parts,
         ),
         media_type="text/event-stream",
         headers={

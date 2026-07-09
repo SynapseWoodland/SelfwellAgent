@@ -32,14 +32,14 @@ class PresignRequest(BaseModel):
 
     Attributes:
         contentType: MIME 类型，仅允许 ``image/jpeg|image/png|image/webp``。
-        purpose: 用途，``diagnosis | feedback``（按业务模块扩展）。
+        purpose: 用途，``diagnosis | feedback | assistant``（按业务模块扩展）。
 
     """
 
     contentType: str = Field(  # noqa: N815
         ..., description="MIME 类型：image/jpeg | image/png | image/webp"
     )
-    purpose: str = Field(..., description="用途：diagnosis | feedback")
+    purpose: str = Field(..., description="用途：diagnosis | feedback | assistant")
 
 
 class PresignResponse(BaseModel):
@@ -63,7 +63,7 @@ class PresignResponse(BaseModel):
 # §二 常量
 # ─────────────────────────────────────────────────────────────────────────────
 _ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset({"image/jpeg", "image/png", "image/webp"})
-_ALLOWED_PURPOSES: frozenset[str] = frozenset({"diagnosis", "feedback"})
+_ALLOWED_PURPOSES: frozenset[str] = frozenset({"diagnosis", "feedback", "assistant"})
 _CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "image/jpeg": "jpg",
     "image/png": "png",

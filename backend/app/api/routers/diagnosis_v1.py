@@ -396,13 +396,20 @@ async def get_report_status(
 
 
 @router.get("/{report_id}/stream", summary="诊断 SSE 流（5 阶段）")
+# Deprecated: 保留至 2026-Q4；前端应改走 /jobs/{job_id}/stream
 async def stream_diagnosis_endpoint(
     report_id: str,
     _user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
 ):
-    """SSE 5 阶段推送：connected → preprocess → diagnose → match → ready。
+    """诊断 SSE 流（5 阶段）— 老 stub 路径，仅保留以兼容 78 个老测试。
 
+    .. deprecated::
+        该端点是老路径（30s sleep mock SSE），自 ADR-0004（2026-07-09）起推荐
+        使用 ``GET /jobs/{job_id}/stream``（PR-A2 真 SSE pipeline）。
+        本端点仅保留以兼容 78 个老测试。
+
+    SSE 5 阶段推送：connected → preprocess → diagnose → match → ready。
     30 秒超时兜底：若 ``get_report_status`` 始终返回 ``None``，发 error(E_DIAGNOSIS_NOT_FOUND)。
     PR-A2 保留：原 3 个测试仍调此路径；只是补 SSE keepalive headers。
     """
@@ -484,7 +491,7 @@ async def stream_diagnosis_job_endpoint(
     job_id: str,
     request: Request,
     _user_id: str = Depends(current_user_id),
-):
+) -> StreamingResponse:
     """SSE 真 pipeline（plan §4.2 + §6.1）：从 ``app.state.job_state`` 拉 ``JobEvent``。
 
     Job 不存在或越权 → 404 + ``E_DIAGNOSIS_JOB_NOT_FOUND``。
