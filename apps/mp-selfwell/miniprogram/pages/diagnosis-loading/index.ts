@@ -1,11 +1,13 @@
 /**
  * IA-REF: docs/design/ia-and-wireframe.md §4.3 P03 分析中
  * 设计稿: docs/design/figma-pixso-spec/pages/05-butler-analyze-loading.html
- * 后端端点: openapi.yaml tag=diagnosis operationId=streamDiagnosis（SSE/WebSocket）
+ * 后端端点: openapi.yaml tag=diagnosis operationId=streamDiagnosis（SSE）
  *
- * 行为（SF2 完工态）：
- *  - onLoad 解析 query.id（诊断任务 ID）
- *  - 调 utils/sse.openSse，订阅 8 阶段进度
+ * 行为（PR-A2 + ADR-0004 异步 SSE 真链路，已切到异步 job 模型）：
+ *  - onLoad 解析 query.id（job_id）+ query.stream_url（后端返回的 SSE path）
+ *  - 优先用后端 stream_url，缺失则默认 /diagnosis/jobs/{id}/stream
+ *  - 调 utils/sse.openSse，订阅 5 阶段后端约定：connected / preprocess /
+ *    analyzing / suggestion / ready
  *  - 收到 'done' → 跳转 report
  *  - 'error' / 5 次失败（utils/sse 内部退避 1s→2s→4s→8s→16s→30s） → 提示"网络异常，请稍后查看报告"
  *  - SSE 不可用（开发 / CI）时，setData 5s 兜底推进阶段，保证 UI 联调
@@ -13,15 +15,13 @@
 import { openSse, SseClient } from '../../utils/sse';
 import { get } from '../../utils/request';
 
+/** 后端约定的 5 阶段名（PR-A2 + ADR-0004：JobEvent stage 字段硬编码对齐） */
 const STAGE_FLOW = [
-  'upload_verify',
-  'queued',
-  'style_analyzing',
-  'body_analyzing',
-  'tag_aggregating',
+  'connected',
+  'preprocess',
+  'analyzing',
   'suggestion',
-  'rendering',
-  'done',
+  'ready',
 ] as const;
 
 interface DiagnosisStatus {
@@ -33,7 +33,7 @@ interface DiagnosisStatus {
 Page({
   data: {
     diagnosisId: '',
-    currentStage: 'upload_verify',
+    currentStage: 'connected',
     errorText: '',
   },
 
@@ -44,10 +44,13 @@ Page({
 
   onLoad(query: Record<string, string | undefined>) {
     const id = (query?.id ?? '').toString();
+    // 后端异步路径返回的 stream_url（POST /diagnosis?async=true 202 响应）；
+    // 缺省时回落到 /diagnosis/jobs/{id}/stream 默认值。
+    const streamUrl = ((query?.stream_url ?? '').toString()) || `/diagnosis/jobs/${id}/stream`;
     this.setData({ diagnosisId: id });
     this.privateStartedAt = Date.now();
     // SF2 真实路径：开 SSE 订阅；3s 内未收到首事件则降级轮询 + 兜底
-    this.startRealSse(id);
+    this.startRealSse(id, streamUrl);
     setTimeout(() => this.maybeStartPollingFallback(id), 3000);
   },
 
@@ -58,12 +61,22 @@ Page({
   },
 
   /** 真实 SSE 订阅（§17.16 断线重连在 utils/sse 内 1→2→4→8→16→30s） */
-  startRealSse(id: string) {
+  startRealSse(id: string, streamUrl: string) {
     this.privateSse = openSse(
-      { path: `/diagnosis/${id}/stream` },
+      { path: streamUrl },
       {
         onEvent: (e) => {
           const data = e.data as { stage?: string } | undefined;
+          // 防御性兼容：onEvent 也会收到 done/error（规范上应由 onComplete/onFailure 处理，
+          // 但部分后端实现把终态事件也走 onEvent，这里双路兼容，PR-A2 后端统一约定走 onEvent）
+          if (e.event === 'done') {
+            this.gotoReport();
+            return;
+          }
+          if (e.event === 'error') {
+            this.setData({ errorText: '网络异常，请稍后查看报告' });
+            return;
+          }
           if (data?.stage) this.setData({ currentStage: data.stage });
         },
         onComplete: () => this.gotoReport(),
@@ -104,7 +117,7 @@ Page({
 
   /** SSE 长时间无首事件 → 启动兜底推进（每 1500ms 推一阶段） */
   maybeStartPollingFallback(id: string) {
-    if (this.data.currentStage !== 'upload_verify') return;
+    if (this.data.currentStage !== 'connected') return;
     if (Date.now() - this.privateStartedAt < 3000) return;
     // 已经收过 SSE 帧就跳过
     let i = 0;
