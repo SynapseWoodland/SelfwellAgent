@@ -1,59 +1,81 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §4.3 P08 心情日记
- * 设计稿: docs/design/figma-pixso-spec/pages/08-butler-diary.html
- * 后端端点: openapi.yaml tag=feedback operationId=createFeedback POST /feedback
- *
- * 行为（SF3 完工态）：
- *  1) 用户输入文字（≤ 200 字）
- *  2) 调 /feedback → 后端返回 ack_text（30 条池中的随机 1 条）
- *  3) ack-bubble 渲染（≤ 30 字截断 + 长按 tooltip）
- *  4) 后端失败时本地 ack-pool 兜底（保证 UX 不被网络打断）
- *  5) 文案禁用：禁止 "会变白" / "会变小" / "会提升" / "分数" / "排名" 等焦虑词
+ * IA-REF: docs/design/ia-and-wireframe.md §4.7 P07 心情日记
+ * 后端端点:
+ *   - POST /feedback           — 创建心情记录（mood_text / mood_photo / skin_photo）
+ *   - GET  /feedback          — 用户历史心情列表
  */
-import { post } from '../../utils/request';
-import { pickRandomAck } from '../../data/ack-pool';
+import { get, post, ApiException } from '../../utils/request';
+import type { CreateMoodReq, CreateMoodResp } from '../../types/api';
 
-interface FeedbackResp {
+interface FeedbackEntry {
   feedback_id: string;
-  feedback_type: string;
-  /** 后端 feedback_service 返回 ack 字符串，详见 backend/app/services/feedback_service.py:225 */
-  ack: string;
+  feedback_type: 'mood_text' | 'mood_photo' | 'skin_photo';
+  text_content?: string;
+  photo_url?: string;
+  created_at: string;
+}
+
+interface PageData {
+  text: string;
+  submitting: boolean;
+  ackText: string;
+  /** 历史记录 */
+  history: FeedbackEntry[];
+  loadingHistory: boolean;
 }
 
 Page({
   data: {
     text: '',
-    ackText: '',
     submitting: false,
+    ackText: '',
+    history: [],
+    loadingHistory: false,
+  } as PageData,
+
+  onLoad() {
+    this._loadHistory();
   },
 
-  onInput(e: WechatMiniprogram.InputEvent) {
-    this.setData({ text: e.detail.value });
+  onInput(e: WechatMiniprogram.Input) {
+    this.setData({ text: e.detail.value as string });
   },
 
   async onSubmit() {
-    if (this.data.submitting) return;
-    const text = (this.data.text ?? '').trim();
-    if (!text) {
+    const { text } = this.data;
+    if (!text.trim()) {
       wx.showToast({ title: '写点什么吧', icon: 'none' });
       return;
     }
+
     this.setData({ submitting: true });
     try {
-      // 后端 FeedbackCreate schema：feedback_type(必填) + text_content
-      // 见 backend/app/api/routers/business_v1.py: FeedbackCreate
-      const resp = await post<FeedbackResp>('/feedback', {
+      const payload: CreateMoodReq = {
         feedback_type: 'mood_text',
-        text_content: text,
+        text_content: text.trim(),
+      };
+      const resp = await post<CreateMoodResp, CreateMoodReq>('/feedback', payload);
+      this.setData({
+        text: '',
+        submitting: false,
+        ackText: resp?.ack?.text ?? '收到你的心情了 💛',
       });
-      const ackText = resp?.ack || pickRandomAck().text;
-      this.setData({ ackText, text: '' });
-    } catch {
-      // 兜底：本地池随机 1 条
-      const ack = pickRandomAck();
-      this.setData({ ackText: ack.text, text: '' });
-    } finally {
+    } catch (e) {
       this.setData({ submitting: false });
+      wx.showToast({
+        title: e instanceof ApiException ? e.message : '提交失败',
+        icon: 'none',
+      });
+    }
+  },
+
+  async _loadHistory() {
+    this.setData({ loadingHistory: true });
+    try {
+      const resp = await get<{ items: FeedbackEntry[] }>('/feedback');
+      this.setData({ history: resp?.items ?? [], loadingHistory: false });
+    } catch {
+      this.setData({ loadingHistory: false });
     }
   },
 });

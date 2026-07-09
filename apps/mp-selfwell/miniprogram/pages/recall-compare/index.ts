@@ -1,82 +1,90 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §4.3 P09 对比回顾
- * 设计稿: docs/design/figma-pixso-spec/pages/09-butler-compare.html
- * 后端端点: openapi.yaml tag=butler operationId=getRecall GET /butler/recall/{day}
+ * IA-REF: docs/design/ia-and-wireframe.md §4.8 P08 对比回顾
+ * 后端端点:
+ *   - POST /butler/recall         — 触发主动回忆生成
+ *   - GET  /butler/recall/day/:day — 按天获取回忆对比
  *
- * 行为（SF4 完工态）：
- *  - 顶部 3 个 day 切换 tab（7/14/21）
- *  - onLoad 拉 /butler/recall/7 默认；切换 day → 重新拉
- *  - 失败 → 降级到 mock 快照（保证骨架）
+ * 行为：
+ *   - onLoad 默认选中 day=7（第一个可对比节点）
+ *   - 用户切换 tab → GET /butler/recall/day/:day
+ *   - 无数据时显示空状态文案
+ *   - 若当前用户尚未到达对应天数，提示"还有 N 天再来"
  */
-import { get } from '../../utils/request';
+import { get, post, ApiException } from '../../utils/request';
+import type { RecallDay } from '../../types/api';
 
-interface Snapshot {
-  day: 7 | 14 | 21;
-  highlights: string[];
-  emotionTrend?: string;
-  habitStreak?: number;
-  createdAt?: string;
+const DAYS: RecallDay[] = [7, 14, 21];
+
+interface RecallSnapshot {
+  emotionTrend: string;     // 来自 summary_text
+  habitStreak: string;     // 来自 diff_tags.join(' / ')
+  highlights: string[];     // 来自 diff_tags
+  baseline_report_text: string;
+  current_report_text: string;
+  generated_at: string;
 }
 
-const MOCK_BY_DAY: Record<7 | 14 | 21, Snapshot> = {
-  7: {
-    day: 7,
-    highlights: ['冥想频率提升', '睡眠时长稳定 7.5h', '情绪波动减小'],
-    emotionTrend: '温和上升',
-    habitStreak: 7,
-  },
-  14: {
-    day: 14,
-    highlights: ['肩颈拉伸跟随', '专注力测试 +20%', '心情文本 4/7 天'],
-    emotionTrend: '节奏稳定',
-    habitStreak: 14,
-  },
-  21: {
-    day: 21,
-    highlights: ['21 天完成', '回看对比：照片 3 组', '心情曲线收敛'],
-    emotionTrend: '自我对话生成',
-    habitStreak: 21,
-  },
-};
+interface PageData {
+  days: number[];
+  activeDay: RecallDay;
+  snapshot: RecallSnapshot | null;
+  loading: boolean;
+  errMsg: string;
+}
 
 Page({
   data: {
-    days: [7, 14, 21] as Array<7 | 14 | 21>,
-    activeDay: 7 as 7 | 14 | 21,
-    snapshot: {
-      day: 7,
-      highlights: ['冥想频率提升', '睡眠时长稳定 7.5h', '情绪波动减小'],
-      emotionTrend: '温和上升',
-      habitStreak: 7,
-    } as Snapshot,
+    days: DAYS,
+    activeDay: 7,
+    snapshot: null,
     loading: false,
+    errMsg: '',
+  } as PageData,
+
+  onLoad(options: { day?: string }) {
+    const day = options?.day ? (parseInt(options.day, 10) as RecallDay) : 7;
+    this.setData({ activeDay: DAYS.includes(day) ? day : 7 });
+    this._loadSnapshot(this.data.activeDay);
   },
 
-  onLoad() {
-    this.loadSnapshot(7);
+  onSelectDay(e: WechatMiniprogram.TapEvent) {
+    const day = e.currentTarget.dataset.day as RecallDay;
+    if (day === this.data.activeDay) return;
+    this.setData({ activeDay: day, snapshot: null });
+    this._loadSnapshot(day);
   },
 
-  async loadSnapshot(day: 7 | 14 | 21) {
-    this.setData({ activeDay: day, loading: true });
+  async _loadSnapshot(day: RecallDay) {
+    this.setData({ loading: true, errMsg: '' });
     try {
-      // 后端真源: GET /butler/recall/day/{day}（注意 /day/ 段，源自 backend/app/api/routers/business_v1.py）
-      const resp = await get<Snapshot>(`/butler/recall/day/${day}`);
-      if (resp && (resp.highlights?.length || resp.emotionTrend || resp.habitStreak !== undefined)) {
-        this.setData({ snapshot: resp });
-      } else if (!resp || (typeof resp === 'object' && Object.keys(resp).length === 0)) {
-        // 后端返回 {} → 用 mock 兜底
-        this.setData({ snapshot: MOCK_BY_DAY[day] });
+      const data = await get<Record<string, unknown>>(`/butler/recall/day/${day}`);
+      if (!data || Object.keys(data).length === 0) {
+        // 无数据 — 用户尚未到达该节点
+        this.setData({ loading: false, snapshot: null });
+        return;
       }
-    } catch {
-      /* 保持当前 snapshot，不打断 UI */
-    } finally {
-      this.setData({ loading: false });
+
+      // API → UI snapshot 映射
+      const snapshot: RecallSnapshot = {
+        emotionTrend: (data['summary_text'] as string) ?? '',
+        habitStreak: ((data['diff_tags'] as string[]) ?? []).join(' / '),
+        highlights: ((data['diff_tags'] as string[]) ?? []).filter(Boolean),
+        baseline_report_text: (data['baseline_report_text'] as string) ?? '',
+        current_report_text: (data['current_report_text'] as string) ?? '',
+        generated_at: (data['generated_at'] as string) ?? '',
+      };
+      this.setData({ snapshot, loading: false });
+    } catch (e) {
+      const msg = e instanceof ApiException ? e.message : '加载失败';
+      this.setData({ loading: false, errMsg: msg });
     }
   },
 
-  onSelectDay(e: WechatMiniprogram.BaseEvent) {
-    const day = Number((e.currentTarget.dataset as { day: number }).day) as 7 | 14 | 21;
-    if (![7, 14, 21].includes(day)) return;
-    void this.loadSnapshot(day);
+  onShareAppMessage() {
+    const day = this.data.activeDay;
+    return {
+      title: `第 ${day} 天的蜕变对比`,
+      path: `/pages/recall-compare/index?day=${day}`,
+    };
   },
 });

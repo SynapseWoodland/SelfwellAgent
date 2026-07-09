@@ -1,118 +1,176 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §13 M10 抱抱卡
- * 设计稿:
- *   - docs/design/figma-pixso-spec/pages/12-hug-card-day7.html
- *   - docs/design/figma-pixso-spec/pages/13-hug-card-day14.html
- *   - docs/design/figma-pixso-spec/pages/14-hug-card-day21.html
- * 后端端点: openapi.yaml tag=share operationId=generateSharePoster POST /share/hug-card
+ * IA-REF: docs/design/ia-and-wireframe.md §4.9 P09 抱抱卡
+ * 后端端点:
+ *   - POST /share/hug-card      — 生成抱抱卡（返回 image_url + share_text）
+ *   - GET  /share/hug-card/:day/template — 获取卡片模板元信息
  *
- * 行为（SF4 完工态）：
- *  - onLoad 解析 ?day=7|14|21 → 渲染对应卡片
- *  - 点击"保存到相册" → utils/poster.ts 走 canvas-2d v2 客户端合成
- *    失败时调 /share/hug-card?day=N 拿服务端 PIL 合成图兜底
- *  - 共享走 open-type="share" + onShareAppMessage
- *  - 颜色禁用：禁止使用 #FF4D4F/#D32F2F/#007BFF；统一 mint/cream/peach 渐变
- *  - 文案禁用：禁止 "坚持" 单独成段；改用 "和你走过的 N 天" / "你在这里"
+ * 行为：
+ *   - onLoad 从 onLoad options 拿 day，未传则默认 7
+ *   - 先拉模板元信息 → 再 POST 生成卡片
+ *   - client-2d 路径：用 canvas 绘制，保存至相册
+ *   - server 路径（兜底）：直接展示 image_url
  */
-import { post } from '../../utils/request';
-import { renderHugCardToCanvas, saveCanvasImageToAlbum } from '../../utils/poster';
+import { get, post, ApiException } from '../../utils/request';
+import type { HugCardResp } from '../../types/api';
+import { STORAGE_KEYS } from '../../utils/config';
 
-type Day = 7 | 14 | 21;
-
-interface Card {
+interface CardMeta {
+  badge: string;
   title: string;
   subtitle: string;
-  badge: string;
   caption: string;
 }
 
-const CARDS: Record<Day, Card> = {
-  7: {
-    title: '第一周，慢慢来',
-    subtitle: '你已经在这里了',
-    badge: 'Day 7',
-    caption: '和你走过的 7 天',
-  },
-  14: {
-    title: '两周，节奏稳了',
-    subtitle: '你比自己想象的更稳',
-    badge: 'Day 14',
-    caption: '和你走过的 14 天',
-  },
-  21: {
-    title: '21 天，仪式达成',
-    subtitle: '成为更温柔的自己',
-    badge: 'Day 21',
-    caption: '和你走过的 21 天',
-  },
-};
-
-interface HugCardResp {
-  /** 后端 share_router 返回 url（不是 imageUrl），与 backend/app/api/routers/business_v1.py POST /share/hug-card 对齐 */
-  url?: string;
-  imageUrl?: string; // 兼容
-  day: Day;
-  generatedAt?: string;
-  template?: string;
-  width?: number;
-  height?: number;
+interface PageData {
+  day: number;
+  card: CardMeta;
+  cardReady: boolean;
+  posterUrl: string;
+  shareText: string;
+  loading: boolean;
+  saving: boolean;
+  errMsg: string;
 }
 
 Page({
   data: {
-    day: 7 as Day,
-    card: CARDS[7],
+    day: 7,
+    card: { badge: '', title: '', subtitle: '', caption: '' },
+    cardReady: false,
     posterUrl: '',
+    shareText: '',
+    loading: true,
     saving: false,
+    errMsg: '',
+  } as PageData,
+
+  onLoad(options: { day?: string }) {
+    const day = options?.day ? parseInt(options.day, 10) : 7;
+    this.setData({ day });
+    this._init(day);
   },
 
-  onLoad(query: Record<string, string | undefined>) {
-    const raw = Number(query?.day ?? 7);
-    const day = (raw === 14 ? 14 : raw === 21 ? 21 : 7) as Day;
-    this.setData({ day, card: CARDS[day] });
+  async _init(day: number) {
+    this.setData({ loading: true, errMsg: '' });
+
+    try {
+      // 1. 拉模板元信息
+      const meta = await get<CardMeta>(`/share/hug-card/${day}/template`);
+      const card: CardMeta = {
+        badge: meta?.badge ?? `第 ${day} 天`,
+        title: meta?.title ?? '你很棒',
+        subtitle: meta?.subtitle ?? '每天都是新的开始',
+        caption: meta?.caption ?? '继续加油 💪',
+      };
+      this.setData({ card });
+
+      // 2. 生成卡片（client-2d 优先，失败兜底 server）
+      try {
+        await this._generateClient(card);
+      } catch {
+        // client 失败 → 走 server
+        await this._generateServer(day);
+      }
+    } catch (e) {
+      this.setData({ errMsg: e instanceof ApiException ? e.message : '加载失败' });
+    } finally {
+      this.setData({ loading: false });
+    }
   },
 
-  /** 客户端 canvas 合成（基础库 2.9.0+ canvas-2d v2） */
+  async _generateClient(card: CardMeta) {
+    this.setData({ cardReady: true });
+
+    // 延迟等 canvas 就绪
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+    const ctx = wx.createCanvasContext('poster-canvas');
+    const W = 750;
+    const H = 1000;
+
+    // 背景渐变（canvas 模拟 linear-gradient）
+    const grd = ctx.createLinearGradient(0, 0, W, H);
+    grd.addColorStop(0, '#F5E6D3');
+    grd.addColorStop(1, '#F0D9C4');
+    ctx.setFillStyle(grd);
+    ctx.fillRect(0, 0, W, H);
+
+    // badge
+    ctx.setFillStyle('#4A5568');
+    ctx.setFontSize(24);
+    ctx.setTextAlign('center');
+    ctx.fillText(card.badge, W / 2, 160);
+
+    // title
+    ctx.setFillStyle('#2D3436');
+    ctx.setFontSize(56);
+    ctx.setTextAlign('center');
+    ctx.fillText(card.title, W / 2, 380);
+
+    // subtitle
+    ctx.setFillStyle('#4A5568');
+    ctx.setFontSize(30);
+    ctx.fillText(card.subtitle, W / 2, 460);
+
+    // caption
+    ctx.setFillStyle('#718096');
+    ctx.setFontSize(24);
+    ctx.fillText(card.caption, W / 2, 520);
+
+    // emoji
+    ctx.setFontSize(128);
+    ctx.fillText('🤗', W / 2, 760);
+
+    ctx.draw();
+
+    // 导出图片
+    await new Promise<void>((resolve, reject) => {
+      wx.canvasToTempFilePath(
+        {
+          canvasId: 'poster-canvas',
+          success: (res) => {
+            this.setData({ posterUrl: res.tempFilePath, shareText: card.title });
+            resolve();
+          },
+          fail: reject,
+        },
+        this,
+      );
+    });
+  },
+
+  async _generateServer(day: number) {
+    const resp = await post<HugCardResp, { day: number; render_mode: string }>(
+      '/share/hug-card',
+      { day, render_mode: 'server' },
+    );
+    this.setData({
+      posterUrl: resp?.image_url ?? '',
+      shareText: resp?.share_text ?? '',
+      cardReady: true,
+    });
+  },
+
   async onSaveToAlbum() {
-    if (this.data.saving) return;
+    const { posterUrl } = this.data;
+    if (!posterUrl) return;
+
     this.setData({ saving: true });
     try {
-      const localPath = await renderHugCardToCanvas({
-        day: this.data.day,
-        card: this.data.card,
-        width: 750,
-        height: 1000,
-      });
-      await saveCanvasImageToAlbum(localPath);
-      wx.showToast({ title: '已保存到相册', icon: 'success' });
-    } catch (e) {
-      console.warn('[hug-card] client canvas fail, fallback server', e);
-      await this.fallbackServerImage();
+      await wx.saveImageToPhotosAlbum({ filePath: posterUrl });
+      wx.showToast({ title: '保存成功', icon: 'success' });
+    } catch {
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' });
     } finally {
       this.setData({ saving: false });
     }
   },
 
-  /** 服务端兜底（/share/hug-card PIL 合成） */
-  async fallbackServerImage() {
-    try {
-      const resp = await post<HugCardResp>('/share/hug-card', { day: this.data.day });
-      const url = resp?.url || resp?.imageUrl;
-      if (url) {
-        this.setData({ posterUrl: url });
-        wx.showToast({ title: '已生成服务器图，请长按保存', icon: 'none' });
-      } else {
-        wx.showToast({ title: '生成失败，请稍后再试', icon: 'none' });
-      }
-    } catch {
-      wx.showToast({ title: '网络异常，请稍后再试', icon: 'none' });
-    }
-  },
-
   onShareAppMessage() {
+    const { day, shareText } = this.data;
     return {
-      title: this.data.card.title,
-      path: `pages/share-hug-card/index?day=${this.data.day}`,
+      title: shareText || `第 ${day} 天的抱抱卡 🤗`,
+      path: `/pages/share-hug-card/index?day=${day}`,
     };
   },
 });

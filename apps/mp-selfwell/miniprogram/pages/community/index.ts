@@ -1,110 +1,157 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §4.5 P10 蜕变广场
- * 设计稿: docs/design/figma-pixso-spec/pages/09-plaza.html
+ * IA-REF: docs/design/ia-and-wireframe.md §4.6 P06 蜕变广场
  * 后端端点:
- *   - openapi.yaml tag=community operationId=listPosts   GET  /community/posts
- *   - openapi.yaml tag=community operationId=createPost POST /community/posts
- *
- * 行为（SF4 完工态）：
- *  - onLoad 拉 /community/posts（page=1, page_size=20）
- *  - FAB 入口 → 弹输入 modal → POST /community/posts
- *  - 失败 → 降级 mock；提交走 Redis 审核队列回执，乐观更新列表
+ *   - GET  /community/posts          — 列表（支持 page/page_size/sort）
+ *   - POST /community/posts          — 发帖
+ *   - POST /community/posts/:id/like — 点赞 / 取消点赞
  */
-import { get, post } from '../../utils/request';
+import { get, post, ApiException } from '../../utils/request';
+import type { CommunityPost, ListPostsResp } from '../../types/api';
 
-interface Post {
-  id: string;
-  userName: string;
-  text: string;
-  likes: number;
-  liked: boolean;
-  createdAt: string;
-}
-
-interface PostsListResp {
-  items: Post[];
-  total: number;
+interface PageData {
+  posts: CommunityPost[];
   page: number;
+  pageSize: number;
+  total: number;
+  loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  /** 发帖弹窗 */
+  showPublish: boolean;
+  publishText: string;
+  publishing: boolean;
+  /** 错误提示 */
+  errMsg: string;
 }
 
 Page({
   data: {
-    posts: [
-      {
-        id: 'p1',
-        userName: '小绿',
-        text: '今天第 7 天，给自己一个小小的赞。',
-        likes: 12,
-        liked: false,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'p2',
-        userName: '阿月',
-        text: '昨晚睡得很稳，冥想真的有用。',
-        likes: 8,
-        liked: false,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'p3',
-        userName: '阿岩',
-        text: '完成 21 天，给自己发一张抱抱卡。',
-        likes: 21,
-        liked: false,
-        createdAt: new Date().toISOString(),
-      },
-    ] as Post[],
+    posts: [],
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    loading: true,
+    loadingMore: false,
+    hasMore: true,
+    showPublish: false,
+    publishText: '',
     publishing: false,
-  },
+    errMsg: '',
+  } as PageData,
 
   onLoad() {
-    this.fetchPosts();
+    this._fetchPosts(true);
   },
 
   onShow() {
-    this.fetchPosts();
+    // 保持当前位置，不重新拉列表
   },
 
-  async fetchPosts() {
-    try {
-      const resp = await get<PostsListResp>('/community/posts?page=1&page_size=20');
-      if (resp?.items?.length) this.setData({ posts: resp.items });
-    } catch {
-      /* 保持 mock 兜底 */
+  onPullDownRefresh() {
+    this._fetchPosts(true).finally(() => wx.stopPullDownRefresh());
+  },
+
+  onReachBottom() {
+    if (!this.data.loadingMore && this.data.hasMore) {
+      this._fetchPosts(false);
     }
   },
 
-  async onTapPublish() {
-    if (this.data.publishing) return;
-    // 用 wx.showModal 简化输入；正式版可换半屏 sheet
-    const res = await new Promise<WechatMiniprogram.ShowModalRes>((resolve) => {
-      wx.showModal({
-        title: '说点什么',
-        editable: true,
-        placeholderText: '今天一个小小的变化…',
-        success: (r) => resolve(r),
-        fail: () => resolve({ confirm: false, content: '' } as WechatMiniprogram.ShowModalRes),
+  async _fetchPosts(reset: boolean) {
+    const { page, pageSize, posts } = this.data;
+    const nextPage = reset ? 1 : page + 1;
+
+    if (reset) {
+      this.setData({ loading: true, errMsg: '' });
+    } else {
+      this.setData({ loadingMore: true });
+    }
+
+    try {
+      const resp = await get<ListPostsResp>(
+        `/community/posts?limit=${pageSize}&offset=${(nextPage - 1) * pageSize}`,
+      );
+      const items: CommunityPost[] = resp?.items ?? [];
+      const total: number = resp?.total ?? 0;
+      this.setData({
+        posts: reset ? items : [...posts, ...items],
+        page: nextPage,
+        total,
+        loading: false,
+        loadingMore: false,
+        hasMore: (reset ? items.length : posts.length + items.length) < total,
       });
-    });
-    if (!res.confirm || !res.content?.trim()) return;
+    } catch (e) {
+      this.setData({
+        loading: false,
+        loadingMore: false,
+        errMsg: e instanceof ApiException ? e.message : '加载失败',
+      });
+    }
+  },
+
+  onTapPublish() {
+    this.setData({ showPublish: true, publishText: '' });
+  },
+
+  onPublishInput(e: WechatMiniprogram.Input) {
+    this.setData({ publishText: e.detail.value as string });
+  },
+
+  async onConfirmPublish() {
+    const text = this.data.publishText.trim();
+    if (!text) {
+      wx.showToast({ title: '内容不能为空', icon: 'none' });
+      return;
+    }
     this.setData({ publishing: true });
     try {
-      const created = await post<Post>('/community/posts', { content: res.content.trim() });
-      const newPost: Post = created ?? {
-        id: 'p_' + Date.now(),
-        userName: '我',
-        text: res.content.trim(),
-        likes: 0,
-        liked: false,
-        createdAt: new Date().toISOString(),
-      };
-      this.setData({ posts: [newPost, ...this.data.posts] });
-      wx.showToast({ title: '已发布，审核中', icon: 'success' });
+      await post('/community/posts', { content: text });
+      this.setData({ showPublish: false, publishText: '', publishing: false });
+      wx.showToast({ title: '发布成功', icon: 'success' });
+      this._fetchPosts(true);
     } catch (e) {
-      wx.showToast({ title: '发布失败，请稍后再试', icon: 'none' });
-    } finally {
       this.setData({ publishing: false });
+      wx.showToast({
+        title: e instanceof ApiException ? e.message : '发布失败',
+        icon: 'none',
+      });
     }
+  },
+
+  onCancelPublish() {
+    this.setData({ showPublish: false, publishText: '' });
+  },
+
+  async onTapLike(e: WechatMiniprogram.TapEvent) {
+    const { id } = e.currentTarget.dataset as { id: string };
+    const { posts } = this.data;
+    const idx = posts.findIndex((p) => p.post_id === id);
+    if (idx === -1) return;
+
+    const postItem = posts[idx];
+    const isLiked = postItem.liked_by_me;
+    // 乐观更新
+    const updated = {
+      liked_by_me: !isLiked,
+      like_count: postItem.like_count + (isLiked ? -1 : 1),
+    };
+    const newPosts = [...posts];
+    newPosts[idx] = { ...postItem, ...updated };
+    this.setData({ posts: newPosts });
+
+    try {
+      await post(`/community/posts/${id}/like`);
+    } catch {
+      // 回滚
+      this.setData({ posts });
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '蜕变广场 · 你的每一步都值得被看见',
+      path: '/pages/community/index',
+    };
   },
 });
