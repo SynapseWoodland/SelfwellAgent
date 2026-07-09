@@ -29,10 +29,10 @@
         />
       </block>
       <block wx:else>
-        <view class="upload-slot-icon">{{slot.filled ? '✓' : '+'}}</view>
+        <view class="upload-slot-icon">+</view>
         <view class="upload-slot-label">{{slot.label}}</view>
       </block>
-      <view wx:if="{{slot.filled}}" class="upload-slot-badge">已上传</view>
+      <view wx:if="{{slot.filled && slot.filledUrl}}" class="upload-slot-badge">已上传</view>
     </view>
   </view>
 

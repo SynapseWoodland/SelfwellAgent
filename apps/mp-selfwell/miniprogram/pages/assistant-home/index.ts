@@ -520,7 +520,9 @@ Page({
     const att = lastTurn.attachment;
     if (!att || att.kind !== 'upload_card') return;
     const slots = att.slots.map((s, i) =>
-      i === idx ? { ...s, filled: true, ...(tempFilePath ? { filledUrl: tempFilePath } : {}) } : s,
+      i === idx
+        ? { ...s, filled: Boolean(tempFilePath), filledUrl: tempFilePath || undefined }
+        : s
     );
     this.setData({
       turns: this.data.turns.map((t, i) =>

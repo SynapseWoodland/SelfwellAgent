@@ -79,7 +79,10 @@ Component({
               const p = res.tempFiles?.[0]?.tempFilePath;
               triggerFilled(p);
             },
-            fail: () => triggerFilled(),
+            fail: () => {
+              // 用户取消选择器时：静默忽略，不触发 slotTap 事件
+              // 这样 assistant-home 就不会把槽位错误地标记为 filled=true
+            },
           })
         : wx.chooseImage({
             count: 1,
@@ -89,7 +92,9 @@ Component({
               const p = res.tempFilePaths?.[0];
               triggerFilled(p);
             },
-            fail: () => triggerFilled(),
+            fail: () => {
+              // 用户取消选择器时：静默忽略，不触发 slotTap 事件
+            },
           });
       void choose;
     },
