@@ -1,0 +1,147 @@
+# =============================================================================
+# Selfwell Caddyfile · 本地反代 (V1.1 · 2026-07-09)
+#
+# 目的：把"对外只暴露一个 8000 端口"这件事落地
+#       ┌─ Tailscale Funnel (公网 https://husenlin.tail61999e.ts.net)
+#       │
+#       └─ Caddy 监听 127.0.0.1:8000  ← tailscale funnel 8000 转过来
+#            ├─ /api/*   → 127.0.0.1:8001  (FastAPI uvicorn,让出 8000 给 Caddy)
+#            ├─ /minio/* → 127.0.0.1:9000  (MinIO S3 API,开发态对象存储)
+#            └─ /healthz → 200 "ok"      (Caddy 静态自检,探针用)
+#
+# 为什么 Caddy 占 8000、uvicorn 退到 8001
+#   - tailscale funnel 8000 on  →  tailscaled 把公网请求转发到 127.0.0.1:8000
+#   - 这条链路只能有一个本地进程占 8000,所以 Caddy 必须是 8000
+#   - uvicorn 退到 8001,FastAPI 只对 Caddy 可见,LAN/公网都拿不到
+#   - 小程序仍走公网 https://husenlin.tail...e.ts.net/api/v1,代码零修改
+#
+# 设计依据：
+#   - ADR-0018 (CORS)  dev 全开 *、prod 白名单 — 不在 Caddy 这层做 CORS,留给应用
+#   - 部署架构 §8.1    后端 8001、MinIO 9000
+#   - mp-selfwell/config.ts:31  公网 baseURL = husenlin.tail...e.ts.net/api/v1
+#
+# 使用：
+#   1) 安装 Caddy (任选其一):
+#        winget install caddy
+#        choco install caddy
+#        # 或单文件: https://caddyserver.com/download  解压到 PATH
+#   2) 启动 Caddy (推荐用脚本 infra/caddy/start.cmd;手动命令:)
+#        caddy run --config infra/caddy/Caddyfile  (前台调试)
+#        caddy start --config infra/caddy/Caddyfile (后台,Linux/macOS)
+#      Windows 注册为服务 (见 README)
+#   3) uvicorn 退到 8001(与本 Caddyfile 的上游对齐):
+#        uv run dev-backend          # 已自动 --port 8001
+#        # 或者: uvicorn backend.app.main:app --port 8001
+#   4) Tailscale 侧:
+#        tailscale serve reset                         # 清历史残留
+#        tailscale funnel 9000 off                     # 旧直暴露 MinIO 关掉
+#        tailscale funnel --bg 8000 on                 # 暴露 Caddy 这一层
+#
+# 验证(都用 8000,全部经 Caddy):
+#   curl -i http://127.0.0.1:8000/api/v1/healthz
+#   curl -i http://127.0.0.1:8000/minio/health/live
+#   curl -i http://127.0.0.1:8000/healthz
+#   curl -i https://husenlin.tail61999e.ts.net/api/v1/healthz
+# =============================================================================
+
+# ────────── 监听 ──────────
+# 1. 绑 127.0.0.1(非 0.0.0.0):让 Tailscale Funnel 当唯一的对外入口,避免
+#    Caddy 自己被公网直接打到(LAN 内只走 127.0.0.1)。
+# 2. 端口 8000 必须和 `tailscale funnel --bg 8000 on` 的源端口一致;
+#    tailscaled 在 443 卸 TLS 后原样 HTTP/1.1 转过来,中间无中间人风险。
+#
+# 取消下面这行注释可改用自动 HTTPS(需要域名 + 80 端口可达,本机 dev 不推荐):
+#   # auto_https off
+
+{
+	# 关闭 admin API (不需要 caddy api 功能,留个口子反而暴露攻击面)
+	auto_https off
+	admin off
+	# 调试时把 log level 调到 DEBUG,默认 INFO
+	log default {
+		level INFO
+	}
+}
+
+# Caddy 占 8000,uvicorn 让出 8000 退到 8001,见文件头说明。
+#
+# listen 端口要等于 Tailscale 那边 funnel 的源端口:
+#   tailscale funnel --bg 8000 on  →  Caddy 也要听 8000
+#   tailscale funnel --bg 8080 on  →  Caddy 改 listen 8080(改 :8000 为 :8080 即可)
+:8000 {
+	# 关闭压缩:MinIO 走 S3 的 PUT/GET 是二进制流,压缩会破坏 SigV4 校验
+	encode zstd gzip
+
+	# ────────── 1) FastAPI 后端 /api/* ──────────
+	# 路径不变,/api/* 转发到 uvicorn:8001(uvicorn 让出 8000 给 Caddy 后停在 8001)。
+	# 启动方式(任选其一):
+	#   uv run dev-backend                          # pyproject.toml 已 --port 8001
+	#   uvicorn backend.app.main:app --port 8001
+	#
+	# 关键:必须把原始 Host / 协议头传回去,否则:
+	#   - 微信 OAuth redirect_uri 算错(回调 Host 变成 127.0.0.1:8001)
+	#   - CORS Origin 回显异常(虽然 dev 是 * 不影响)
+	#   - 客户端拿到的 redirect URL 会指向内网
+	#
+	# ⚠️ 必须用 @api matcher + handle @api 显式限定路径;
+	#    裸 reverse_proxy 在 Caddy v2 会被后面 handle 块的优先级覆盖,
+	#    导致 /api/* 实际进 line 130 的 404 兜底(踩过坑,见 git log 2026-07-09)。
+	@api path /api/*
+	handle @api {
+		reverse_proxy 127.0.0.1:8001 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			# 后端 CORS 已配(*),不在 Caddy 这层碰
+			health_uri /healthz
+			health_interval 10s
+			health_timeout 3s
+		}
+	}
+
+	# ────────── 2) MinIO /minio/* ──────────
+	# S3 SDK / 浏览器直传都要走 SigV4 签名,签名里 host 与 path 必须和服务端一致。
+	# 两条对策:
+	#   a) uri strip_prefix 把公网路径前缀 /minio 削掉,转发给 MinIO 的 /
+	#   b) 重写 Host:MinIO 验签时取的是 Host 头,
+	#      路径在 strip 后是 /<bucket>/<key> 与签名路径一致,所以 Host 必须保持
+	#      **公网域**(浏览器 / SDK 用来算签名的那个)。
+	#
+	# 也就是说 Host 头 = {host}(公网)保留,path 去掉 /minio 前缀。
+	@minio path /minio/*
+	handle @minio {
+		uri strip_prefix /minio
+			reverse_proxy 127.0.0.1:9000 {
+			# S3 走 HTTP/1.1 即可,H2 对 PUT 大文件不友好(流式上传会被 buffer)
+			# MinIO 默认就是 HTTP/1.1,显式声明更稳
+			transport http {
+				versions 1.1
+			}
+			# 大文件 PUT 不能有传输超时(我们设 0 = 不超时);Caddy 默认 30s 会断
+			flush_interval -1
+			# 关键:让 MinIO 看到公网 Host,否则 SigV4 验签直接 403 SignatureDoesNotMatch
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# ────────── 3) 健康自检(便于 Tailscale / K8s 探针) ──────────
+	handle /healthz {
+		respond "ok\n" 200
+	}
+
+	# ────────── 4) 兜底日志 ──────────
+	handle {
+		# 走到这里说明 path 既不在 /api 也不在 /minio 也不在 /healthz
+		# 走 access log 留痕,返回 404
+		respond "not found\n" 404
+	}
+
+	log {
+		output stdout
+		level INFO
+	}
+}
