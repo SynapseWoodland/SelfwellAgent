@@ -102,29 +102,48 @@ export async function presignAndUploadOne(
   picked: PickedImage,
   bodyPart: BodyPart,
 ): Promise<UploadedPhoto> {
+  return presignAndUploadOneWithPurpose(picked, bodyPart, 'diagnosis');
+}
+
+/**
+ * PR-A4 Option A / assistant smart_analyze：
+ * purpose='assistant' → object_key 前缀 assistant/（后端 uploads_v1 已扩白名单）。
+ */
+export async function presignAndUploadOneForAssistant(
+  picked: PickedImage,
+  bodyPart: BodyPart,
+): Promise<UploadedPhoto> {
+  return presignAndUploadOneWithPurpose(picked, bodyPart, 'assistant');
+}
+
+async function presignAndUploadOneWithPurpose(
+  picked: PickedImage,
+  bodyPart: BodyPart,
+  purpose: 'diagnosis' | 'assistant',
+): Promise<UploadedPhoto> {
   const debug = isDebugMode();
   const contentType = 'image/jpeg';
 
   try {
     const presign = await post<PresignResp>('/uploads/presign', {
       contentType,
-      purpose: 'diagnosis',
+      purpose,
     });
-    if (presign?.uploadUrl && presign?.objectKey) {
-      await putObject(presign.uploadUrl, picked.path, contentType);
+    if (presign?.upload_url && presign?.object_key) {
+      await putObject(presign.upload_url, picked.path, contentType);
       return {
-        objectKey: presign.objectKey,
+        objectKey: presign.object_key,
         bodyPart,
         format: 'jpg',
         sizeBytes: picked.compressedSize,
       };
     }
-    throw new Error('presign missing uploadUrl/objectKey');
+    throw new Error('presign missing upload_url/object_key');
   } catch (e) {
     if (debug) throw e;
     console.warn('[upload-helper] presign/upload fail, fallback mock', e);
     return {
-      objectKey: `mock/diagnosis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+      objectKey: `${purpose}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
       bodyPart,
       format: 'jpg',
       sizeBytes: picked.compressedSize,
@@ -209,6 +228,18 @@ export async function presignAndUploadPhotos(
   if (picked.length === 0) return [];
   const tasks = picked.map((p, idx) => presignAndUploadOne(p, bodyPartSelector(idx)));
   // Promise.all 顺序保持与输入 picked 一致；任一异常由 presignAndUploadOne 内部 mock 兜底
+  return await Promise.all(tasks);
+}
+
+/**
+ * PR-A4 Option A：assistant smart_analyze 批量上传（purpose=assistant）。
+ */
+export async function presignAndUploadPhotosForAssistant(
+  picked: ReadonlyArray<PickedImage>,
+  bodyPartSelector: (idx: number) => BodyPart,
+): Promise<UploadedPhoto[]> {
+  if (picked.length === 0) return [];
+  const tasks = picked.map((p, idx) => presignAndUploadOneForAssistant(p, bodyPartSelector(idx)));
   return await Promise.all(tasks);
 }
 

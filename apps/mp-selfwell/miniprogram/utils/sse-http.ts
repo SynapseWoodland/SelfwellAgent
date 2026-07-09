@@ -221,8 +221,9 @@ export function consumeSse(
     httpMethod === 'POST' && opts.body !== undefined
       ? typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)
       : undefined;
-  // POST + JSON body 时显式声明 Content-Type（后端 Pydantic 强依赖 application/json）
-  if (httpMethod === 'POST' && bodyData && !('Content-Type' in header)) {
+  // POST + JSON body 时强制声明 Content-Type（后端 Pydantic 强依赖 application/json；
+  // 注意：部分微信基础库在 enableChunked 时可能默认覆盖 Content-Type，在此显式设置）
+  if (httpMethod === 'POST' && bodyData) {
     header['Content-Type'] = 'application/json';
   }
 
@@ -231,7 +232,7 @@ export function consumeSse(
       url,
       method: httpMethod,
       enableChunked: true,
-      responseType: 'text/plain',
+      responseType: 'text',
       header,
       ...(bodyData ? { data: bodyData } : {}),
       timeout: opts.timeoutMs,

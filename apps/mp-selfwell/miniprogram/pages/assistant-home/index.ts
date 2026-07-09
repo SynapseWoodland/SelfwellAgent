@@ -11,7 +11,10 @@
  *     → answer / medical_guarded / upload → analyzing → report）
  *  2) 顶部 entry cards 持久化（PRD §3.5.2：3 入口卡持续可见）
  *  3) 点「智能分析」入口卡或 🔍 智能分析 chip → entry cards 隐藏，对话区追加 upload 气泡
- *  4) 上传至少 1 张照片 → analyzing 气泡（mock 进度 0→100%）；100% → report 气泡（mock 3 个方向）
+ *  4) 上传至少 1 张照片 → 走 ``presignAndUploadOneForAssistant`` 上传到 MinIO；
+ *     收集 ``image_keys[]`` + ``body_parts[]`` 后 POST /assistant/sessions/{id}/messages
+ *     触发 SSE 流（start → progress → report → end）；100% → 渲染 report 气泡
+ *     （无 directions 时回退到 SMART_ANALYZE_FALLBACK_DIRECTIONS，UI 联调兜底用）
  *  5) report 气泡的「开始 21 天」按钮 → wx.navigateTo /pages/plan-tabs/index
  *  6) 用户输入 → listening → medical_guard / A 类路由 / B 类快问 / sendMessage 默认走 answer
  */
@@ -23,6 +26,11 @@ import '../../utils/abort-controller-polyfill';
 import { dlog } from '../../utils/dlog';
 import { post } from '../../utils/request';
 import { consumeSse, type SseConsumer, type SseEvent } from '../../utils/sse-http';
+import {
+  presignAndUploadOneForAssistant,
+  type BodyPart,
+  type UploadedPhoto,
+} from '../../utils/upload-helper';
 import { pickRandomAck } from '../../data/ack-pool';
 
 type PersonaState =
@@ -125,8 +133,9 @@ const SMART_ANALYZE_AGE_RANGES = [
   { value: '36-45', label: '36-45', selected: false },
 ] as const;
 
-/** PR-A4 Option A：mock 3 个改善方向（与设计稿 04a 对齐） */
-const SMART_ANALYZE_MOCK_DIRECTIONS = [
+/** PR-A4 Option A：兜底 directions（后端 smart_analyze 在 sample_rate=0 / LLM 降级时
+ *  返回的静态清单；UI 真实分析无方向时也用它兜住"报告卡不空白"的视觉契约） */
+const SMART_ANALYZE_FALLBACK_DIRECTIONS = [
   { num: 1, title: '侧颈前伸', level: '轻度', description: '建议每 2 小时做 1 次收下巴训练' },
   { num: 2, title: '肩颈僵硬', level: '中度', description: '建议每日 8 分钟肩颈放松' },
   { num: 3, title: '眼周疲劳', level: '轻度', description: '建议每日 5 分钟眼周穴位按压' },
@@ -313,8 +322,9 @@ Page({
         ?? '';
       if (id) this.setData({ sessionId: id });
     } catch {
-      /* mock session id 用于 UI 联调 */
-      this.setData({ sessionId: 'mock_session_' + Date.now() });
+      // 后端不可达：用占位 session_id 让 UI 仍可渲染；后续 runSmartAnalyze
+      // 会先尝试 ensureSession 再发起 SSE，避免拿假 id 调后端触发 404。
+      this.setData({ sessionId: 'dev_session_' + Date.now() });
     }
   },
 
@@ -503,9 +513,9 @@ Page({
 
   /**
    * PR-A4 Option A：upload 卡片内部交互
-   *  - onUploadSlotTap(idx)    模拟填充某槽位（mock）
+   *  - onUploadSlotTap(idx)    从相册/相机选图后填槽位（预览本地 tempFilePath）
    *  - onSelectAge(value)      切换年龄段
-   *  - onSubmitUpload()        ≥1 张时 → 启动 mock 进度 analyzing → report
+   *  - onSubmitUpload()        ≥1 张时 → 调 runSmartAnalyze（MinIO 上传 + SSE 分析）→ report
    *  - onStartPlan()           report 气泡的「开始 21 天」CTA
    */
   onUploadSlotTap(e: WechatMiniprogram.BaseEvent) {
@@ -515,6 +525,9 @@ Page({
     const detail = (e.detail ?? {}) as { index?: number; tempFilePath?: string };
     const idx = Number(detail.index);
     const tempFilePath = typeof detail.tempFilePath === 'string' ? detail.tempFilePath : '';
+    // #region agent log
+    dlog('assistant-home/index.ts:onUploadSlotTap.entry', 'slot tap', { idx, hasTempFilePath: !!tempFilePath, pathPrefix: tempFilePath ? tempFilePath.slice(0, 40) : null });
+    // #endregion
     const lastTurn = this.data.turns[this.data.turns.length - 1];
     if (!lastTurn || lastTurn.state !== 'upload') return;
     const att = lastTurn.attachment;
@@ -572,45 +585,71 @@ Page({
       return;
     }
     // #region agent log
-    dlog('assistant-home/index.ts:onSubmitUpload.invokeStartMock', 'invoking startMockAnalyze', { filledCount, sessionId: this.data.sessionId });
+    dlog('assistant-home/index.ts:onSubmitUpload.invokeStartSmart', 'invoking runSmartAnalyze', { filledCount, sessionId: this.data.sessionId });
     // #endregion
-    this.startMockAnalyze();
+    this.runSmartAnalyze();
   },
 
-  /** SSE-driven analyze flow（PR-A2 worker C：替换原 mock setInterval）。
+  /** SSE-driven smart analyze 入口（PR-A4 Option A + worker 本轮改造）。
    *
-   *  后端 ``POST /assistant/sessions/{id}/messages`` 现在返回 text/event-stream，
-   *  事件序列：start → progress ×3 → report → end（medical_guarded 仅 → end）。
+   *  调用前需要：用户至少在 upload_card 槽位里选了 1 张图（filledUrl 是本地 tempFilePath）。
+   *  本方法执行：
+   *    1) 槽位 index → body_part 映射（与后端 ``_validate_image_keys`` 强一致）
+   *    2) 对每个 filledUrl 调 ``presignAndUploadOneForAssistant`` 拿到 object_key
+   *       （purpose=assistant/，后端 whitelist 已扩）
+   *    3) POST /assistant/sessions/{id}/messages 携带
+   *       ``{text, image_keys, body_parts}``，触发 send_message_stream
+   *       → SSE：start → progress ×N → report → end
+   *    4) 消费交给 ``consumeAssistantStream``
    *
-   * 字段形状严格对齐 ChatTurn.attachment（progress_card.percent/steps、report_card.directions），
-   * 无需引入新 attachment 类型。
-   *
-   * 错误 / abort 策略：
-   *  - 后端返回 5xx / 4xx → toast「分析服务暂时不可用」+ 清理 + 重置 smartAnalyzeRunning
-   *  - medical_guarded → end.medical_guarded=true → toast 兜底（FSM 在 onSend 已先拦截，本路径是兜底）
-   *  - onSend 之前发新消息：本方法进入时先 cancel 已有 consumer；本次流结束后下一帧 onSend 才会被允许
+   *  取消 / 错误策略：
+   *    - 用户主动取消（点 ✕ / 离开页 / 重发）：cancelSmartAnalyze → AbortController.abort()
+   *      → 保留 progress_card / report_card，不 toast 失败
+   *    - 后端 5xx / 4xx → toast「分析服务暂时不可用」+ 清理 + 重置 smartAnalyzeRunning
+   *    - medical_guarded → 走 FSM medical_guarded 分支
    */
-  startMockAnalyze() {
+  async runSmartAnalyze() {
     const sid = this.data.sessionId;
     // #region agent log
-    dlog('assistant-home/index.ts:startMockAnalyze.entry', 'startMockAnalyze entry', { hasSid: !!sid, sidPrefix: sid?sid.slice(0,8):null, hasGlobalAbort: typeof AbortController !== 'undefined' });
+    dlog('assistant-home/index.ts:runSmartAnalyze.entry', 'runSmartAnalyze entry', {
+      hasSid: !!sid,
+      sidPrefix: sid ? sid.slice(0, 8) : null,
+      hasGlobalAbort: typeof AbortController !== 'undefined',
+    });
     // #endregion
-    if (!sid) {
-      // #region agent log
-      dlog('assistant-home/index.ts:startMockAnalyze.noSid', 'no sessionId, falling back to local mock', {});
-      // #endregion
-      // 没 session_id 时直接退化为 mock（保持 UI 联调通畅）
-      this.runLocalMockAnalyze();
+    // 无可用 session_id（首次进页面后端不通，或 fallback 占位 id）：尝试重试一次再放弃
+    if (!sid || sid.startsWith('dev_session_')) {
+      await this.ensureSession();
+      const sid2 = this.data.sessionId;
+      if (!sid2 || sid2.startsWith('dev_session_')) {
+        // #region agent log
+        dlog('assistant-home/index.ts:runSmartAnalyze.noSid', 'no sessionId after retry', {});
+        // #endregion
+        wx.showToast({ title: '网络异常，稍后再试', icon: 'none' });
+        return;
+      }
+      // 拿到新 sid 后继续递归；runSmartAnalyze 顶部 setData 上传前会重置 analyzing 气泡
+      return this.runSmartAnalyze();
+    }
+
+    const lastTurn = this.data.turns[this.data.turns.length - 1];
+    if (!lastTurn || lastTurn.state !== 'upload') return;
+    const att = lastTurn.attachment;
+    if (!att || att.kind !== 'upload_card') return;
+    const filledSlots = att.slots
+      .map((s, idx) => ({ slot: s, idx }))
+      .filter((x) => x.slot.filled && !!x.slot.filledUrl);
+    if (filledSlots.length < 1) {
+      wx.showToast({ title: '请至少上传 1 张照片', icon: 'none' });
       return;
     }
-    // 0) 清空上一轮 SSE 残留的 report directions（避免 end 先到 / report 后到时复用旧数据）
-    (this.data as { _pendingReportDirections?: unknown[] })._pendingReportDirections = [];
-    // 1) 先追加 analyzing 气泡（percent=0，等 start 事件真正到达）
+
+    // 0) 先追加 analyzing 气泡（percent=0，等 SSE start/progress 真正推进）
     const analyzeTurn: ChatTurn = {
       id: 'a_analyzing_' + Date.now(),
       state: 'analyzing',
       title: '收到，我开始分析你的照片…',
-      text: '正在分析，约需 8-15 秒',
+      text: '正在上传并分析，约需 8-15 秒',
       attachment: {
         kind: 'progress_card',
         percent: 0,
@@ -629,16 +668,71 @@ Page({
       smartAnalyzeRunning: true,
     });
 
-    // 2) 启动 SSE consumer（Stream Y / worker Y：AbortController）
-    //    - cancelMockAnalyze() 调 _sseAbortController.abort() → 触发 _cancelFromAbort() → consumer.cancel()
-    //    - abort 不擦 progress_card / report_card，不 toast 失败（用户取消 ≠ 错误）
-    //    - 只重置 smartAnalyzeRunning，让 UI 立即回到可交互态
+    // 1) 槽位 index → body_part 映射；顺序与 filledSlots 顺序一致（保持 image_keys/body_parts 1:1）。
+    const SMART_ANALYZE_INDEX_TO_BODYPART: ReadonlyArray<BodyPart> = [
+      'face',
+      'shoulder_neck',
+      'head',
+    ];
+    const pickedForUpload = filledSlots.map(({ slot, idx }) => ({
+      // 构造 PickedImage 最小子集（utils/upload-helper 仅读 path + compressedSize）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      picked: { path: slot.filledUrl!, compressedSize: 0, size: 0, width: 0, height: 0 } as any,
+      bodyPart: (SMART_ANALYZE_INDEX_TO_BODYPART[idx] ?? 'face') as BodyPart,
+    }));
+
+    // 2) 真上传：每张图走 presignAndUploadOneForAssistant → object_key
+    let uploaded: UploadedPhoto[];
+    try {
+      const tasks = pickedForUpload.map(({ picked, bodyPart }) =>
+        presignAndUploadOneForAssistant(picked, bodyPart),
+      );
+      uploaded = await Promise.all(tasks);
+      // #region agent log
+      dlog(
+        'assistant-home/index.ts:runSmartAnalyze.uploaded',
+        'presign+upload done',
+        {
+          objectKeys: uploaded.map((u) => u.objectKey),
+          bodyParts: uploaded.map((u) => u.bodyPart),
+          count: uploaded.length,
+        },
+      );
+      // #endregion
+      // 让 dev 能直接从 console 验证图片进了 MinIO
+      // eslint-disable-next-line no-console
+      console.log(
+        '[assistant-home] presigned keys:',
+        uploaded.map((u) => ({
+          object_key: u.objectKey,
+          cdn_url: u.objectKey,
+        })),
+      );
+    } catch (e) {
+      // #region agent log
+      dlog('assistant-home/index.ts:runSmartAnalyze.uploadFail', 'presign/upload threw', {
+        errMsg: e instanceof Error ? e.message : String(e),
+      });
+      // #endregion
+      wx.showToast({ title: '图片上传失败，请重试', icon: 'none' });
+      this.applyAssistantError({ code: 'UPLOAD_FAILED', message_zh: '图片上传失败' });
+      return;
+    }
+
+    const imageKeys = uploaded.map((u) => u.objectKey);
+    const bodyParts = uploaded.map((u) => u.bodyPart);
+    // 清空上一轮 SSE 残留的 report directions（避免 end 先到 / report 后到时复用旧数据）
+    (this.data as { _pendingReportDirections?: unknown[] })._pendingReportDirections = [];
+
+    // 3) 启动 SSE consumer（AbortController 桥接见 cancelSmartAnalyze）
     let ac: AbortController;
     try {
       ac = new AbortController();
     } catch (e) {
       // #region agent log
-      dlog('assistant-home/index.ts:startMockAnalyze.acThrow', 'AbortController ctor threw', { errMsg: e instanceof Error ? e.message : String(e) });
+      dlog('assistant-home/index.ts:runSmartAnalyze.acThrow', 'AbortController ctor threw', {
+        errMsg: e instanceof Error ? e.message : String(e),
+      });
       // #endregion
       throw e;
     }
@@ -648,13 +742,23 @@ Page({
     const baseURL = 'http://127.0.0.1:8000/api/v1';
     const url = `${baseURL}/assistant/sessions/${encodeURIComponent(sid)}/messages`;
     // #region agent log
-    dlog('assistant-home/index.ts:startMockAnalyze.consumeSse', 'about to call consumeSse', { url, method: 'POST', bodyTextLength: 8, note: 'POST /messages triggers send_message_stream mock flow' });
+    dlog('assistant-home/index.ts:runSmartAnalyze.consumeSse', 'about to call consumeSse', {
+      url,
+      method: 'POST',
+      imageKeysLen: imageKeys.length,
+      bodyPartsLen: bodyParts.length,
+    });
     // #endregion
     const consumer: SseConsumer = consumeSse(url, {
       method: 'POST',
-      // 后端 send_message_stream 接收 text: str（mock 链路不读图片；
-      // 真实多模态图片走 diagnosis_v1 多模态链，非本 PR 范围）
-      body: { text: 'smart-analyze-mock' },
+      // 后端 AssistantMessage（assistant_v1.py）字段：text / image_keys[] / body_parts[]
+      // image_keys 有值触发 smart_analyze 模式（_stream_smart_analyze）；
+      // body_parts 与 image_keys 一一对应，与后端 _validate_image_keys 白名单一致。
+      body: {
+        text: 'smart_analyze',
+        image_keys: imageKeys,
+        body_parts: bodyParts,
+      },
       header: {
         Accept: 'text/event-stream',
         Authorization: `Bearer ${wx.getStorageSync('jwt') || ''}`,
@@ -686,7 +790,7 @@ Page({
    * - 不调用 applyAssistantError，不 toast 失败（取消不是错误）；
    * - 后端收到 disconnect 后不再继续流式推帧，前端自然结束消费循环。
    */
-  cancelMockAnalyze() {
+  cancelSmartAnalyze() {
     const ac = (this.data as { _sseAbortController?: AbortController | null })._sseAbortController;
     if (ac) {
       try { ac.abort(); } catch { /* ignore */ }
@@ -740,7 +844,7 @@ Page({
     } catch (err) {
       // Stream Y / worker Y：用户主动 abort → 不调用 applyAssistantError，不 toast
       if ((err as { name?: string })?.name === 'AbortError') {
-        // 已在 cancelMockAnalyze / onUnload 内重置 smartAnalyzeRunning，不重复 setData
+        // 已在 cancelSmartAnalyze / onUnload 内重置 smartAnalyzeRunning，不重复 setData
         return;
       }
       // 兜底：补一个网络异常 toast（保留旧行为）
@@ -800,7 +904,7 @@ Page({
       return;
     }
     const pending = (this.data as { _pendingReportDirections?: Array<{ num: number; title: string; level: string; description: string }> })._pendingReportDirections ?? [];
-    this.showMockReport(pending);
+    this.renderAssistantReport(pending);
   },
 
   applyAssistantError(payload: { code?: string; message_zh?: string }): void {
@@ -824,14 +928,14 @@ Page({
     });
   },
 
-  /** mock report 气泡（PR-A2 SSE 真正接通后由 SSE report/end 事件替换） */
-  showMockReport(
+  /** 渲染报告气泡：directions 由 SSE report 事件累计，end 事件触发；缺省走 FALLBACK_DIRECTIONS。 */
+  renderAssistantReport(
     directions?: Array<{ num: number; title: string; level: string; description: string }>,
   ) {
     const finalDirs =
       directions && directions.length > 0
         ? directions
-        : SMART_ANALYZE_MOCK_DIRECTIONS.map((d) => ({ ...d }));
+        : SMART_ANALYZE_FALLBACK_DIRECTIONS.map((d) => ({ ...d }));
     const reportTurn: ChatTurn = {
       id: 'a_report_' + Date.now(),
       state: 'report',
@@ -852,9 +956,14 @@ Page({
     });
   },
 
-  /** SSE 不可用时的本地降级（保留 UI 联调通畅；生产态不应进入） */
-  runLocalMockAnalyze(): void {
-    // 清空上一轮 SSE 残留的 report directions（保持 mock 路径与 SSE 路径状态一致）
+  /**
+   * SSE 不可用时的本地降级（保留 UI 联调通畅；生产态不应进入）。
+   * 仅在 runSmartAnalyze 的 catch/极端异常分支调用；当前实现保留以备后端 SSE
+   * 整体不可用时仍能让 UI 走到 analyzing → report 的视觉过渡。
+   * 报告方向直接用 ``SMART_ANALYZE_FALLBACK_DIRECTIONS``（与后端 fallback 静态清单同源）。
+   */
+  runLocalFallbackAnalyze(): void {
+    // 清空上一轮 SSE 残留的 report directions（保持 fallback 路径与 SSE 路径状态一致）
     (this.data as { _pendingReportDirections?: unknown[] })._pendingReportDirections = [];
     this.setData({
       turns: [
@@ -905,7 +1014,7 @@ Page({
       });
       if (percent >= 100) {
         clearInterval(timer);
-        setTimeout(() => this.showMockReport(), 400);
+        setTimeout(() => this.renderAssistantReport(), 400);
       }
     }, 300);
     (this.data as { _progressTimer: ReturnType<typeof setInterval> | null })._progressTimer = timer;
