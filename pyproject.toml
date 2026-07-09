@@ -78,6 +78,7 @@ dependencies = [
     "langchain-core>=1.4.8",
     "langchain-openai>=0.2.0",          # init_chat_model(model_provider="openai") 实现在此包
     "volcengine-python-sdk[ark]>=5.0.38",
+    "psycopg>=3.3.4",
 ]  # V1.3 runtime deps total: 21
 
 [project.optional-dependencies]
@@ -252,16 +253,19 @@ entrypoint = "backend.app.main:app"
 # uv scripts（一键启动入口）
 # ─────────────────────────────────────────────────────────────────────────────
 # 与 uv 项目管理对齐：`uv run dev-backend` 等价于：
-#   uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+#   uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8001
+#
+# ⚠️ 仅本地 dev：Caddy 占 8000（infra/caddy/Caddyfile）,uvicorn 退到 8001。
+# 生产部署走 backend/Dockerfile / docker-compose.yaml,端口仍是 8000,不要改这里。
 # uv 会自动用 .venv 的 uvicorn，并把 cwd 作为 sys.path 起点，
 # 让 `from app.xxx` 写法在 backend/ 之下能解析到。
 # 文档：https://docs.astral.sh/uv/reference/cli/#uv-run
 # =============================================================================
 [tool.uv.scripts]
-# dev backend: 监听 8000，自动 reload
-dev-backend = "uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000"
+# dev backend: 监听 8001（让 8000 给 Caddy），自动 reload
+dev-backend = "uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8001"
 # 同上但绑定 0.0.0.0（Docker / 局域网调试时用）
-dev-backend-public = "uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000"
+dev-backend-public = "uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8001"
 
 # =============================================================================
 # V1.3 新增：Commitizen 配置（交互式 Conventional Commits，中文模板）

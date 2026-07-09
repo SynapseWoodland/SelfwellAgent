@@ -1,7 +1,8 @@
 """Selfwell Backend Load Tests - Locust test scenarios.
 
 This module defines load test scenarios for the Selfwell Agent Backend API.
-Run with: locust -f backend/tests/load/locustfile.py --host=http://localhost:8000
+Run with: locust -f backend/tests/load/locustfile.py --host=http://localhost:8001
+                                              (dev: 让出 8000 给 Caddy;prod=8000)
 
 Scenarios cover:
 - Health check endpoints (liveness/readiness probes)
@@ -27,7 +28,7 @@ class SelfwellHealthUser(HttpUser):
     (Kubernetes liveness/readiness probes, load balancers).
     """
 
-    host = "http://localhost:8000"
+    host = "http://localhost:8001"  # dev: uvicorn 退到 8001(让出 8000 给 Caddy)
 
     @task(50)
     def healthz(self) -> None:
@@ -57,7 +58,7 @@ class SelfwellAPISmokeUser(HttpUser):
     ensuring docs are accessible under load.
     """
 
-    host = "http://localhost:8000"
+    host = "http://localhost:8001"  # dev: uvicorn 退到 8001(让出 8000 给 Caddy)
 
     @task(2)
     def openapi(self) -> None:

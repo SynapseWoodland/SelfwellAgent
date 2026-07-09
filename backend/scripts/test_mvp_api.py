@@ -9,7 +9,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.auth.jwt_handler import sign_access_token
 
-BASE = "http://127.0.0.1:8000"
+BASE = "http://127.0.0.1:8001"  # dev: 让出 8000 给 Caddy，反代上游在 8001
 TEST_USER_ID = "f255dff8-9f47-43a6-91c4-932b00c0447f"
 TOKEN = sign_access_token(user_id=TEST_USER_ID)
 

@@ -69,7 +69,9 @@ class SelfwellMvpUser(HttpUser):
     - 其它 20%
     """
 
-    host = os.getenv("SELFWELL_HOST", "http://localhost:8000")
+    host = os.getenv("SELFWELL_HOST", "http://localhost:8001")
+    # dev: uvicorn 退到 8001(让出 8000 给 Caddy);压测直连 8001,不走 Caddy
+    # 要走 Caddy: SELFWELL_HOST=http://localhost:8000 (别忘了把 /api 加进 path)
     # 启动时不等待（fast_http 默认 0）
     wait_time = lambda *_: 0  # noqa: E731
     abstract = True
