@@ -337,25 +337,37 @@ def _diagnosis_prompt(profile: dict[str, Any], complaint: str | None) -> str:
     )
 
 
-def _photo_image_urls(photos: list[dict[str, Any]]) -> list[str]:
-    """提取多模态模型可用的图片地址。"""
-    from app.conf.app_config import app_config
+async def _photo_image_urls(photos: list[dict[str, Any]]) -> list[str]:
+    """提取多模态模型可用的图片地址。
+
+    关键：必须生成公网可访问的预签名 URL，因为 Ark SDK 运行在云端，
+    无法访问 localhost 的 MinIO 存储。
+    """
+    from app.storage.factory import get_storage
 
     urls: list[str] = []
+    storage = get_storage()
+
     for photo in photos:
         url = str(photo.get("url", "")).strip()
         if not url:
             continue
+        # 已经是公网 URL（可能是 COS 或其他公网存储）
         if url.startswith(("http://", "https://", "data:image/")):
             urls.append(url)
             continue
-        storage = app_config.storage
-        if storage.provider.lower().strip() == "minio":
-            scheme = "https" if storage.minio.secure else "http"
+        # object_key 场景：生成公网预签名 URL
+        try:
+            presigned = await storage.presigned_get_url(url, expires_sec=3600)
+            urls.append(presigned)
+        except Exception:
+            # 兜底：构造 MinIO 直接访问 URL（开发环境可能可用）
+            from app.conf.app_config import app_config
+
+            cfg = app_config.storage
+            scheme = "https" if cfg.minio.secure else "http"
             key = quote(url, safe="/")
-            urls.append(f"{scheme}://{storage.minio.endpoint}/{storage.minio.bucket}/{key}")
-        else:
-            urls.append(url)
+            urls.append(f"{scheme}://{cfg.minio.endpoint}/{cfg.minio.bucket}/{key}")
     return urls
 
 
@@ -385,7 +397,13 @@ async def _invoke_llm_structured(
     payload = default_payload
     model = "rule-engine"
 
-    image_urls = _photo_image_urls(photos)
+    image_urls = await _photo_image_urls(photos)
+    logger.info(
+        "invoke_llm_structured_start",
+        photo_count=len(photos),
+        image_url_count=len(image_urls),
+        profile_keys=list(profile.keys()),
+    )
     complaint_text = complaint or ""
 
     # MVP A 场景：若 < 3 张照片，提示 LLM 缺失哪些视角，让模型在生成建议时显式标注。
@@ -445,13 +463,26 @@ async def _invoke_llm_structured(
             "llm_cost": "0",
         }
     except Exception as exc:
+        # 完整错误信息：traceback + 完整消息
+        import traceback as _tb
+
+        error_details = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))
         logger.warning(
             "llm_diagnose_fallback_to_rule_engine",
             error_type=type(exc).__name__,
-            error_message=str(exc)[:200],
+            error_message=str(exc),
+            error_details=error_details[:2000],  # 完整 traceback 限制 2000 字符
         )
         payload = default_payload
         model = "rule-engine"
+
+    result_directions = _normalize_directions(payload.get("directions"))
+    logger.info(
+        "invoke_llm_structured_done",
+        model=model,
+        directions_count=len(result_directions),
+        tags_count=len(payload.get("tags", [])),
+    )
 
     return {
         "directions": _normalize_directions(payload.get("directions")),
@@ -563,6 +594,13 @@ async def create_diagnosis(
     complaint: str | None = None,
 ) -> dict[str, Any]:
     """创建诊断报告（主入口）。
+
+    Note:
+        本函数是 **同步降级路径**（per ADR-0004），主要用于：
+        - 老客户端 / SDK / 内部脚本兼容
+        - SSE 不可用时的兜底（前端 POST 等结果超时降级）
+        生产主路径请改走 ``POST /diagnosis?async=true`` →
+        ``GET /diagnosis/jobs/{job_id}/stream``（PR-A2）。
 
     Returns:
         报告 dict（包含 report_id / directions / tags / summary / cached）。

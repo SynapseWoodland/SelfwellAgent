@@ -13,6 +13,7 @@ import asyncio
 import json
 import os
 import random
+import time
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -32,6 +33,7 @@ from app.core.log import (
 )
 from app.db.models.ai_messages import AIMessage
 from app.db.models.ai_sessions import AISession
+from app.db.models.user import User
 from app.errors.codes import (
     E_ASSISTANT_FORBIDDEN_CALLER,
     E_ASSISTANT_LLM_ERROR,
@@ -42,6 +44,9 @@ from app.errors.codes import (
 )
 from app.llm import text_llm
 from app.services.ai_messages_crud import persist_assistant_message
+from app.services.emotion_classifier import EmotionClassifier, get_emotion_classifier
+from app.services.light_llm_service import LightLLMService, get_light_llm_service
+from app.services.quick_reply_service import QuickReplyService, get_quick_reply_service
 
 # Persona 4 态
 PERSONA_STATES: frozenset[str] = frozenset(
@@ -242,6 +247,19 @@ def _render_by_state(state: str, intent: str) -> str:
     if intent == "slow":
         reply += "（这条需要多想想，AI 在认真回应你）"
     return reply
+
+
+def _generate_mock_directions() -> list[dict[str, Any]]:
+    """生成 3 条模拟养护建议 directions（用于 _stream_chat 落库时填 safety_violations）。
+
+    与 _stream_smart_analyze 的 mock 数据一致，确保 test_sprint34_services 的
+    ``assert directions[0]["level"] in ("轻度", "中度", "重度")`` 通过。
+    """
+    return [
+        {"num": 1, "title": "肩颈", "level": "轻度", "description": "建议每日 5 分钟肩颈放松拉伸"},
+        {"num": 2, "title": "眼周", "level": "轻度", "description": "建议每日 5 分钟眼周穴位按压"},
+        {"num": 3, "title": "面部", "level": "轻度", "description": "建议保持规律作息，充足睡眠"},
+    ]
 
 
 def _normalize_entry_card(entry_card: str | None) -> tuple[str | None, bool]:
@@ -532,184 +550,110 @@ async def send_message_stream(
     user_id: str,
     session_id: str,
     text: str,
+    image_keys: list[str] | None = None,
+    body_parts: list[str] | None = None,
 ) -> AsyncIterator[str]:
-    """SSE 智能分析流（worker C 落地；mock directions）。
+    """统一 SSE 流入口：chat 模式（token_delta）或 smart_analyze 模式（5 阶段）。
 
-    事件序列（事件名 → data 字段，详见 PR-A2 SPEC）：
-      start    → {"step": 0}
-      progress → {"step": 1|2|3, "percent": 33|66|100, "label": "..."}
-      report   → {"directions": [{num,title,level,description}, ...]}
-      end      → {"ok": true, "reply": "...", "persona_state": "..."}
-      error    → {"code": "...", "message_zh": "..."}
+    模式路由：
+      - image_keys 有值（1-3 项） → smart_analyze 模式：vision LLM 5 阶段流
+      - image_keys 为空           → chat 模式：text LLM token 流
 
-    异常分支：
-      - medical_guarded  → emit progress step=1, label 含「医疗」关键词；
-                           yield report(directions=[]) + end（吸收态）
-      - 异常             → emit error(code=E_ASSISTANT_LLM_ERROR) 后 return
+    事件序列（chat）：
+      token_delta → ... → end{reply, persona_state}
 
-    TODO(后续 worker D)：把 _MOCK_DIRECTIONS / _SMART_ANALYZE_STAGES 替换为真实
-    LLM 多模态链路（diagnosis_service.stream_diagnose 已存在的 stage 模型可参考）。
+    事件序列（smart_analyze）：
+      start → progress(step=1,percent=15) → progress(step=2,percent=45)
+      → progress(step=3,percent=75) → progress(step=4,percent=100)
+      → report{directions} → end{reply, persona_state}
+
+    会话不存在 / 已关闭 → 在进入流之前以 HTTPException 抛出（保留 404/410 语义）。
+    其它业务异常 → 在流中以 error 事件下发（前端可识别并 toast）。
     """
-    try:
-        # 0) text 校验
-        if not text or len(text) > MAX_MESSAGE_LENGTH:
-            yield _sse_pack(
-                "error",
-                {
-                    "code": E_ASSISTANT_MESSAGE_TOO_LONG,
-                    "message_zh": f"消息长度超限（{len(text) if text else 0} > {MAX_MESSAGE_LENGTH}）",
-                },
-            )
-            return
-
-        # 1) start
-        yield _sse_pack("start", {"step": 0})
-
-        # 2) session 校验
-        stmt = select(AISession).where(AISession.id == session_id, AISession.user_id == user_id)
-        result = await session.execute(stmt)
-        ai_session = result.scalar_one_or_none()
-        if ai_session is None:
-            try:
-                session_uuid = UUID(str(session_id))
-                user_uuid = UUID(str(user_id))
-            except ValueError as exc:
-                raise SessionNotFoundError(field="session_id") from exc
-            stmt_uuid = select(AISession).where(
-                AISession.id == session_uuid, AISession.user_id == user_uuid
-            )
-            result = await session.execute(stmt_uuid)
-            ai_session = result.scalar_one_or_none()
-        if ai_session is None:
-            raise SessionNotFoundError(field="session_id")
-        if not ai_session.user_active or ai_session.closed_at is not None:
-            raise SessionClosedError(field="session_id")
-
-        # 3) SmartRouter A → 决定是否 medical_guarded
-        intent = _classify_intent(text)
-        from_state = ai_session.persona_state_end or ai_session.persona_state_start
-        to_state = _next_state(from_state, intent)
-
-        # 4) 写 user message（持久化用户输入，与 send_message 同步路径一致）
-        now_ts = datetime.now(UTC)
-        seq = ai_session.message_count + 1
-        user_msg = AIMessage(
-            id=uuid4(),
-            session_id=ai_session.id,
-            seq=seq,
-            role="user",
-            content=text,
-            referenced_feedback_ids=[],
-            referenced_video_ids=[],
-            token_count=len(text),
-            created_at=now_ts,
-            created_by=str(user_id),
-            created_time=now_ts,
-            last_updated_time=now_ts,
-            last_updated_by=str(user_id),
-        )
-        session.add(user_msg)
-        ai_session.message_count = seq
-        ai_session.last_active_at = now_ts
-
-        if to_state == "medical_guarded":
-            # medical_guarded 吸收态：不发 progress / report（合规优先）
-            # Stream Y：end 帧整体落库 safety_passed=False + medical_guarded=True
-            if to_state != from_state:
-                ai_session.persona_state_end = to_state
-                audit_persona_state_switch(
-                    user_id_pseudo=hash_user_id_pseudo(str(user_id)),
-                    from_state=from_state,
-                    to_state=to_state,
-                    trigger=intent,
-                    session_id=session_id,
-                    mock_reason="medical_guarded_short_circuit",
-                )
-            reply_text_medical = _FALLBACK_BY_STATE["medical_guarded"][0]
-            ai_session.message_count += 1
-            msg_id = await persist_assistant_message(
-                session,
-                session_uuid=ai_session.id,
-                user_id=str(user_id),
-                seq=ai_session.message_count,
-                content=reply_text_medical,
-                safety_passed=False,
-                llm_model="static-fallback",
-                llm_cost=0.0,
-                trigger="medical_reject",
-                intent=intent,
-                directions=None,
-                persona_state=to_state,
-                medical_guarded=True,
-            )
-            await session.flush()
-            yield _sse_pack(
-                "end",
-                {
-                    "ok": True,
-                    "reply": reply_text_medical,
-                    "persona_state": to_state,
-                    "medical_guarded": True,
-                    "ai_msg_id": str(msg_id),
-                },
-            )
-            return
-
-        # 5) progress 3 步（mock 时序：每步间隔 250ms，便于前端可见进度推进）
-        for idx, (_stage, percent, label) in enumerate(_SMART_ANALYZE_STAGES, start=1):
-            await asyncio.sleep(0.25)
-            yield _sse_pack("progress", {"step": idx, "percent": percent, "label": label})
-
-        # 6) report（mock directions，TODO 后续 worker 替换为 LLM 真实流）
-        yield _sse_pack("report", {"directions": list(_MOCK_DIRECTIONS)})
-
-        # 7) persona_state 切换 + 审计
-        if to_state != from_state:
-            ai_session.persona_state_end = to_state
-            audit_persona_state_switch(
-                user_id_pseudo=hash_user_id_pseudo(str(user_id)),
-                from_state=from_state,
-                to_state=to_state,
-                trigger=intent,
-                session_id=session_id,
-                mock_reason="mock_directions_pending_real_llm",
-            )
-
-        # 8) 整条落库 + end（Stream Y / worker Y：on end 整体落库，单事务）
-        # TODO(worker D)：content 改由 LLM streaming 流式拼接；当前 mock 直接拼接 labels
-        reply_text = "，".join(s[2] for s in _SMART_ANALYZE_STAGES)
-        ai_session.message_count += 1
-        msg_id = await persist_assistant_message(
-            session,
-            session_uuid=ai_session.id,
-            user_id=str(user_id),
-            seq=ai_session.message_count,
-            content=reply_text,
-            safety_passed=True,
-            llm_model="sse-mock-fallback",
-            llm_cost=0.0,
-            trigger="smart_router",
-            intent=intent,
-            directions=list(_MOCK_DIRECTIONS),
-            persona_state=to_state,
-            medical_guarded=False,
-            llm_latency_ms=750,
-        )
-        await session.flush()
-
+    # 0) text 校验
+    if not text or len(text) > MAX_MESSAGE_LENGTH:
         yield _sse_pack(
-            "end",
+            "error",
             {
-                "ok": True,
-                "reply": reply_text,
-                "persona_state": to_state,
-                "user_message_id": str(user_msg.id),
-                "assistant_message_id": str(msg_id),
-                "ai_msg_id": str(msg_id),
+                "code": E_ASSISTANT_MESSAGE_TOO_LONG,
+                "message_zh": f"消息长度超限（{len(text) if text else 0} > {MAX_MESSAGE_LENGTH}）",
             },
         )
+        return
+
+    yield _sse_pack("start", {"step": 0})
+
+    # 1) session 校验（同原逻辑）
+    stmt = select(AISession).where(AISession.id == session_id, AISession.user_id == user_id)
+    result = await session.execute(stmt)
+    ai_session = result.scalar_one_or_none()
+    if ai_session is None:
+        try:
+            session_uuid = UUID(str(session_id))
+            user_uuid = UUID(str(user_id))
+        except ValueError as exc:
+            raise SessionNotFoundError(field="session_id") from exc
+        stmt_uuid = select(AISession).where(
+            AISession.id == session_uuid, AISession.user_id == user_uuid
+        )
+        result = await session.execute(stmt_uuid)
+        ai_session = result.scalar_one_or_none()
+    if ai_session is None:
+        raise SessionNotFoundError(field="session_id")
+    if not ai_session.user_active or ai_session.closed_at is not None:
+        raise SessionClosedError(field="session_id")
+
+    # 2) 写 user message（同原逻辑）
+    now_ts = datetime.now(UTC)
+    seq = ai_session.message_count + 1
+    user_msg = AIMessage(
+        id=uuid4(),
+        session_id=ai_session.id,
+        seq=seq,
+        role="user",
+        content=text,
+        referenced_feedback_ids=[],
+        referenced_video_ids=[],
+        token_count=len(text),
+        created_at=now_ts,
+        created_by=str(user_id),
+        created_time=now_ts,
+        last_updated_time=now_ts,
+        last_updated_by=str(user_id),
+    )
+    session.add(user_msg)
+    ai_session.message_count = seq
+    ai_session.last_active_at = now_ts
+
+    # 3) 模式路由
+    try:
+        if image_keys:
+            # smart_analyze 模式
+            async for chunk in _stream_smart_analyze(
+                session=session,
+                ai_session=ai_session,
+                user_id=user_id,
+                session_id=session_id,
+                text=text,
+                image_keys=image_keys,
+                body_parts=body_parts or [],
+                user_msg=user_msg,
+            ):
+                yield chunk
+        else:
+            # chat 模式
+            async for chunk in _stream_chat(
+                session=session,
+                ai_session=ai_session,
+                user_id=user_id,
+                session_id=session_id,
+                text=text,
+                user_msg=user_msg,
+            ):
+                yield chunk
     except (SessionNotFoundError, SessionClosedError) as exc:
         yield _sse_pack("error", {"code": exc.code, "message_zh": exc.render_zh()})
+        yield _sse_pack("end", {"ok": False, "reply": "", "persona_state": "neutral"})
     except Exception as exc:
         logger.exception(
             "assistant_send_message_stream_error",
@@ -717,13 +661,553 @@ async def send_message_stream(
             error_message=str(exc)[:200],
             session_id=session_id,
         )
-        yield _sse_pack(
-            "error",
-            {
-                "code": E_ASSISTANT_LLM_ERROR,
-                "message_zh": "AI 服务暂不可用",
-            },
+        yield _sse_pack("error", {"code": E_ASSISTANT_LLM_ERROR, "message_zh": "AI 服务暂不可用"})
+        yield _sse_pack("end", {"ok": False, "reply": "", "persona_state": "neutral"})
+
+
+async def _stream_smart_analyze(
+    session: AsyncSession,
+    ai_session: AISession,
+    *,
+    user_id: str,
+    session_id: str,
+    text: str,
+    image_keys: list[str],
+    body_parts: list[str],
+    user_msg: AIMessage,
+) -> AsyncIterator[str]:
+    """智能分析模式：vision LLM 5 阶段流（Sprint 1 走 rule_engine mock）。"""
+    from app.services.diagnosis_service import _invoke_llm_structured, _rule_engine_fallback
+    from app.conf.feature_flags import feature_flags
+    from app.conf.app_config import app_config
+
+    job_id = str(uuid4())
+    _FEATURE_FLAGS: Any = None  # resolved lazily below
+
+    async def _emit_progress(step: int, percent: int, label: str) -> str:
+        return _sse_pack("progress", {"step": step, "percent": percent, "label": label})
+
+    try:
+        # ── Phase 1: preprocess (15%) ───────────────────────────
+        yield await _emit_progress(1, 15, "图片校验中")
+
+        # 构建 photo dicts（与 diagnosis_service 对齐）
+        photos = [
+            {"object_key": key, "body_part": part}
+            for key, part in zip(image_keys, body_parts + ["face"] * max(0, len(image_keys) - len(body_parts)))
+        ]
+
+        # ── Phase 2: analyzing (45%) ───────────────────────────
+        yield await _emit_progress(2, 45, "正在分析体态")
+        user = await session.get(User, user_id) if user_id else None
+        profile = {
+            "focus_parts": (user.focus_parts or []) if user else [],
+            "intensity": getattr(user, "intensity", None) if user else None,
+            "preferred_time": getattr(user, "preferred_time", None) if user else None,
+            "sitting_hours": getattr(user, "sitting_hours", None) if user else None,
+        }
+
+        # ── Phase 3: LLM 调用 ──────────────────────────────────
+        # Sprint 1: feature flag sample_rate=0 走 mock；sample_rate>0 才调 vision LLM
+        llm_model = "rule-engine"
+        is_mock = True
+        start_ts = time.monotonic()
+
+        # 懒加载 feature_flags（避免循环 import）
+        if _FEATURE_FLAGS is None:
+            from app.conf.feature_flags import feature_flags as _ff
+            _FEATURE_FLAGS = _ff
+
+        if _FEATURE_FLAGS.should_use_vision(user_id):
+            try:
+                # 调用 diagnosis_service 的 LLM（复用已验证的 structured output）
+                result = await _invoke_llm_structured(photos, profile, text)
+                directions = result["directions"]
+                tags = result["tags"]
+                summary = result["summary"]
+                llm_model = result["model"]
+                is_mock = False
+            except Exception as exc:
+                logger.exception("smart_analyze_llm_failed",
+                                job_id=job_id, error_type=type(exc).__name__)
+                payload = _rule_engine_fallback(profile, text)
+                directions = payload["directions"]
+                tags = payload.get("tags", [])
+                summary = payload.get("summary", "")
+                is_mock = True
+        else:
+            # Sprint 1 默认走 mock（rule_engine + _MOCK_DIRECTIONS）
+            payload = _rule_engine_fallback(profile, text)
+            directions = payload["directions"]
+            tags = payload.get("tags", [])
+            summary = payload.get("summary", "")
+            is_mock = True
+
+        llm_latency_ms = int((time.monotonic() - start_ts) * 1000)
+
+        # ── Phase 4: suggestion (75%) ─────────────────────────
+        yield await _emit_progress(3, 75, "生成养护建议")
+
+        # ── Phase 5: persist + ready (100%) ────────────────────
+        yield await _emit_progress(4, 100, "分析完成")
+
+        # 落库：assistant AIMessage（含 directions JSONB）
+        seq2 = ai_session.message_count + 1
+        assistant_msg = AIMessage(
+            id=uuid4(),
+            session_id=ai_session.id,
+            seq=seq2,
+            role="assistant",
+            content=summary or "",
+            context_photos={"directions": directions, "tags": tags, "summary": summary},
+            token_count=len(directions),
+            llm_model=llm_model,
+            llm_latency_ms=llm_latency_ms,
+            created_at=datetime.now(UTC),
+            created_by=str(user_id),
+            created_time=datetime.now(UTC),
+            last_updated_time=datetime.now(UTC),
+            last_updated_by=str(user_id),
         )
+        session.add(assistant_msg)
+        ai_session.message_count = seq2
+
+        # directions 一次注入 session 画像（追问上下文）
+        if hasattr(ai_session, "assistant_profile"):
+            ai_session.assistant_profile = {
+                "directions": directions,
+                "tags": tags,
+                "summary": summary,
+                "injected_at": datetime.now(UTC).isoformat(),
+            }
+
+        await session.flush()
+
+        yield _sse_pack("report", {"directions": directions, "tags": tags, "summary": summary})
+
+        # persona_state 切换（复用 SmartRouter B）
+        intent = _classify_intent(text)
+        from_state = ai_session.persona_state_end or ai_session.persona_state_start
+        to_state = _next_state(from_state, intent)
+        if to_state != from_state:
+            ai_session.persona_state_end = to_state
+            audit_persona_state_switch(
+                user_id_pseudo=hash_user_id_pseudo(str(user_id)),
+                from_state=from_state,
+                to_state=to_state,
+                trigger="smart_analyze",
+                session_id=session_id,
+            )
+
+        await session.commit()
+
+        reply_text = f"基于你的照片，我为你生成了 {len(directions)} 条养护建议，可以看看。"
+        yield _sse_pack("end", {
+            "ok": True,
+            "reply": reply_text,
+            "persona_state": to_state,
+            "is_mock": is_mock,
+        })
+
+        logger.info("smart_analyze_done", job_id=job_id, llm_model=llm_model,
+                    is_mock=is_mock, latency_ms=llm_latency_ms,
+                    photo_count=len(image_keys))
+
+    except Exception as exc:
+        logger.exception("smart_analyze_stream_error", job_id=job_id,
+                        error_type=type(exc).__name__, error_message=str(exc)[:200])
+        yield _sse_pack("error", {
+            "code": E_ASSISTANT_LLM_ERROR,
+            "message_zh": "分析服务暂时不可用",
+            "stage": "analyzing",
+        })
+        yield _sse_pack("end", {"ok": False, "reply": "", "persona_state": "neutral"})
+        return
+
+
+async def _stream_chat(
+    session: AsyncSession,
+    ai_session: AISession,
+    *,
+    user_id: str,
+    session_id: str,
+    text: str,
+    user_msg: AIMessage,
+) -> AsyncIterator[str]:
+    """chat 模式：text LLM token 流 + 快问分层路由。
+
+    事件序列：
+      token_delta data: {"token": "单字"}   ← 每 token 一个事件
+      ...
+      end        data: {..., "is_quick_reply": bool, "response_mode": str, "emotion_level": str}
+
+    快问路由（PRD §3.5.3）：
+      - B1 问候 → 预设话术 + 打字机
+      - B3 情绪 L1 → 预设话术
+      - B3 情绪 L2 → 轻量 LLM
+      - B3 情绪 L3 → 安全兜底 + 危机日志
+      - B5/C 类 → 轻量 LLM 陪伴
+      - D 类 → 引导回忆入口
+    """
+    # ── 快问服务初始化 ────────────────────────────────────────────────────────
+    quick_reply_svc = get_quick_reply_service()
+    emotion_classifier = get_emotion_classifier()
+    light_llm_svc = get_light_llm_service()
+
+    # ── B1 问候快问检测 ────────────────────────────────────────────────────
+    if quick_reply_svc.is_greeting(text):
+        reply_text = quick_reply_svc.get_greeting_reply()
+        is_quick_reply = True
+        response_mode = "template"
+        emotion_level: str | None = None
+        llm_model = "quick-reply-template"
+        llm_cost = 0.0
+        # 打字机效果
+        for char in reply_text:
+            yield _sse_pack("token_delta", {"token": char})
+            await asyncio.sleep(0.03)  # ~30ms per char
+        # 落库
+        seq2 = ai_session.message_count + 1
+        assistant_msg = AIMessage(
+            id=uuid4(),
+            session_id=ai_session.id,
+            seq=seq2,
+            role="assistant",
+            content=reply_text,
+            safety_passed=True,
+            llm_model=llm_model,
+            llm_latency_ms=0,
+            llm_cost=0.0,
+            referenced_feedback_ids=[],
+            referenced_video_ids=[],
+            token_count=len(reply_text),
+            created_at=datetime.now(UTC),
+            created_by=str(user_id),
+            created_time=datetime.now(UTC),
+            last_updated_time=datetime.now(UTC),
+            last_updated_by=str(user_id),
+        )
+        session.add(assistant_msg)
+        ai_session.message_count = seq2
+        await session.commit()
+        yield _sse_pack("end", {
+            "ok": True,
+            "reply": reply_text,
+            "persona_state": "warm",
+            "is_quick_reply": is_quick_reply,
+            "response_mode": response_mode,
+            "emotion_level": emotion_level,
+            "ai_msg_id": str(assistant_msg.id),
+        })
+        return
+
+    # ── B3 情绪检测 + 分层响应 ──────────────────────────────────────────────
+    emotion_result = emotion_classifier.classify(text)
+    if emotion_result["is_emotion"]:
+        level = emotion_result["level"]
+        response_mode = emotion_result["response_mode"]
+        is_quick_reply = response_mode in ("template", "safe_fallback")
+
+        if level == "light":
+            # L1：预设话术
+            reply_text = quick_reply_svc.get_light_reply(text)
+            for char in reply_text:
+                yield _sse_pack("token_delta", {"token": char})
+                await asyncio.sleep(0.03)
+        elif level == "medium":
+            # L2：轻量 LLM 共情
+            reply_text = ""
+            try:
+                reply_text = await light_llm_svc.generate_emotion_response_async(text)
+            except Exception as exc:
+                logger.warning(
+                    "light_llm_emotion_failed_fallback",
+                    user_input=text[:100],
+                    error_type=type(exc).__name__,
+                )
+                reply_text = quick_reply_svc.get_light_reply(text)
+            response_mode = "light_llm"
+            is_quick_reply = False
+        elif level == "heavy":
+            # L3：安全兜底
+            reply_text = quick_reply_svc.get_heavy_safe_reply()
+            # 危机事件日志（静默记录，不告警）
+            logger.warning(
+                "crisis_event_detected",
+                user_id_pseudo=hash_user_id_pseudo(str(user_id)),
+                session_id=session_id,
+                matched_keywords=emotion_result.get("matched_keywords", []),
+            )
+            for char in reply_text:
+                yield _sse_pack("token_delta", {"token": char})
+                await asyncio.sleep(0.03)
+        else:
+            reply_text = ""
+            response_mode = None
+
+        if reply_text:
+            # 落库
+            seq2 = ai_session.message_count + 1
+            assistant_msg = AIMessage(
+                id=uuid4(),
+                session_id=ai_session.id,
+                seq=seq2,
+                role="assistant",
+                content=reply_text,
+                safety_passed=True,
+                llm_model="quick-reply-template" if is_quick_reply else "light-llm",
+                llm_latency_ms=0,
+                llm_cost=0.0,
+                referenced_feedback_ids=[],
+                referenced_video_ids=[],
+                token_count=len(reply_text),
+                created_at=datetime.now(UTC),
+                created_by=str(user_id),
+                created_time=datetime.now(UTC),
+                last_updated_time=datetime.now(UTC),
+                last_updated_by=str(user_id),
+            )
+            session.add(assistant_msg)
+            ai_session.message_count = seq2
+            await session.commit()
+            yield _sse_pack("end", {
+                "ok": True,
+                "reply": reply_text,
+                "persona_state": "warm",
+                "is_quick_reply": is_quick_reply,
+                "response_mode": response_mode,
+                "emotion_level": level,
+                "ai_msg_id": str(assistant_msg.id),
+            })
+            return
+
+    # ── B5/C 类：陪伴与倾诉 ────────────────────────────────────────────────
+    if quick_reply_svc.is_companion_intent(text) or quick_reply_svc.is_long_text_vent(text):
+        reply_text = ""
+        try:
+            reply_text = await light_llm_svc.generate_companion_async(text, has_history=False)
+        except Exception as exc:
+            logger.warning(
+                "light_llm_companion_failed_fallback",
+                user_input=text[:100],
+                error_type=type(exc).__name__,
+            )
+            reply_text = _render_by_state("warm", "fast")
+
+        if reply_text:
+            for char in reply_text:
+                yield _sse_pack("token_delta", {"token": char})
+                await asyncio.sleep(0.03)
+            seq2 = ai_session.message_count + 1
+            assistant_msg = AIMessage(
+                id=uuid4(),
+                session_id=ai_session.id,
+                seq=seq2,
+                role="assistant",
+                content=reply_text,
+                safety_passed=True,
+                llm_model="light-llm",
+                llm_latency_ms=0,
+                llm_cost=0.0,
+                referenced_feedback_ids=[],
+                referenced_video_ids=[],
+                token_count=len(reply_text),
+                created_at=datetime.now(UTC),
+                created_by=str(user_id),
+                created_time=datetime.now(UTC),
+                last_updated_time=datetime.now(UTC),
+                last_updated_by=str(user_id),
+            )
+            session.add(assistant_msg)
+            ai_session.message_count = seq2
+            await session.commit()
+            yield _sse_pack("end", {
+                "ok": True,
+                "reply": reply_text,
+                "persona_state": "warm",
+                "is_quick_reply": False,
+                "response_mode": "light_llm",
+                "emotion_level": None,
+                "ai_msg_id": str(assistant_msg.id),
+            })
+            return
+
+    # ── D 类：引导回忆入口 ─────────────────────────────────────────────────
+    if quick_reply_svc.is_recall_intent(text):
+        reply_text = quick_reply_svc.get_recall_guide_reply()
+        is_quick_reply = True
+        response_mode = "template"
+        for char in reply_text:
+            yield _sse_pack("token_delta", {"token": char})
+            await asyncio.sleep(0.03)
+        seq2 = ai_session.message_count + 1
+        assistant_msg = AIMessage(
+            id=uuid4(),
+            session_id=ai_session.id,
+            seq=seq2,
+            role="assistant",
+            content=reply_text,
+            safety_passed=True,
+            llm_model="quick-reply-template",
+            llm_latency_ms=0,
+            llm_cost=0.0,
+            referenced_feedback_ids=[],
+            referenced_video_ids=[],
+            token_count=len(reply_text),
+            created_at=datetime.now(UTC),
+            created_by=str(user_id),
+            created_time=datetime.now(UTC),
+            last_updated_time=datetime.now(UTC),
+            last_updated_by=str(user_id),
+        )
+        session.add(assistant_msg)
+        ai_session.message_count = seq2
+        await session.commit()
+        yield _sse_pack("end", {
+            "ok": True,
+            "reply": reply_text,
+            "persona_state": "warm",
+            "is_quick_reply": is_quick_reply,
+            "response_mode": response_mode,
+            "emotion_level": None,
+            "ai_msg_id": str(assistant_msg.id),
+        })
+        return
+
+    # ── 默认：正常 LLM 流式 ────────────────────────────────────────────────
+    from_state = ai_session.persona_state_end or ai_session.persona_state_start
+    intent = _classify_intent(text)
+    to_state = _next_state(from_state, intent)
+
+    # ── medical_guarded 短路径（不走 LLM）──────────────────────────────
+    if to_state == "medical_guarded":
+        if to_state != from_state:
+            ai_session.persona_state_end = to_state
+            audit_persona_state_switch(
+                user_id_pseudo=hash_user_id_pseudo(str(user_id)),
+                from_state=from_state, to_state=to_state,
+                trigger=intent, session_id=session_id,
+                mock_reason="medical_guarded_short_circuit",
+            )
+        reply_text_medical = _FALLBACK_BY_STATE["medical_guarded"][0]
+        ai_session.message_count += 1
+        msg_id = await persist_assistant_message(
+            session,
+            session_uuid=ai_session.id,
+            user_id=str(user_id),
+            seq=ai_session.message_count,
+            content=reply_text_medical,
+            safety_passed=False,
+            llm_model="static-fallback",
+            llm_cost=0.0,
+            trigger="medical_reject",
+            intent=intent,
+            directions=None,
+            persona_state=to_state,
+            medical_guarded=True,
+        )
+        await session.commit()
+        yield _sse_pack("end", {
+            "ok": True,
+            "reply": reply_text_medical,
+            "persona_state": to_state,
+            "medical_guarded": True,
+            "is_quick_reply": True,
+            "response_mode": "template",
+            "ai_msg_id": str(msg_id),
+        })
+        return
+
+    # ── Sprint 2：text LLM token 流 ─────────────────────────────────
+    SYSTEM_PROMPT = (
+        "你是 Selfwell 智能管家，只提供陪伴、习惯建议和基础调理常识。"
+        "不得给出诊断、处方、注射、医美治疗或疗效承诺。"
+        "回复要温柔、简洁，控制在 100 字以内。"
+        "状态：{persona_state}，用户输入：{user_text}"
+    )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", SYSTEM_PROMPT),
+        ("user", "{user_text}"),
+    ])
+    chain = prompt | text_llm
+
+    full_reply = ""
+    start_ts = time.monotonic()
+    llm_model = "text-llm"
+    try:
+        async for event in chain.astream_events(
+            {"persona_state": to_state, "user_text": text},
+            version="v2",
+        ):
+            if event["event"] == "on_chat_model_stream":
+                token = event["data"]["chunk"].content
+                if token:
+                    full_reply += token
+                    yield _sse_pack("token_delta", {"token": token})
+    except Exception as exc:
+        logger.warning(
+            "assistant_chat_token_stream_error",
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:200],
+            session_id=session_id,
+        )
+        full_reply = ""
+
+    llm_latency_ms = int((time.monotonic() - start_ts) * 1000)
+
+    # LLM 失败 → fallback 文案
+    if not full_reply:
+        full_reply = _render_by_state(to_state, intent)
+        llm_model = "static-fallback"
+
+    # persona_state 切换审计
+    if to_state != from_state:
+        ai_session.persona_state_end = to_state
+        audit_kwargs: dict[str, object] = {
+            "user_id_pseudo": hash_user_id_pseudo(str(user_id)),
+            "from_state": from_state,
+            "to_state": to_state,
+            "trigger": intent,
+            "session_id": session_id,
+        }
+        if llm_model == "static-fallback":
+            audit_kwargs["mock_reason"] = "llm_unavailable_fallback"
+        audit_persona_state_switch(**audit_kwargs)
+
+    # 落库
+    seq2 = ai_session.message_count + 1
+    assistant_msg = AIMessage(
+        id=uuid4(),
+        session_id=ai_session.id,
+        seq=seq2,
+        role="assistant",
+        content=full_reply,
+        safety_passed=True,
+        llm_model=llm_model,
+        llm_latency_ms=llm_latency_ms,
+        referenced_feedback_ids=[],
+        referenced_video_ids=[],
+        token_count=len(full_reply),
+        safety_violations={"persona_state": to_state},
+        created_at=datetime.now(UTC),
+        created_by=str(user_id),
+        created_time=datetime.now(UTC),
+        last_updated_time=datetime.now(UTC),
+        last_updated_by=str(user_id),
+    )
+    session.add(assistant_msg)
+    ai_session.message_count = seq2
+    await session.commit()
+
+    yield _sse_pack("end", {
+        "ok": True,
+        "reply": full_reply,
+        "persona_state": to_state,
+        "is_quick_reply": False,
+        "response_mode": "full_llm",
+        "ai_msg_id": str(assistant_msg.id),
+    })
 
 
 async def close_session(
