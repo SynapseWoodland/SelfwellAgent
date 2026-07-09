@@ -1,0 +1,58 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §4.4 P04 21 天方案 Tab
+  FIGMA  : docs/design/figma-pixso-spec/pages/07d-plan-tabs.html
+-->
+<view class="plan-tabs">
+  <!-- segment control -->
+  <view class="segment-control">
+    <view class="segment-btn {{activeTab === 'today' ? 'active' : ''}}" bindtap="onTapTodayTab">{{segToday}}</view>
+    <view class="segment-btn {{activeTab === 'all' ? 'active' : ''}}" bindtap="onTapAllTab">{{segAll}}</view>
+  </view>
+
+  <!-- 今日视图 -->
+  <view class="today-view" wx:if="{{activeTab === 'today'}}">
+    <view class="hero">
+      <view class="hero-title">你的专属养护参考</view>
+      <view class="hero-sub">{{stageTitle}}</view>
+    </view>
+
+    <view class="stage-card">
+      <view class="stage-title">{{stageTitle}}</view>
+      <view class="stage-sub">{{weekProgressText}}</view>
+    </view>
+
+    <view class="day-detail-card" wx:if="{{!noPlan && todayTasks.length > 0}}">
+      <view wx:for="{{todayTasks}}" wx:key="id" class="detail-row">
+        <view class="detail-thumb"></view>
+        <view class="detail-content">
+          <view class="detail-name">{{item.title}}</view>
+          <view class="detail-meta">{{item.subtitle}}</view>
+        </view>
+        <view class="detail-arrow">›</view>
+      </view>
+    </view>
+
+    <view class="empty-card" wx:if="{{noPlan}}">
+      <view class="empty-card-text">{{segToday === '今日' ? '还没有方案，先去看看智能分析？' : ''}}</view>
+      <button class="empty-card-btn" bindtap="onTapGenerate">去生成方案</button>
+    </view>
+  </view>
+
+  <!-- 全部视图 -->
+  <view class="all-view" wx:if="{{activeTab === 'all'}}">
+    <view wx:for="{{weeks}}" wx:key="week_no" class="week-card">
+      <view class="week-head">
+        <view class="week-title">{{item.title}}</view>
+        <view class="week-status">Week {{item.week_no}}</view>
+      </view>
+      <view class="day-grid">
+        <view wx:for="{{item.days}}" wx:for-item="d" wx:key="day" class="day-cell {{d.state}}" data-day="{{d.day}}" data-state="{{d.state}}" bindtap="onTapDay">
+          <view class="day-num">{{d.day}}</view>
+          <view class="day-status" wx:if="{{d.state === 'today'}}">今天</view>
+          <view class="day-status" wx:elif="{{d.state === 'done'}}">✓</view>
+          <view class="day-status" wx:else></view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

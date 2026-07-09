@@ -98,7 +98,7 @@ class TestCheckinCreateInvalidFormat:
             CheckinCreate.model_validate({"plan_id": "p_001"})
 
     def test_day_out_of_range_rejected(self) -> None:
-        """day < 1 或 > 21 → 字段校验失败。"""
+        """Day < 1 或 > 21 → 字段校验失败。"""
         with pytest.raises(ValidationError):
             CheckinCreate.model_validate({"plan_id": "p1", "day": 0, "video_id": "v1"})
         with pytest.raises(ValidationError):

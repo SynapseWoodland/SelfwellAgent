@@ -1,6 +1,9 @@
 """MVP API Integration Test Suite - SelfwellAgent."""
-import sys, json, requests
+import json
+import sys
 from pathlib import Path
+
+import requests
 
 # Correct path: backend/ is the parent of scripts/, so 'app' is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

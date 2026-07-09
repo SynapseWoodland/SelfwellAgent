@@ -24,7 +24,7 @@ interface GlobalData {
   clientPlatform: 'wechat_mp';
 }
 
-App<{ globalData: GlobalData; userInfo?: WechatMiniprogram.UserInfo }>({
+App<{ globalData: GlobalData }>({
   globalData: {
     token: '',
     userId: '',

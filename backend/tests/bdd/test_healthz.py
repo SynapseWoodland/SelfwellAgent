@@ -29,25 +29,22 @@ class TestHealthz:
     async def test_healthz_db_down_returns_503(self, client):
         """Scenario: PostgreSQL 不可达时 → HTTP 503 + status=down."""
         # patch db probe to return 'down'
-        import asyncio
         from unittest.mock import AsyncMock, patch
 
         with patch(
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="down",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="ok",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="ok",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="ok",
-                ):
-                    response = client.get("/healthz")
+            response = client.get("/healthz")
         assert response.status_code == 503
         data = response.json()
         assert data["status"] == "down"
@@ -61,18 +58,16 @@ class TestHealthz:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="down",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="ok",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="down",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="ok",
-                ):
-                    response = client.get("/healthz")
+            response = client.get("/healthz")
         assert response.status_code == 503
         assert response.json()["status"] == "down"
 
@@ -85,18 +80,16 @@ class TestHealthz:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="degraded",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="ok",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="degraded",
-                ):
-                    response = client.get("/healthz")
+            response = client.get("/healthz")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "degraded"
@@ -104,8 +97,8 @@ class TestHealthz:
     @pytest.mark.asyncio
     async def test_healthz_probes_run_concurrently(self, client):
         """Scenario: 三段探针并发执行，无顺序依赖。"""
-        from unittest.mock import AsyncMock, patch
         import asyncio
+        from unittest.mock import AsyncMock, patch
 
         probe_times: dict = {}
 
@@ -118,18 +111,16 @@ class TestHealthz:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             side_effect=lambda: slow_probe("ok", "db"),
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            side_effect=lambda: slow_probe("ok", "redis"),
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            side_effect=lambda: slow_probe("ok", "llm"),
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                side_effect=lambda: slow_probe("ok", "redis"),
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    side_effect=lambda: slow_probe("ok", "llm"),
-                ):
-                    response = client.get("/healthz")
+            response = client.get("/healthz")
         # 如果并发执行，总时间应 < 每个探针的累加时间
         assert response.status_code == 200
         assert len(probe_times) == 3

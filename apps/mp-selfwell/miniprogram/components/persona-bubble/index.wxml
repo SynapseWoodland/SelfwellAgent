@@ -20,3 +20,26 @@
 <view wx:elif="{{state === 'answer'}}" class="bubble bubble-answer">
   <view class="bubble-text">{{text}}</view>
 </view>
+
+<!-- medical_guarded (医疗相关，温柔拒绝) -->
+<view wx:elif="{{state === 'medical_guarded'}}" class="bubble bubble-answer bubble-medical">
+  <view class="bubble-text">{{text}}</view>
+</view>
+
+<!-- upload (智能分析 - 上传卡内嵌气泡) -->
+<view wx:elif="{{state === 'upload'}}" class="bubble bubble-answer bubble-attachment">
+  <view class="bubble-text">{{text}}</view>
+  <slot name="upload-card"></slot>
+</view>
+
+<!-- analyzing (智能分析 - 进度卡内嵌气泡) -->
+<view wx:elif="{{state === 'analyzing'}}" class="bubble bubble-answer bubble-attachment">
+  <view class="bubble-text">{{text}}</view>
+  <slot name="progress-card"></slot>
+</view>
+
+<!-- report (智能分析 - 报告卡内嵌气泡) -->
+<view wx:elif="{{state === 'report'}}" class="bubble bubble-answer bubble-attachment">
+  <view class="bubble-text">{{text}}</view>
+  <slot name="report-card"></slot>
+</view>

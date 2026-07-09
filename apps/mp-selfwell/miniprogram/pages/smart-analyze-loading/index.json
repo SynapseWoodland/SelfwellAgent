@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "分析中",
+  "usingComponents": {
+    "persona-bubble": "/components/persona-bubble/index"
+  }
+}

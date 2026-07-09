@@ -37,18 +37,16 @@ class TestHealthzAPI:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="degraded",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="ok",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="degraded",
-                ):
-                    response = await async_client.get("/healthz")
+            response = await async_client.get("/healthz")
         assert response.status_code == 200
         assert response.json()["status"] == "degraded"
 
@@ -60,18 +58,16 @@ class TestHealthzAPI:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="down",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="ok",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="ok",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="ok",
-                ):
-                    response = await async_client.get("/healthz")
+            response = await async_client.get("/healthz")
         assert response.status_code == 503
         assert response.json()["status"] == "down"
 
@@ -83,18 +79,16 @@ class TestHealthzAPI:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             return_value="ok",
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            return_value="down",
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            return_value="ok",
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                return_value="down",
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    return_value="ok",
-                ):
-                    response = await async_client.get("/healthz")
+            response = await async_client.get("/healthz")
         assert response.status_code == 503
         assert response.json()["status"] == "down"
 
@@ -121,22 +115,20 @@ class TestHealthzAPI:
             "app.api.routers.system._probe_db",
             new_callable=AsyncMock,
             side_effect=lambda: logged_probe(0.05, "ok"),
+        ), patch(
+            "app.api.routers.system._probe_redis",
+            new_callable=AsyncMock,
+            side_effect=lambda: logged_probe(0.05, "ok"),
+        ), patch(
+            "app.api.routers.system._probe_llm",
+            new_callable=AsyncMock,
+            side_effect=lambda: logged_probe(0.05, "ok"),
         ):
-            with patch(
-                "app.api.routers.system._probe_redis",
-                new_callable=AsyncMock,
-                side_effect=lambda: logged_probe(0.05, "ok"),
-            ):
-                with patch(
-                    "app.api.routers.system._probe_llm",
-                    new_callable=AsyncMock,
-                    side_effect=lambda: logged_probe(0.05, "ok"),
-                ):
-                    import time
+            import time
 
-                    start = time.monotonic()
-                    response = await async_client.get("/healthz")
-                    elapsed = time.monotonic() - start
+            start = time.monotonic()
+            response = await async_client.get("/healthz")
+            elapsed = time.monotonic() - start
         assert response.status_code == 200
         # 三个 50ms 探针并发执行，总时间应 < 150ms
         assert elapsed < 0.15, f"探针未并发执行，耗时 {elapsed:.3f}s"

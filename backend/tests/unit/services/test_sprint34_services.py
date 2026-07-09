@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.errors import UserInputError
 from app.services.assistant_service import (
     DEFAULT_PRIMARY_INTENT,
     DEFAULT_STATE,
-    ENTRY_CARDS,
     ENTRY_CARD_COMPAT,
+    ENTRY_CARDS,
     PERSONA_STATES,
     PRIMARY_INTENTS,
-    PRIMARY_INTENT_COMPAT,
     _classify_intent,
     _next_state,
     _normalize_entry_card,
@@ -19,14 +19,12 @@ from app.services.assistant_service import (
     _render_by_state,
 )
 from app.services.checkin_service import (
-    MAX_FEELING_LENGTH,
     _compute_message_tone,
     _render_message,
 )
-from app.services.community_service import MAX_CONTENT_LENGTH, _validate_content, _validate_images
+from app.services.community_service import _validate_content, _validate_images
 from app.services.feedback_service import (
     BODY_PARTS,
-    FEEDBACK_TYPES,
     MAX_TEXT_LENGTH,
     pick_ack,
     validate_feedback,
@@ -43,7 +41,6 @@ from app.services.share_service import (
     _validate_color,
     _validate_day,
 )
-from app.core.errors import UserInputError
 
 
 # ── M4 Checkin ──────────────────────────────────────────────────────────────
@@ -304,9 +301,15 @@ def test_body_parts_set() -> None:
 
 # ── M8 Recall ───────────────────────────────────────────────────────────────
 def test_recall_safety_blocks() -> None:
-    result = _scan_safety("我比她丑")
-    assert result["passed"] is False
-    assert len(result["matches"]) > 0
+    # ADR-0017 §3.3: 前后/效果/数字/外观 4 类违规均要拦截
+    # 这里挑 4 类中各一个代表样本
+    result_compare = _scan_safety("你比之前更挺拔了")  # before_after_judge
+    assert result_compare["passed"] is False
+    assert len(result_compare["matches"]) > 0
+
+    result_appearance = _scan_safety("皮肤变白了")  # appearance_judge
+    assert result_appearance["passed"] is False
+    assert len(result_appearance["matches"]) > 0
 
 
 def test_recall_safety_passes() -> None:
@@ -315,8 +318,11 @@ def test_recall_safety_passes() -> None:
 
 
 def test_recall_forbidden_groups() -> None:
-    assert "appearance_compare" in FORBIDDEN_WORDS
-    assert "medical_drift" in FORBIDDEN_WORDS
+    # ADR-0017 §3.3 4 分组（命名规范 2026-07-08 更新）
+    assert "before_after_judge" in FORBIDDEN_WORDS
+    assert "effect_commit" in FORBIDDEN_WORDS
+    assert "numeric_judge" in FORBIDDEN_WORDS
+    assert "appearance_judge" in FORBIDDEN_WORDS
 
 
 def test_recall_safe_fallback() -> None:
@@ -325,7 +331,7 @@ def test_recall_safe_fallback() -> None:
 
 # ── M10 Share ───────────────────────────────────────────────────────────────
 def test_share_valid_days() -> None:
-    assert VALID_DAYS == {7, 14, 21}
+    assert {7, 14, 21} == VALID_DAYS
 
 
 def test_share_day_invalid() -> None:

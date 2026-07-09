@@ -1,3 +1,15 @@
+/* =================================================================
+   PR-A4 Option A：智能分析 = 对话气泡内嵌卡片（设计稿 04a）
+   设计 token：
+     页面底色：#FAFBFC
+     薄荷绿 (mint)：#A8C5B5 / #9DB5A0
+     奶油 (cream)：#F5E6D3
+     桃色 (peach)：#F0D9C4
+     薰衣草 (lavender)：#D4C5E2
+     灰底：#F0F2F5 / #E2E8F0 / #F5F7FA
+     主文字：#2D3436 / 副文字：#718096 / #4A5568
+================================================================= */
+
 .assistant {
   display: flex;
   flex-direction: column;
@@ -5,58 +17,250 @@
   background-color: #FAFBFC;
 }
 
-.assistant-stream {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 16rpx;
-}
-
-.assistant-entries {
-  padding: 16rpx;
-  background-color: #FFFFFF;
+/* ────────── 顶部导航 ────────── */
+.assistant-nav {
   display: flex;
-  gap: 16rpx;
-  overflow-x: auto;
-  border-top: 2rpx solid #E2E8F0;
-}
-
-.assistant-entry {
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 24rpx;
+  padding-top: calc(12rpx + env(safe-area-inset-top));
+  background-color: #FAFBFC;
+  border-bottom: 2rpx solid #F0F2F5;
   flex-shrink: 0;
-  width: 360rpx;
-  background-color: #F5E6D3;
-  border-radius: 24rpx;
-  padding: 24rpx;
 }
 
-.assistant-entry-title {
-  font-size: 30rpx;
+.assistant-nav-back {
+  font-size: 40rpx;
+  color: #2D3436;
+  padding: 0 16rpx;
+  line-height: 1;
+}
+
+.assistant-nav-title {
+  font-size: 32rpx;
   font-weight: 500;
   color: #2D3436;
 }
 
-.assistant-entry-sub {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #4A5568;
+.assistant-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
-.assistant-inputbar {
+.assistant-nav-btn {
+  font-size: 24rpx;
+  color: #4A5568;
+  padding: 8rpx 16rpx;
+  border-radius: 24rpx;
+  background-color: #F0F2F5;
+}
+
+.assistant-nav-more {
+  font-size: 36rpx;
+  color: #4A5568;
+  padding: 0 8rpx;
+}
+
+/* ────────── 回忆气泡（hook） ────────── */
+.assistant-recall-bubble {
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: linear-gradient(135deg, #F5E6D3 0%, #D4C5E2 100%);
+  border-radius: 24rpx;
+  flex-shrink: 0;
+}
+
+.assistant-recall-text {
+  font-size: 24rpx;
+  color: #2D3436;
+}
+
+/* ────────── 对话流 ────────── */
+.assistant-stream {
+  flex: 1;
+  overflow-y: auto;
+  /* 底部留出（从下往上）：
+   *   - input-bar        ~112rpx
+   *   - chips-bar        ~110rpx  (bottom: 120rpx)
+   *   - 间隔 1            ~10rpx
+   *   - butler-cards-block expanded ~156rpx（fixed 浮在 chips-bar 之上方, z-index:12）
+   *   - 间隔 2            ~16rpx
+   *   - 视觉安全余量       ~56rpx
+   *   合计 ≈ 460rpx
+   * SPEC-A2 §4.2 + 图 2/3 回归 bug：入口卡 expanded 态 fixed 浮在 chips-bar 上方，
+   * scroll-view padding-bottom 必须 ≥ 460rpx，否则最后一条气泡尾部会与入口卡视觉重叠。 */
+  padding: 16rpx 0 460rpx;
+  box-sizing: border-box;
+}
+
+/* SPEC-A2 §5.4：collapsed/focused 时让气泡右沿避开 floating icon */
+.assistant-stream.is-collapsed {
+  padding-right: 96rpx;
+}
+
+.assistant-turn {
+  display: flex;
+  flex-direction: column;
+}
+
+.assistant-stream-tail {
+  height: 40rpx;
+}
+
+/* ────────── 3 入口卡（持久化） ────────── */
+.assistant-entries {
+  margin: 16rpx 24rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.entry-card {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 16rpx 24rpx 32rpx;
-  background-color: #FFFFFF;
+  padding: 16rpx;
+  border-radius: 16rpx;
+  margin-bottom: 8rpx;
+  transition: background-color 0.2s;
+}
+
+.entry-card:last-child {
+  margin-bottom: 0;
+}
+
+.entry-card:active {
+  background-color: #F5F7FA;
+}
+
+.entry-card.highlight,
+.entry-card.is-highlight,
+.entry-card.is_star,
+.entry-card.starred {
+  outline: 2rpx solid #A8C5B5;
+  outline-offset: -2rpx;
+}
+
+.entry-icon {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  color: #2D3436;
+}
+
+.entry-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 4rpx;
+}
+
+.entry-sub {
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.entry-state-sub {
+  font-size: 22rpx;
+  color: #4A5568;
+  margin-top: 4rpx;
+}
+
+.entry-highlight-token {
+  display: none;
+}
+
+.entry-btn {
+  flex-shrink: 0;
+  padding: 8rpx 20rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 24rpx;
+  font-size: 22rpx;
+}
+
+.entry-chevron {
+  flex-shrink: 0;
+  color: #A0AEC0;
+  font-size: 32rpx;
+  padding: 0 8rpx;
+}
+
+/* ────────── Chips 4 项 ────────── */
+.chips-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 120rpx;
+  padding: 16rpx 24rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  background-color: #FAFBFC;
+  border-top: 2rpx solid #F0F2F5;
+  z-index: 10;
+}
+
+.chip {
+  background-color: #F0F2F5;
+  color: #4A5568;
+  border-radius: 32rpx;
+  padding: 12rpx 24rpx;
+  font-size: 24rpx;
+}
+
+.chip-active {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+}
+
+/* ────────── 输入区 ────────── */
+.assistant-inputbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background-color: #FAFBFC;
   border-top: 2rpx solid #E2E8F0;
+  z-index: 11;
+}
+
+.assistant-mic,
+.assistant-camera {
+  font-size: 36rpx;
+  padding: 8rpx;
+  line-height: 1;
 }
 
 .assistant-input {
   flex: 1;
   height: 80rpx;
   padding: 0 24rpx;
-  background-color: #FAFBFC;
-  border-radius: 48rpx;
+  background-color: #F5E6D3;
+  border-radius: 40rpx;
   font-size: 28rpx;
   color: #2D3436;
+}
+
+.assistant-input::placeholder {
+  color: #A0AEC0;
 }
 
 .assistant-send {
@@ -64,9 +268,354 @@
   padding: 0 32rpx;
   background-color: #A8C5B5;
   color: #FFFFFF;
-  border-radius: 48rpx;
+  border-radius: 40rpx;
   display: flex;
   align-items: center;
   font-size: 28rpx;
   font-weight: 500;
+}
+
+/* =================================================================
+   智能分析内嵌卡片（upload / progress / report）
+   嵌在 persona-bubble 内（bubble-attachment 已经 max-width:92%）
+================================================================= */
+
+/* ── upload-card ── */
+.upload-card {
+  margin-top: 16rpx;
+  background-color: #F5E6D3;
+  border-radius: 24rpx;
+  padding: 24rpx;
+}
+
+.upload-card-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 16rpx;
+}
+
+.upload-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.upload-slot {
+  flex: 1 1 calc((100% - 32rpx) / 3);
+  min-width: 0;
+  aspect-ratio: 3 / 4;
+  background-color: #FFFFFF;
+  border: 2rpx dashed #A8C5B5;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #A8C5B5;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.upload-slot-filled {
+  background: linear-gradient(135deg, #F0D9C4 0%, #F5E6D3 100%);
+  border: none;
+  color: #4A5568;
+}
+
+/* 槽位预览图（upload-slot-preview）—— filled 时覆盖整个槽位 */
+.upload-slot-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #F0F2F5;
+}
+
+.upload-slot-icon {
+  font-size: 36rpx;
+  line-height: 1;
+  margin-bottom: 8rpx;
+}
+
+.upload-slot-label {
+  font-size: 22rpx;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  /* filled 状态缩小字号，避免被角标 badge 视觉挤掉 */
+  word-break: keep-all;
+}
+
+.upload-slot-filled .upload-slot-label {
+  font-size: 20rpx;
+}
+
+.upload-slot-badge {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  max-width: calc(100% - 12rpx);
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
+  font-size: 18rpx;
+  line-height: 1.4;
+  box-sizing: border-box;
+  /* 防止 badge 文案过长时被截断，保持为短标签"已上传" */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-section {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx solid rgba(168, 197, 181, 0.3);
+}
+
+.profile-label {
+  font-size: 24rpx;
+  color: #718096;
+  margin-bottom: 12rpx;
+}
+
+.profile-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.profile-option {
+  padding: 8rpx 20rpx;
+  background-color: #FFFFFF;
+  border: 2rpx solid #E2E8F0;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+  color: #4A5568;
+}
+
+.profile-option-selected {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-color: #A8C5B5;
+}
+
+.upload-btn-start {
+  margin-top: 24rpx;
+  width: 100%;
+  height: 80rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border: none;
+}
+
+.upload-btn-start[disabled] {
+  background-color: #E2E8F0;
+  color: #A0AEC0;
+}
+
+/* ── progress-card ── */
+/* Worker B 修复 Bug #2：progress 卡片被 chips-bar 浮层覆盖尾部，
+ *  加 position:relative + z-index:1 + overflow:hidden 让卡片形成独立层 */
+.progress-card {
+  margin-top: 16rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.progress-card-title {
+  font-size: 26rpx;
+  color: #4A5568;
+  margin-bottom: 16rpx;
+}
+
+.progress-bar {
+  height: 12rpx;
+  background-color: #E2E8F0;
+  border-radius: 6rpx;
+  overflow: hidden;
+  margin-bottom: 12rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #A8C5B5, #B8D4E3);
+  border-radius: 6rpx;
+  transition: width 0.5s ease;
+}
+
+.progress-steps {
+  font-size: 22rpx;
+  color: #718096;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  align-items: center;
+}
+
+.progress-step {
+  white-space: nowrap;
+}
+
+.progress-step-done {
+  color: #A8C5B5;
+}
+
+.progress-step-current {
+  color: #2D3436;
+  font-weight: 500;
+}
+
+/* ── report-card ── */
+.report-card {
+  margin-top: 16rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+}
+
+.report-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.report-card-avatar {
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  background: linear-gradient(135deg, #A8C5B5, #B8D4E3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.report-card-text {
+  font-size: 26rpx;
+  color: #4A5568;
+}
+
+.report-card-name {
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.direction-item {
+  background-color: #F5F7FA;
+  border-radius: 16rpx;
+  padding: 16rpx 16rpx 16rpx 12rpx;
+  margin-bottom: 16rpx;
+  display: block;
+  /* Worker B 修复 Bug #3：direction-item 形成独立层，避免 flex 上下文被父级污染 */
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.direction-item:last-child {
+  margin-bottom: 0;
+}
+
+.direction-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+  /* 让 title 撑开剩余空间，level badge 始终右贴 */
+  width: 100%;
+}
+
+.direction-num {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.direction-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2D3436;
+  /* 标题过长时优雅截断，而不是挤压 level badge */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.direction-level {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: #4A5568;
+  background-color: #F5E6D3;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  line-height: 1.4;
+}
+
+/* Worker B 修复 Bug #3：level 按等级上色（轻度 mint / 中度 peach / 重度红） */
+/* 注意：wxss 不支持中文 class 标识符（如 .direction-level-轻度 是非法的），
+   因此统一使用 [data-level='xxx'] 属性选择器（wxss 支持）。
+   wxml 端：class="direction-level" + data-level="{{dir.level}}"。*/
+.direction-level[data-level='轻度'] {
+  background-color: rgba(168, 197, 181, 0.35);
+  color: #4A7A5E;
+}
+
+.direction-level[data-level='中度'] {
+  background-color: rgba(240, 217, 196, 0.7);
+  color: #8B5A3C;
+}
+
+.direction-level[data-level='重度'] {
+  background-color: rgba(229, 62, 62, 0.15);
+  color: #C53030;
+}
+
+.direction-desc {
+  font-size: 24rpx;
+  color: #4A5568;
+  line-height: 1.6;
+  padding-left: 52rpx;
+}
+
+.btn-start21 {
+  margin-top: 24rpx;
+  width: 100%;
+  height: 88rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(168, 197, 181, 0.4);
 }

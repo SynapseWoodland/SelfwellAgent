@@ -73,6 +73,85 @@ def _phase_tasks(day: int) -> int:
     return _PHASE_TASKS[_phase_for_day(day)]
 
 
+_WEEK_TITLES: dict[int, str] = {
+    1: "第一阶段 · 习惯启动",
+    2: "第二阶段 · 强化提升",
+    3: "第三阶段 · 稳定养成",
+}
+
+
+def aggregate_plan_weeks(
+    plan: Plan, *, today: date | None = None
+) -> list[dict[str, Any]]:
+    """把 21 天 ``plan.days["items"]`` 聚合成 3 周视图（每周 7 天）。
+
+    Args:
+        plan: 已加载的 ``Plan`` ORM；只读，不修改入参。
+        today: 计算 ``current_day_index`` 的基准日期；默认 ``date.today()``。
+
+    Returns:
+        ``list[dict]``，长度 3（week 1-3）。每个元素：
+
+        ``{"week_no": int, "title": str, "days": list[dict]}``
+
+        其中 ``days[i]`` 形如：
+
+        ``{"day": int, "state": "done"|"today"|"locked", "tasks_count": int, "phase": int}``
+
+    """
+    if today is None:
+        today = date.today()
+
+    if plan.started_at is not None:
+        elapsed = (today - plan.started_at).days + 1
+        current_day_index = max(1, min(PLAN_LENGTH_DAYS, elapsed))
+    else:
+        current_day_index = 1
+
+    days_payload: list[dict[str, object]] = []
+    if isinstance(plan.days, dict):
+        raw = plan.days.get("items")
+        if isinstance(raw, list):
+            days_payload = [d for d in raw if isinstance(d, dict)]
+
+    by_day: dict[int, dict[str, object]] = {
+        int(d["day"]): d for d in days_payload if isinstance(d.get("day"), int)
+    }
+
+    weeks: list[dict[str, Any]] = []
+    for week_no in (1, 2, 3):
+        day_cells: list[dict[str, Any]] = []
+        for offset in range(7):
+            day = (week_no - 1) * 7 + offset + 1
+            day_item = by_day.get(day, {})
+            tasks = day_item.get("tasks")
+            tasks_count = len(tasks) if isinstance(tasks, list) else 0
+            raw_phase = day_item.get("phase")
+            phase = int(raw_phase) if isinstance(raw_phase, int) else _phase_for_day(day)
+            if day < current_day_index:
+                state = "done"
+            elif day == current_day_index:
+                state = "today"
+            else:
+                state = "locked"
+            day_cells.append(
+                {
+                    "day": day,
+                    "state": state,
+                    "tasks_count": tasks_count,
+                    "phase": phase,
+                }
+            )
+        weeks.append(
+            {
+                "week_no": week_no,
+                "title": _WEEK_TITLES[week_no],
+                "days": day_cells,
+            }
+        )
+    return weeks
+
+
 async def list_active_videos(
     session: AsyncSession, *, limit: int = 200
 ) -> list[dict[str, Any]]:
@@ -348,6 +427,7 @@ __all__ = [
     "PlanError",
     "PlanNoReportError",
     "PlanNotFoundError",
+    "aggregate_plan_weeks",
     "generate_plan",
     "get_current_plan",
     "get_plan",

@@ -11,7 +11,7 @@
 - tools/     LangChain BaseTool 实现
 - agents/    LangGraph 子图编排（仅放图）
 - rules/     硬规则 YAML + 纯 Python 解释器
-- llm/       4 级降级链（Claude → GPT-4o → Qwen VL → DeepSeek-VL → 规则引擎）
+- llm/       text / vision 双降级链（多模态主备、文本主备）
 - prompts/   Prompt loader
 - storage/   对象存储抽象（MinIO / COS）
 - notification/ 推送通道（4 端 + 邮件）

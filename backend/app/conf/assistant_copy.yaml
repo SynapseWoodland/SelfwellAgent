@@ -1,0 +1,86 @@
+# Assistant 文案集中常量（v1.1.1）
+# ─────────────────────────────────────────────────────────────────
+# 真源：docs/adr/0017-recall-safety.md + docs/spec/SPEC-M5-persona-chat.md §3.5.1 + PRD §3.5.4
+# 设计意图：所有用户可见的副文案/问候集中在此；service 层只读、不写。
+# ADR-0017 约束：不评判坚持时长、不前后对比、不效果承诺。
+
+# §一 入口卡副文案（4 卡 × 4 状态 = 16 条）
+entry_card:
+  smart_analyze:
+    not_started:
+      title: "智能分析"
+      subtitle: "上传照片生成你的画像"
+    in_progress:
+      title: "智能分析"
+      subtitle: "正在为你生成画像，再等一会儿"
+    completed:
+      title: "智能分析"
+      subtitle: "已生成你的画像，回看一下吗"
+    inactive_7d:
+      title: "智能分析"
+      subtitle: "离上次互动有点久了，先看画像吗"
+  mood_diary:
+    not_started:
+      title: "心情日记"
+      subtitle: "今天有什么想记录的？"
+    in_progress:
+      title: "心情日记"
+      subtitle: "继续把这一段写完吧"
+    completed:
+      title: "心情日记"
+      subtitle: "最近一次记录还在，可以接着记"
+    inactive_7d:
+      title: "心情日记"
+      subtitle: "好久没写了，从今天重新开始"
+  recall_self:
+    not_started:
+      title: "主动回忆"
+      subtitle: "走过的痕迹都在，可以回看"
+    in_progress:
+      title: "主动回忆"
+      subtitle: "回忆正在生成，先看看其他的"
+    completed:
+      title: "主动回忆"
+      subtitle: "我们已经一起走过了，要不要回看一下"
+    inactive_7d:
+      title: "主动回忆"
+      subtitle: "回看下以前的痕迹，也许有惊喜"
+  direct_input:
+    not_started:
+      title: "直接聊聊"
+      subtitle: "想聊什么都可以"
+    in_progress:
+      title: "直接聊聊"
+      subtitle: "我在听，请继续"
+    completed:
+      title: "直接聊聊"
+      subtitle: "上一次的对话还在，要继续吗"
+    inactive_7d:
+      title: "直接聊聊"
+      subtitle: "什么时候回来都可以，我在"
+
+# §二 基线问候（PRD §3.5.4，按 last_feedback_days_ago 段位）
+# 字段：title + subtitle
+baseline_greeting:
+  never_recorded:
+    title: "嗨，今天想聊点什么？"
+    subtitle: "从一张照片或一句心里话开始都行。"
+  recorded_today:
+    title: "嗨，今天我在这儿。"
+    subtitle: "你刚记录过了，要是还想继续聊，我在。"
+  recent_within_a_week:
+    title: "嗨，又见面了。"
+    subtitle: "想继续聊上次的话题，还是换个方向？"
+  inactive_7d_or_more:
+    title: "嗨，你回来啦。"
+    subtitle: "什么时候回来都行，我在。"
+
+# §三 诊断 SSE 阶段文案（PR-A2 · 真源 docs/design/mvp_a_场景端到端实现方案_d1d163fa §4.2）
+# 后端 service / router 只读、不写；前端 utils/sse-stage.ts 用同名 alias 映射 8 阶段 UI。
+diag_phase:
+  connected: "已建立连接"
+  preprocess: "正在识别体态状态"
+  analyzing: "分析面部状态"
+  suggestion: "生成养护建议"
+  ready: "生成完成"
+  error_pipeline: "诊断失败，请稍后重试"

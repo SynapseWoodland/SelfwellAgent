@@ -68,7 +68,7 @@ async def test_create_session_audit_time_is_utc() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # send_message
 # ─────────────────────────────────────────────────────────────────────────────
-def _make_ai_session(session_id: str = "s-1", message_count: int = 0) -> MagicMock:
+def _make_ai_session(session_id: str = "11111111-1111-4111-8111-111111111111", message_count: int = 0) -> MagicMock:
     s = MagicMock()
     s.id = session_id
     s.user_id = "u-1"
@@ -91,7 +91,12 @@ async def test_send_message_user_and_assistant_msgs_use_current_user_id() -> Non
     session.add = MagicMock()
     session.flush = AsyncMock()
 
-    await send_message(session, user_id=user_id, session_id="s-1", text="hi 你好")
+    await send_message(
+        session,
+        user_id=user_id,
+        session_id="11111111-1111-4111-8111-111111111111",
+        text="hi 你好",
+    )
 
     # session.add 调用了 2 次：user_msg, assistant_msg
     assert session.add.call_count == 2
@@ -125,7 +130,12 @@ async def test_send_message_audit_time_is_utc() -> None:
     session.flush = AsyncMock()
 
     before = datetime.now(UTC)
-    await send_message(session, user_id=user_id, session_id="s-1", text="hi")
+    await send_message(
+        session,
+        user_id=user_id,
+        session_id="11111111-1111-4111-8111-111111111111",
+        text="hi",
+    )
     after = datetime.now(UTC)
 
     user_msg = session.add.call_args_list[0][0][0]

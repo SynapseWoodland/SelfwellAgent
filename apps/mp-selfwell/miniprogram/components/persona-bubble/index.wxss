@@ -14,6 +14,7 @@
   background-color: #FFFFFF;
   color: #2D3436;
   align-self: flex-start;
+  border-bottom-left-radius: 4rpx;
 }
 
 .bubble-listening {
@@ -32,6 +33,17 @@
   padding: 24rpx 32rpx;
 }
 
+.bubble-medical {
+  border: 2rpx solid #F0D9C4;
+  background-color: #FFFFFF;
+}
+
+/* 附件型气泡（upload / analyzing / report）：最大宽度撑满，便于卡片渲染 */
+.bubble-attachment {
+  max-width: 92%;
+  padding: 24rpx 28rpx;
+}
+
 .bubble-title {
   font-size: 36rpx;
   font-weight: 500;
@@ -41,6 +53,12 @@
 
 .bubble-text {
   white-space: pre-wrap;
+  margin-bottom: 12rpx;
+}
+
+/* 让 slot 内嵌的卡片有自己的内边距（避免与 bubble padding 重复） */
+.bubble-attachment .bubble-text:last-child {
+  margin-bottom: 0;
 }
 
 .thinking-dots {

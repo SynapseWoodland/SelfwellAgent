@@ -108,7 +108,7 @@ def test_normalize_directions_mixed_types() -> None:
 
 
 def test_normalize_tags_passthrough() -> None:
-    """tags 已经是 ``list[str]``（>= MIN_TAGS 条）时应原样返回。"""
+    """Tags 已经是 ``list[str]``（>= MIN_TAGS 条）时应原样返回。"""
     raw = ["肩颈", "气色", "睡眠", "情绪", "压力", "活力", "气质", "免疫"]
     result = _normalize_tags(raw)
     assert result == ["肩颈", "气色", "睡眠", "情绪", "压力", "活力", "气质", "免疫"]

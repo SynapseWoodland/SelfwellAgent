@@ -42,5 +42,13 @@ class ObjectStorage(ABC):
     async def presigned_url(self, key: str, *, expires_sec: int = 3600) -> str:
         """生成临时直传 URL（presigned PUT / GET）。"""
 
+    async def presigned_get_url(self, key: str, *, expires_sec: int = 3600) -> str:
+        """生成临时读取 URL（GET presigned）。
+
+        默认实现：调 ``presigned_url``（PUT）；子类可 override 提供真 GET presigned。
+        用途：把 object_key 解析为可访问 URL，供下游 LLM/前端读取。
+        """
+        return await self.presigned_url(key, expires_sec=expires_sec)
+
 
 __all__ = ["ObjectStorage"]

@@ -299,20 +299,33 @@ def audit_persona_state_switch(
     to_state: str,
     trigger: str,
     session_id: str | None = None,
+    mock_reason: str | None = None,
 ) -> None:
     """审计事件 3：M5 Persona FSM 状态切换。
 
     状态机：``warm`` / ``neutral`` / ``slight_hug`` / ``medical_guarded``
     （见 ``docs/spec/facts-anchor.md`` §4 + ADR-0015）。
+
+    Args:
+        user_id_pseudo: 脱敏用户 ID。
+        from_state: 切换前状态。
+        to_state: 切换后状态。
+        trigger: 触发原因（intent 或外部事件）。
+        session_id: 可选会话 ID。
+        mock_reason: 当回复走静态兜底（llm_model="static-fallback" / cost=0）
+            时透出原因（例如 ``llm_unavailable`` / ``rule_engine_fallback``），
+            便于运维聚合分析 mock 触发频率。
+
     """
-    logger.info(
-        "audit_persona_state_switch",
-        user_id_pseudo=user_id_pseudo,
-        from_state=from_state,
-        to_state=to_state,
-        trigger=trigger,
-        session_id=session_id,
-    )
+    extra: dict[str, object] = {
+        "from_state": from_state,
+        "to_state": to_state,
+        "trigger": trigger,
+        "session_id": session_id,
+    }
+    if mock_reason is not None:
+        extra["mock_reason"] = mock_reason
+    logger.info("audit_persona_state_switch", user_id_pseudo=user_id_pseudo, **extra)
 
 
 __all__ = [

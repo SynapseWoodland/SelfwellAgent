@@ -1,0 +1,6 @@
+/* upload-card：智能分析上传卡
+ * 样式继承自父页面（persona-bubble 设 styleIsolation: 'apply-shared'，
+ * 本组件继承同样的隔离策略），所以 .upload-card / .upload-slot /
+ * .upload-btn-start 等类都已在 assistant-home/index.wxss 中定义。
+ * 本文件留空，仅作占位，避免组件目录缺少样式文件时报错。
+ */

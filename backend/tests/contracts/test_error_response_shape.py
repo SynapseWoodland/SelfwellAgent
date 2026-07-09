@@ -89,7 +89,7 @@ async def test_checkin_invalid_input_returns_openapi_error_envelope() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_feedback_invalid_type_returns_openapi_error_envelope() -> None:
-    """feedback 非法 type → 400 + envelope。
+    """Feedback 非法 type → 400 + envelope。
 
     直接用 mock 跳过 auth，强制让 service 抛 FeedbackError(E_FEEDBACK_INVALID_TYPE)。
     """
@@ -131,7 +131,7 @@ async def test_feedback_invalid_type_returns_openapi_error_envelope() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_recall_empty_returns_openapi_error_envelope() -> None:
-    """recall 空态 → 200 + envelope（如 OpenAPI §E_RECALL_EMPTY 所定义）。"""
+    """Recall 空态 → 200 + envelope（如 OpenAPI §E_RECALL_EMPTY 所定义）。"""
     from app.services.recall_service import RecallError
 
     app = _build_app_with_router_and_handler(
@@ -164,7 +164,7 @@ async def test_recall_empty_returns_openapi_error_envelope() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_share_template_invalid_returns_openapi_error_envelope() -> None:
-    """share 非法模板 → 400 + envelope。"""
+    """Share 非法模板 → 400 + envelope。"""
     from app.services.share_service import ShareError
 
     app = _build_app_with_router_and_handler(

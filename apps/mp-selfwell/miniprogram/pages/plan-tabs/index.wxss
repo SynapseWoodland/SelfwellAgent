@@ -1,0 +1,221 @@
+/* PR-A4：21 天方案 Tab 页样式 */
+
+.plan-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding-bottom: 48rpx;
+}
+
+/* segment control */
+.segment-control {
+  margin: 24rpx 32rpx;
+  background-color: #F0F2F5;
+  border-radius: 32rpx;
+  padding: 8rpx;
+  display: flex;
+}
+
+.segment-btn {
+  flex: 1;
+  padding: 16rpx 0;
+  text-align: center;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  color: #4A5568;
+}
+
+.segment-btn.active {
+  background-color: #FFFFFF;
+  color: #2D3436;
+  font-weight: 500;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+/* 今日视图 */
+.today-view {
+  padding: 0 32rpx 32rpx;
+}
+
+.hero {
+  margin-bottom: 24rpx;
+}
+
+.hero-title {
+  font-size: 44rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 8rpx;
+}
+
+.hero-sub {
+  font-size: 28rpx;
+  color: #4A5568;
+}
+
+.stage-card {
+  background: linear-gradient(135deg, #A8C5B5 0%, #B8D4E3 100%);
+  border-radius: 32rpx;
+  padding: 40rpx 32rpx;
+  color: #FFFFFF;
+  margin-bottom: 32rpx;
+}
+
+.stage-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.stage-sub {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.day-detail-card,
+.week-card {
+  background-color: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  gap: 24rpx;
+}
+
+.detail-row + .detail-row {
+  border-top: 2rpx solid #F0F2F5;
+}
+
+.detail-thumb {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #D4C5E2 0%, #B8D4E3 100%);
+  flex-shrink: 0;
+}
+
+.detail-content {
+  flex: 1;
+}
+
+.detail-name {
+  font-size: 28rpx;
+  color: #2D3436;
+  margin-bottom: 4rpx;
+}
+
+.detail-meta {
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.detail-arrow {
+  color: #A0AEC0;
+  font-size: 36rpx;
+}
+
+.empty-card {
+  margin-top: 32rpx;
+  background-color: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx 32rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.empty-card-text {
+  font-size: 28rpx;
+  color: #4A5568;
+  margin-bottom: 24rpx;
+}
+
+.empty-card-btn {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  padding: 16rpx 48rpx;
+  font-size: 28rpx;
+  border: none;
+}
+
+/* 全部视图 */
+.all-view {
+  padding: 0 32rpx;
+}
+
+.week-card {
+  margin-bottom: 24rpx;
+}
+
+.week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.week-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.week-status {
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12rpx;
+}
+
+.day-cell {
+  aspect-ratio: 1;
+  background-color: #F5E6D3;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #4A5568;
+  cursor: pointer;
+}
+
+.day-cell.done {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+}
+
+.day-cell.today {
+  background-color: #FFFFFF;
+  border: 2rpx solid #A8C5B5;
+  color: #2D3436;
+  font-weight: 500;
+}
+
+.day-cell.today .day-num {
+  color: #A8C5B5;
+}
+
+.day-cell.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.day-num {
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.day-status {
+  font-size: 20rpx;
+}

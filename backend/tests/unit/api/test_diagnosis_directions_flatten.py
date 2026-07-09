@@ -25,7 +25,7 @@ class TestFlattenItemsHelper:
     """``_flatten_items`` 单元测试。"""
 
     def test_list_input_unchanged(self) -> None:
-        """list 直接透传。"""
+        """List 直接透传。"""
         assert _flatten_items([1, 2, 3]) == [1, 2, 3]
         assert _flatten_items(["a", "b"]) == ["a", "b"]
 
@@ -62,7 +62,7 @@ class TestDiagnosisDataFlatten:
     """``DiagnosisData`` field_validator 单元测试。"""
 
     def test_list_directions_validates(self) -> None:
-        """list 格式 directions 正常通过。"""
+        """List 格式 directions 正常通过。"""
         data = DiagnosisData(
             directions=[{"title": "x", "description": "y"}],
             tags=["t1"],

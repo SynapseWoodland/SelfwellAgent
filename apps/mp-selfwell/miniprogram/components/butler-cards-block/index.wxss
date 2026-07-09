@@ -1,0 +1,182 @@
+/* =================================================================
+   SPEC-A2 V1.0 §5 智能管家入口卡折叠块
+   配色严格按 SPEC §5：
+     mint #A8C5B5 / cream #F5E6D3 / peach #F0D9C4 / lavender #D4C5E2
+     深色 #2D3436 / 灰 #4A5568 #718096
+================================================================= */
+
+.butler-cards-block {
+  position: relative;
+}
+
+/* SPEC-A2 §4.2 expanded：底部 3 入口卡条
+ * 注意：expanded 视觉绑在最外层 .butler-cards-block 父级 div 上（因为 wxml 里
+ * class="butler-cards-block butler-cards-block--{{mode}}"）。当 popover 打开时，
+ * 父级 div 同时有 .has-popover-open，popover 卡片也在父级内部。
+ * 因此不能简单 .butler-cards-block--expanded { display:none }（会把 popover 一起藏掉）。
+ * 解法：用 :not(.has-popover-open) 限定 —— 仅当 popover 未打开时才应用 expanded 视觉。 */
+.butler-cards-block:not(.has-popover-open).butler-cards-block--expanded {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* 浮在 chips-bar (bottom:120rpx) 之上方；自身高度 ≈ 160rpx (24+72+24+padding+安全) */
+  bottom: calc(120rpx + 156rpx);
+  padding: 24rpx 32rpx;
+  background-color: #FFFFFF;
+  border-top: 2rpx solid #E2E8F0;
+  z-index: 12;
+  animation: butlerSlideUp 300ms ease-out;
+}
+
+@keyframes butlerSlideUp {
+  from { opacity: 0; transform: translateY(40rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ───── collapsed / focused：卡块透明，floating icon 接管 ───── */
+.butler-cards-block--collapsed,
+.butler-cards-block--focused {
+  background: transparent;
+  border-top: none;
+  padding: 0;
+  pointer-events: none;
+}
+
+.butler-cards-block__cards {
+  display: flex;
+  gap: 24rpx;
+  overflow-x: auto;
+}
+
+.butler-cards-block--collapsed .butler-cards-block__cards,
+.butler-cards-block--focused  .butler-cards-block__cards {
+  display: none;
+}
+
+@keyframes butlerFadeOut {
+  to { opacity: 0; transform: translateY(-20rpx); }
+}
+
+/* ───── floating icon（核心视觉，SPEC §5.2） ───── */
+.butler-cards-block__float {
+  position: fixed;
+  top: 200rpx;
+  right: 32rpx;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: #A8C5B5;
+  box-shadow: 0 8rpx 24rpx rgba(168, 197, 181, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  z-index: 30;
+  animation: butlerFloatIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 200ms, opacity 200ms;
+}
+
+.butler-cards-block__float:active {
+  transform: scale(0.92);
+}
+
+.butler-cards-block__float.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(40rpx);
+}
+
+@keyframes butlerFloatIn {
+  from { opacity: 0; transform: scale(0.3) translateY(20rpx); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+/* ⊕ 同心圆（SPEC §5.2 ：border + ::before 中心圆） */
+.butler-cards-block__float-inner {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  border: 4rpx solid #2D3436;
+  position: relative;
+}
+.butler-cards-block__float-inner::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 16rpx; height: 16rpx;
+  background: #2D3436;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ───── popover（SPEC §5.3） ───── */
+.butler-cards-block__popover {
+  position: fixed;
+  inset: 88rpx 32rpx auto 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.15);
+  padding: 24rpx;
+  z-index: 40;
+  animation: butlerPopoverIn 200ms ease-out;
+}
+
+@keyframes butlerPopoverIn {
+  from { opacity: 0; transform: translateY(-20rpx) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)      scale(1); }
+}
+
+.butler-cards-block__popover-close {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #F0F2F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #718096;
+}
+
+/* ───── 卡片视觉（沿用 M5，SPEC §5.5） ───── */
+.butler-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #F5F7FA;
+  flex: 1 0 280rpx;
+  min-width: 280rpx;
+}
+
+.butler-card__icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  flex-shrink: 0;
+}
+
+.butler-card__title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.butler-card__sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #4A5568;
+}
+
+.butler-card--popover {
+  margin-bottom: 16rpx;
+}
+.butler-card--popover:last-child { margin-bottom: 0; }

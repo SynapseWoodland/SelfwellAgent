@@ -220,7 +220,7 @@ class SelfwellMvpUser(HttpUser):
 
 
 @events.init_command_line_parser.add_listener
-def _add_args(parser: "events.CommandLineParser") -> None:
+def _add_args(parser: events.CommandLineParser) -> None:
     """Register custom CLI args."""
     parser.add_argument(
         "--peak-users", type=int, default=200, help="Peak concurrent users"

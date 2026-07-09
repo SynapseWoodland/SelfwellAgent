@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.api.routers.diagnosis_v1 import DiagnosisCreateRequest, PhotoInput
+from app.api.routers.diagnosis_v1 import DiagnosisCreateRequest, DiagnosisPhotoItem
 
 
 class TestDiagnosisCreateFrontendFormat:
@@ -112,20 +112,20 @@ class TestDiagnosisCreateInvalidFormat:
             req.resolve_photos()
 
 
-class TestPhotoInput:
-    """PhotoInput schema 测试用例。"""
+class TestDiagnosisPhotoItem:
+    """DiagnosisPhotoItem schema 测试用例。"""
 
     def test_valid_photo_input(self) -> None:
-        """合法 PhotoInput。"""
-        photo = PhotoInput(url="test.jpg", body_part="face")
+        """合法 DiagnosisPhotoItem。"""
+        photo = DiagnosisPhotoItem(url="test.jpg", body_part="face")
         assert photo.url == "test.jpg"
         assert photo.body_part == "face"
         assert photo.format == "jpg"
         assert photo.size_bytes == 0
 
     def test_photo_input_all_fields(self) -> None:
-        """PhotoInput 全字段。"""
-        photo = PhotoInput(
+        """DiagnosisPhotoItem 全字段。"""
+        photo = DiagnosisPhotoItem(
             url="test.png",
             body_part="head",
             format="png",
@@ -135,6 +135,6 @@ class TestPhotoInput:
         assert photo.format == "png"
 
     def test_photo_input_empty_url_rejected(self) -> None:
-        """url 为空 → 校验失败。"""
+        """Url 为空 → 校验失败。"""
         with pytest.raises(ValidationError):
-            PhotoInput(url="", body_part="face")
+            DiagnosisPhotoItem(url="", body_part="face")

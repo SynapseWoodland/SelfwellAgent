@@ -1,15 +1,11 @@
-"""LLM Pydantic schema.
+"""LLM Pydantic schema（精简版）。
 
-生产路径按能力拆分为两类请求：
-- ``MultimodalRequest``：照片智能分析等 vision 场景
-- ``TextRequest``：智能管家聊天 / 调理常识等纯文本场景
-
-保留 ``LLMRequest.images`` 是为了兼容现有 cassette 与迁移期代码。
+保留：LLMMessage + MultimodalRequest + TextRequest。
+其他全部移至 app/llm/__init__.py（直接 init_chat_model 单实例）。
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -49,33 +45,9 @@ class TextRequest(LLMRequest):
     images: list[str] = Field(default_factory=list, max_length=0)
 
 
-class LLMResponse(BaseModel):
-    """LLM 统一出参。"""
-
-    content: str
-    model: str
-    latency_ms: int
-    token_count: int = 0
-    cost_yuan: float = 0.0
-    finish_reason: str = "stop"
-    raw: dict[str, Any] = Field(default_factory=dict)
-
-
-class LLMClient(ABC):
-    """LLM 客户端抽象基类，主要用于测试替身。"""
-
-    provider_name: str = "mock"
-
-    @abstractmethod
-    async def achat(self, request: LLMRequest) -> LLMResponse:
-        """异步 chat 调用。"""
-
-
 __all__ = [
-    "LLMClient",
     "LLMMessage",
     "LLMRequest",
-    "LLMResponse",
     "MultimodalRequest",
     "TextRequest",
 ]

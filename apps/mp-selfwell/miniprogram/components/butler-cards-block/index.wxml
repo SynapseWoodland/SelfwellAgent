@@ -1,0 +1,69 @@
+<!--
+  SPEC-A2 §4.2 + §4.3
+  - expanded：3 张入口卡横排
+  - collapsed / focused：右侧悬浮圆形 icon
+  - popover：floating-tap 后从顶部滑入，6s 后自动收起（父组件控制）
+-->
+<view class="butler-cards-block butler-cards-block--{{mode}} {{ popoverOpen ? 'has-popover-open' : '' }}" data-test="butler-cards-block">
+
+  <!-- 状态 A: expanded —— 3 张卡横排（popoverOpen=true 时不渲染，避免和 popover 内容视觉重复） -->
+  <block wx:if="{{mode === 'expanded' && !popoverOpen}}">
+    <view class="butler-cards-block__cards">
+      <view
+        wx:for="{{cards}}"
+        wx:key="id"
+        class="butler-card"
+        data-id="{{item.id}}"
+        bindtap="onCardTap"
+        aria-role="button"
+        aria-label="{{item.title}}，{{item.subtitle}}"
+      >
+        <view class="butler-card__icon" style="background:{{item.iconBg}}">{{item.iconText}}</view>
+        <view class="butler-card__body">
+          <view class="butler-card__title">{{item.title}}</view>
+          <view class="butler-card__sub">{{item.subtitle}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 状态 B/C: collapsed / focused —— floating icon（popoverOpen=true 时也不渲染，避免和 popover 重叠） -->
+  <block wx:elif="{{(mode === 'collapsed' || mode === 'focused') && !popoverOpen}}">
+    <view
+      class="butler-cards-block__float {{mode === 'focused' ? 'is-hidden' : ''}}"
+      bindtap="onFloatingTap"
+      aria-role="button"
+      aria-label="打开 3 入口卡"
+      data-test="butler-float-icon"
+    >
+      <view class="butler-cards-block__float-inner"></view>
+    </view>
+  </block>
+
+  <!-- popover：覆盖层 + 内层卡片（catchtap 阻止冒泡到外层 close） -->
+  <view
+    wx:if="{{popoverOpen}}"
+    class="butler-cards-block__popover"
+    bindtap="onPopoverClose"
+    data-test="butler-popover"
+  >
+    <view class="butler-cards-block__popover-card" catchtap="noop">
+      <view class="butler-cards-block__popover-close" catchtap="onPopoverClose" aria-role="button" aria-label="关闭">✕</view>
+      <view
+        wx:for="{{cards}}"
+        wx:key="id"
+        class="butler-card butler-card--popover"
+        data-id="{{item.id}}"
+        bindtap="onCardTap"
+        aria-role="button"
+        aria-label="{{item.title}}，{{item.subtitle}}"
+      >
+        <view class="butler-card__icon" style="background:{{item.iconBg}}">{{item.iconText}}</view>
+        <view class="butler-card__body">
+          <view class="butler-card__title">{{item.title}}</view>
+          <view class="butler-card__sub">{{item.subtitle}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

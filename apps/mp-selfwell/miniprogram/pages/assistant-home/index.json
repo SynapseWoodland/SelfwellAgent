@@ -1,6 +1,10 @@
 {
   "navigationBarTitleText": "智能管家",
   "usingComponents": {
-    "persona-bubble": "/components/persona-bubble/index"
+    "persona-bubble": "/components/persona-bubble/index",
+    "upload-card": "/components/upload-card/index",
+    "progress-card": "/components/progress-card/index",
+    "report-card": "/components/report-card/index",
+    "butler-cards-block": "/components/butler-cards-block/index"
   }
 }

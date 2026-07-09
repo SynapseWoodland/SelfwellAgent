@@ -20,7 +20,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DECIMAL, TIMESTAMP, VARCHAR, ForeignKey, Text
+from sqlalchemy import DECIMAL, TIMESTAMP, VARCHAR, ForeignKey, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -50,6 +50,10 @@ class Report(Base):
     llm_cost: Mapped[Decimal] = mapped_column(
         DECIMAL(precision=10, scale=4), nullable=False, default=Decimal("0.0000")
     )
+    # Async pipeline 状态（PR-A1 引入）：
+    # - 同步 LLM 路径不写此列，保持 NULL（向后兼容现有 78 个测试）
+    # - async 路径写入 queued → running → ready / failed（与 JobStateStore 对齐）
+    status: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False
     )

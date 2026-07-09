@@ -111,7 +111,7 @@ class UserInputError(SelfwellError):
     """用户输入错误：400 系列，4 级中最优先返回。"""
 
     severity: ErrorSeverity = USER_ERROR
-    http_status: int = 422
+    http_status: int = 400
 
 
 class DegradedError(SelfwellError):

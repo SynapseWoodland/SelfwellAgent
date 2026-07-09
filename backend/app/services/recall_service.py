@@ -16,6 +16,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import hash_user_id_pseudo
 from app.core.errors import SelfwellError, UserInputError
 from app.core.log import (
     audit_safety_violation,
@@ -35,46 +36,81 @@ VALID_TRIGGERS: frozenset[str] = frozenset(
 )
 DAILY_LIMIT = 1
 
-# 100+ 词 4 分组（精简版，真源 docs/data/recall-forbidden-words.yaml）
+# 4 分组 100+ 词（精简版，真源 docs/data/recall-forbidden-words.yaml）。
+#
+# 分组命名规范（ADR-0017 §3.3 + test_recall_safety_keywords 对齐）：
+# - before_after_judge    前后/对比/进步评判
+# - effect_commit         效果承诺/变化描述
+# - numeric_judge         数字评判/天数比较/百分比
+# - appearance_judge      评判气质/外观/排名
+#
+# 注意：不要把"X 天""已经""坚持"等中性词直接作为关键词（会误拦）。
+# 凡是含具体数字 + 评判义复合模式：保留精确短语作为触发器。
 FORBIDDEN_WORDS: dict[str, list[str]] = {
-    "appearance_compare": [
-        "我比",
-        "比别人",
-        "比她",
-        "比他",
-        "颜值",
-        "几分",
-        "排名",
-        "比较",
+    "before_after_judge": [
+        "前后对比",
+        "前后对比",
+        "之前更好",
+        "比之前",
+        "比上周",
+        "比上周更好",
+        "更挺拔",
+        "更紧致",
+        "更有气质",
+        "进步了",
+        "改善了",
+        "好转了",
+        "效果明显",
+        "效果显著",
     ],
-    "appearance_anxiety": [
-        "丑",
+    "effect_commit": [
+        "会飙升",
+        "会爆发",
+        "彻底",
+        "完全治愈",
+        "治愈率",
+        "痊愈",
+        "一直好",
+        "永远好",
+        "稳定不复发",
+        "明显改善",
+        "肉眼可见",
+        "立竿见影",
+    ],
+    "numeric_judge": [
+        "坚持 X 天",
+        "坚持 14 天",
+        "坚持 7 天",
+        "坚持 21 天",
+        "打败 95%",
+        "打败 90%",
+        "超过 95%",
+        "前 10%",
+        "前 5%",
+        "95% 的人",
+        "排名第一",
+        "排名第二",
+        "排名第",
+        "100 分",
+    ],
+    "appearance_judge": [
+        "颜值",
+        "变白",
+        "皮肤变白",
+        "脸变白",
+        "变瘦",
+        "变胖",
+        "变美",
+        "变丑",
         "难看",
-        "自卑",
         "焦虑",
+        "自卑",
         "崩溃",
         "绝望",
-        "不如",
         "嫌弃",
-    ],
-    "medical_drift": [
-        "治疗",
-        "治愈",
-        "病",
-        "处方",
-        "医生",
-        "医院",
-        "打针",
         "玻尿酸",
-    ],
-    "judgment_absolute": [
-        "一定",
-        "必须",
-        "绝对",
-        "肯定",
-        "保证",
-        "永远",
-        "不可能",
+        "打针",
+        "医美",
     ],
 }
 
@@ -205,7 +241,7 @@ async def generate_recall(
     if not safety["passed"]:
         # 命中 → 用兜底文案
         audit_safety_violation(
-            user_id_pseudo=str(user_id)[:8],
+            user_id_pseudo=hash_user_id_pseudo(str(user_id)),
             category="recall_forbidden",
             content_hash=hash(candidate) & 0xFFFFFFFF,
             matched_tokens=safety["matches"],
@@ -283,7 +319,12 @@ async def get_recall(session: AsyncSession, *, user_id: str, recall_id: str) -> 
 async def get_recall_by_day(
     session: AsyncSession, *, user_id: str, day: int
 ) -> dict[str, Any] | None:
-    """按 plan day (7/14/21) 取最近一次回忆。"""
+    """按 plan day (7/14/21) 取最近一次回忆。
+
+    返回字段（与 tests/unit/services/test_recall_today.py 契约 1:1）：
+    - recall_id / trigger / summary / encourage / safety_passed / created_at
+    - referenced_feedbacks（list；保结构稳定，避免测试 KeyError）
+    """
     trigger = {7: "auto_day7", 14: "auto_day14", 21: "auto_day21"}.get(day)
     if not trigger:
         return None
@@ -307,6 +348,7 @@ async def get_recall_by_day(
         "summary": rs.ai_summary or "",
         "encourage": rs.ai_encourage or "",
         "safety_passed": rs.safety_passed,
+        "referenced_feedbacks": rs.referenced_feedbacks or [],
         "created_at": rs.created_at.isoformat() if rs.created_at else None,
     }
 

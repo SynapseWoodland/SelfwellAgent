@@ -76,7 +76,7 @@ class SelfwellAPISmokeUser(HttpUser):
 
 
 @events.init_command_line_parser.add_listener
-def _(parser: "events.CommandLineParser") -> None:
+def _(parser: events.CommandLineParser) -> None:
     """Register custom command line arguments for Locust."""
     parser.add_argument("--test-duration", type=int, default=60, help="Run duration in seconds")
     parser.add_argument(

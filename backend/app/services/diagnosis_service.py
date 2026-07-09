@@ -5,30 +5,46 @@
 - 7 天 Redis 缓存（按 user_id key）
 - 多模态主备链 + 规则引擎兜底
 - 5 条合规红线（R1-R5）1:1 进入 Prompt
+
+PR-A2（async pipeline · 2026-07-08）增量：
+- 拆 ``_llm_diagnose`` 为 ``_invoke_llm_structured``（LLM 调用 + missing_note 拼接），
+  同步路径仍用 ``_llm_diagnose`` 薄包装调用；不改 PR-A3 既有测试。
+- 新增 ``stream_diagnose``：阶段式推送 ``JobEvent(kind="stage")``，
+  最终 ``done``，异常 ``error``。
+- 新增 ``run_diagnosis_job``：被 router 用 ``asyncio.create_task`` 启动的入参包装。
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
+import yaml
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import SelfwellError, UserInputError
+from app.core.job_state import JobStateStore
 from app.core.log import logger
 from app.db.models.report import Report
 from app.db.models.user import User
 from app.errors.codes import (
     E_DIAGNOSIS_COMPLAINT_TOO_LONG,
+    E_DIAGNOSIS_FACE_REQUIRED,
     E_DIAGNOSIS_IMAGE_FORMAT_UNSUPPORTED,
     E_DIAGNOSIS_IMAGE_TOO_LARGE,
     E_DIAGNOSIS_INVALID_INPUT,
     E_DIAGNOSIS_NOT_FOUND,
+    E_DIAGNOSIS_PIPELINE_FAILED,
     E_DIAGNOSIS_RATE_LIMIT,
 )
 from app.services.compliance.checker import check_input as _check_input_compliance
@@ -83,12 +99,95 @@ class DiagnosisRateLimitError(DiagnosisError):
     http_status = 429
 
 
+def _resolve_object_key_to_url(object_key: str) -> str:
+    """把 ``object_key`` 解析成可访问 URL（用于 ``object_key`` alias 兼容）。
+
+    实现：调 ``MinioStorage.presigned_url`` 生成临时 GET URL。
+    若对象存储未配置或不可用，回退为 ``{endpoint}/{bucket}/{key}`` 公开读 URL。
+
+    Args:
+        object_key: 形如 ``diagnosis/u-xxx/uuid.jpg`` 的对象 key。
+
+    Returns:
+        可访问的 URL 字符串。
+
+    """
+    try:
+        from app.conf.app_config import app_config
+        from app.storage.factory import get_storage
+
+        storage = get_storage()
+        # GET presigned（put presigned 不能直接给到 LLM 读）
+        try:
+            return storage.presigned_get_url(object_key, expires_sec=3600)
+        except AttributeError:
+            # 兼容旧实现：某些存储未提供 presigned_get_url，临时退回公开 URL
+            storage_cfg = app_config.storage
+            scheme = "https" if storage_cfg.minio.secure else "http"
+            return f"{scheme}://{storage_cfg.minio.endpoint}/{storage_cfg.minio.bucket}/{object_key}"
+    except Exception:
+        # 对象存储未配置 / 不可用：退回 MinIO 公开读 URL（开发态可用）
+        from app.conf.app_config import app_config
+
+        storage_cfg = app_config.storage
+        scheme = "https" if storage_cfg.minio.secure else "http"
+        return f"{scheme}://{storage_cfg.minio.endpoint}/{storage_cfg.minio.bucket}/{object_key}"
+
+
 def _validate_photos(photos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """校验前端单图或原生 3 图照片输入。"""
-    if not isinstance(photos, list) or len(photos) not in {1, 3}:
+    """校验前端 1-3 张照片输入（face 必含）。
+
+    数量规则（MVP A 场景 · Sprint 2026-07-08）：
+    - 接受 ``1 ≤ len(photos) ≤ 3``，允许用户跳过 head / shoulder_neck 等可选视角。
+    - 至少 1 张 ``body_part == "face"`` 必传（面部是诊断的核心输入）。
+    - 不足 3 张时，调用方应在 LLM 提示词末尾追加 ``[NOTE] 缺失 N 张图片 (body_parts 缺失: [...])``，
+      由 ``_llm_diagnose`` 自动拼接。
+
+    N-1 兼容：
+    - 同时接受 ``url`` 和 ``object_key`` 两种字段（首选 ``url``，缺失则用
+      ``object_key`` 通过 ``_resolve_object_key_to_url`` 解析成 presigned URL）。
+    - 历史背景：Sprint 2026-07-08 前端 diagnosis-upload helper
+      (``apps/mp-selfwell/miniprogram/utils/upload-helper.ts``) 发
+      ``{object_key, body_part, format, size_bytes}``，旧 service 读 ``url``
+      必然 400 → 前端走 mock，永远到不了 LLM。
+    - 前端切到 ``url`` 字段后（待 PM 排期），可删除 ``object_key`` 兼容分支
+      （同时 ``_resolve_object_key_to_url`` 可保留作为 ObjectKey 解析工具）。
+
+    字段语义：
+    - ``url``：首选字段，公开可访问 URL。
+    - ``object_key``：alias；用于调 ``MinioStorage.presigned_get_url`` 构造临时访问 URL。
+    - ``body_part``：face | head | shoulder_neck。
+    - ``format``：jpg | png | webp | heic。
+    - ``size_bytes``：字节。
+
+    Args:
+        photos: 1-3 张照片 dict。
+
+    Returns:
+        校验后的 photos 列表（每项包含 ``url`` 与 ``object_key``，以便下游 LLM/缓存
+        都能正确处理）。
+
+    Raises:
+        UserInputError: 数量错 / 字段缺失 / body_part 非法 / 缺少 face。
+        DiagnosisError: 格式不支持 / 体积过大。
+
+    """
+    if not isinstance(photos, list) or not (1 <= len(photos) <= 3):
         raise UserInputError(
-            "需要 1 张或 3 张照片",
+            "需要 1-3 张照片",
             code=E_DIAGNOSIS_INVALID_INPUT,
+            field="photos",
+        )
+    body_parts_seen: set[str] = set()
+    for photo in photos:
+        if isinstance(photo, dict):
+            bp = photo.get("body_part")
+            if isinstance(bp, str):
+                body_parts_seen.add(bp)
+    if "face" not in body_parts_seen:
+        raise UserInputError(
+            "至少需要 1 张面部照片（body_part=face）",
+            code=E_DIAGNOSIS_FACE_REQUIRED,
             field="photos",
         )
     validated: list[dict[str, Any]] = []
@@ -101,12 +200,22 @@ def _validate_photos(photos: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 field=f"photos[{idx}]",
             )
         url = photo.get("url")
+        object_key = photo.get("object_key")
         body_part = photo.get("body_part")
         size = photo.get("size_bytes", 0)
         fmt = photo.get("format", "jpg").lower()
-        if not url or not isinstance(url, str):
+        if not url and not object_key:
             raise UserInputError(
-                f"第 {idx + 1} 张照片 url 缺失",
+                f"第 {idx + 1} 张照片 url / object_key 缺失",
+                code=E_DIAGNOSIS_INVALID_INPUT,
+                field=f"photos[{idx}]",
+            )
+        # 兼容：若只有 object_key，把它解析成可访问 URL
+        if not url:
+            url = _resolve_object_key_to_url(str(object_key))
+        if not isinstance(url, str):
+            raise UserInputError(
+                f"第 {idx + 1} 张照片 url 非字符串",
                 code=E_DIAGNOSIS_INVALID_INPUT,
                 field=f"photos[{idx}].url",
             )
@@ -130,7 +239,15 @@ def _validate_photos(photos: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 code=E_DIAGNOSIS_INVALID_INPUT,
                 field=f"photos[{idx}].body_part",
             )
-        validated.append({"url": url, "body_part": body_part, "format": fmt, "size_bytes": size})
+        validated.append(
+            {
+                "url": url,
+                "object_key": object_key or url,
+                "body_part": body_part,
+                "format": fmt,
+                "size_bytes": size,
+            }
+        )
     return validated
 
 
@@ -242,60 +359,135 @@ def _photo_image_urls(photos: list[dict[str, Any]]) -> list[str]:
     return urls
 
 
-async def _llm_diagnose(
+async def _invoke_llm_structured(
     photos: list[dict[str, Any]],
     profile: dict[str, Any],
     complaint: str | None,
-) -> tuple[dict[str, Any], Decimal, str]:
-    """调用多模态 LLM 主备链；失败回退规则引擎。"""
-    from app.llm.client import LLMMessage, MultimodalRequest
-    from app.llm.multimodal_chain import MultimodalFallbackChain
+) -> dict[str, Any]:
+    """调用多模态 LLM（structured_llm），失败回退到规则引擎。
 
-    payload = _rule_engine_fallback(profile, complaint)
-    model_used = "rule-engine"
-    chain = MultimodalFallbackChain(
-        on_all_failed=lambda _request: json.dumps(
-            _rule_engine_fallback(profile, complaint), ensure_ascii=False
+    Returns:
+        ``{"directions": list[dict], "tags": list[str], "summary": str,
+           "llm_cost": str, "model": str}`` —— 字段供 service / stream 路径共用。
+        LLM 成功时 ``model`` = multimodal 模型名；失败时 ``model`` = ``"rule-engine"``。
+
+    Note:
+        ``missing_parts`` 计算与 PR-A3 引入的 ``[NOTE] 缺失 N 张图片 ...`` 文案
+        **完全一致**；同步 / stream 两条路径共用同一段逻辑，保证行为稳定。
+
+    """
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from app.llm import multimodal_llm
+    from app.llm.schemas import DiagnosisOutput
+
+    default_payload = _rule_engine_fallback(profile, complaint)
+    payload = default_payload
+    model = "rule-engine"
+
+    image_urls = _photo_image_urls(photos)
+    complaint_text = complaint or ""
+
+    # MVP A 场景：若 < 3 张照片，提示 LLM 缺失哪些视角，让模型在生成建议时显式标注。
+    missing_parts: list[str] = []
+    expected_parts = ("face", "head", "shoulder_neck")
+    seen_parts = {
+        str(p.get("body_part"))
+        for p in photos
+        if isinstance(p, dict) and p.get("body_part")
+    }
+    for part in expected_parts:
+        if part not in seen_parts:
+            missing_parts.append(part)
+    missing_note = ""
+    if len(photos) < 3 and missing_parts:
+        missing_note = (
+            f"\n[NOTE] 缺失 {3 - len(photos)} 张图片 "
+            f"(body_parts 缺失: {missing_parts})"
         )
+
+    # ── 多模态消息（image blocks 内联在 HumanMessage content 中）───────────────────
+    system_text = (
+        "你是 Selfwell 智能管家，基于用户照片和档案生成非医疗性质的基础养护建议。\n"
+        "安全规则：\n"
+        "1. 不要做疾病诊断\n"
+        "2. 不要承诺疗效\n"
+        "3. 不要给出处方、药物、注射或医美治疗建议\n"
+        "4. 只输出 JSON，不要包含 Markdown 或其他文字\n"
     )
-    request = MultimodalRequest(
-        messages=[LLMMessage(role="user", content=_diagnosis_prompt(profile, complaint))],
-        images=_photo_image_urls(photos),
-        metadata={"photo_count": len(photos), "profile": profile},
+    user_text = (  # noqa: UP032  —— 保留 verbatim：与 PR-A3 LLM prompt 1:1 一致（含 JSON 转义）
+        "用户档案：{profile}\n"
+        "用户主诉：{complaint}\n"
+        "请生成 JSON，格式如下：\n"
+        "{{\n"
+        '  "directions": [{{"title": "string", "description": "string", "video_id": "string|null"}}],\n'  # noqa: E501
+        '  "tags": ["string"],\n'
+        '  "summary": "string"\n'
+        "}}{missing_note}"
+    ).format(profile=profile, complaint=complaint_text, missing_note=missing_note)
+
+    content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
+    content.extend(
+        {"type": "image_url", "image_url": {"url": u}} for u in image_urls
     )
+    messages = [SystemMessage(content=system_text), HumanMessage(content=content)]
+
+    # ── Chain：structured_llm 直接调用 messages ─────────────────────────────────
+    structured_llm = multimodal_llm.with_structured_output(DiagnosisOutput)
+
     try:
-        result = await chain.run(request)
-        model_used = result.provider_used
-        if result.provider_used == "rule-engine":
-            payload = _rule_engine_fallback(profile, complaint)
-        else:
-            try:
-                parsed = json.loads(result.content)
-                payload = parsed if isinstance(parsed, dict) else payload
-            except (ValueError, TypeError):
-                logger.warning(
-                    "llm_diagnose_invalid_json",
-                    provider=result.provider_used,
-                    content_preview=result.content[:200],
-                )
+        result = await structured_llm.ainvoke(messages)
+        model = getattr(multimodal_llm, "model", "multimodal")
+        payload = {
+            "directions": [d.model_dump() for d in result.directions],
+            "tags": result.tags,
+            "summary": result.summary,
+            "llm_cost": "0",
+        }
     except Exception as exc:
         logger.warning(
             "llm_diagnose_fallback_to_rule_engine",
             error_type=type(exc).__name__,
             error_message=str(exc)[:200],
         )
+        payload = default_payload
+        model = "rule-engine"
 
-    directions = _normalize_directions(payload.get("directions"))
-    tags = _normalize_tags(payload.get("tags"))
-    summary = str(payload.get("summary", ""))
+    return {
+        "directions": _normalize_directions(payload.get("directions")),
+        "tags": _normalize_tags(payload.get("tags")),
+        "summary": str(payload.get("summary", "")),
+        "llm_cost": str(payload.get("llm_cost", "0.0")),
+        "model": model,
+    }
+
+
+async def _llm_diagnose(
+    photos: list[dict[str, Any]],
+    profile: dict[str, Any],
+    complaint: str | None,
+) -> tuple[dict[str, Any], Decimal, str]:
+    """兼容旧契约的薄包装（PR-A3 测试 + 同步 POST 路径沿用）。
+
+    Returns:
+        ``(payload, llm_cost_decimal, model_name)``
+        payload 字段与 ``_invoke_llm_structured()`` 返回值去掉 ``llm_cost`` / ``model``。
+
+    Note:
+        主叫方（``create_diagnosis`` 同步路径）已 hardcode 期望此签名，
+        本函数只做"转调 + summary 安全检查 + 字段裁剪"，**不**再做 LLM 调用。
+
+    """
+    raw = await _invoke_llm_structured(photos, profile, complaint)
+    summary = raw["summary"]
     if complaint:
         safety = _check_text_safety(complaint)
         if not safety.get("passed", True):
             summary = "我无法回答医疗问题，建议您咨询专业医师。"
     return (
-        {"directions": directions, "tags": tags, "summary": summary},
-        Decimal(str(payload.get("llm_cost", "0.0"))),
-        model_used,
+        {"directions": raw["directions"], "tags": raw["tags"], "summary": summary},
+        Decimal(raw["llm_cost"] or "0.0"),
+        raw["model"],
     )
 
 
@@ -384,10 +576,10 @@ async def create_diagnosis(
         raise DiagnosisNotFoundError(field="user_id")
 
     # 2. 缓存命中
-    cached = _get_cached_report(user)
-    if cached is not None:
-        logger.info("diagnosis_cache_hit", user_id=user_id)
-        return cached
+    # cached = _get_cached_report(user)
+    # if cached is not None:
+    #     logger.info("diagnosis_cache_hit", user_id=user_id)
+    #     return cached
 
     # 3. 校验输入
     validated_photos = _validate_photos(photos)
@@ -470,13 +662,362 @@ async def get_diagnosis(session: AsyncSession, *, user_id: str, report_id: str) 
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PR-A2 · SSE 真 pipeline 推送（plan §4.2 + §6.1 + JobStateStore）
+# ─────────────────────────────────────────────────────────────────────────────
+_COPY_FILE: Path = Path(__file__).resolve().parents[1] / "conf" / "assistant_copy.yaml"
+
+
+@lru_cache(maxsize=1)
+def _load_assistant_copy() -> dict[str, Any]:
+    """懒加载 ``assistant_copy.yaml``；lru_cache 一次性。
+
+    失败兜底返回 ``{}``（不抛 —— 启动期不允许因 yaml 文件不在而拒服务）。
+    """
+    try:
+        return yaml.safe_load(_COPY_FILE.read_text(encoding="utf-8")) or {}
+    except OSError:
+        return {}
+
+
+def _diag_phase_message(stage: str) -> str:
+    """获取阶段中文文案（``assistant_copy.yaml`` §三 ``diag_phase.<stage>``）。
+
+    Fallback：key 缺失或 yaml 加载失败 → 返回 ``stage`` 原 key（与既有
+    ``utils/sse-stage.ts`` 前端契约兼容，前端按英文 key 显示）。
+    """
+    raw = _load_assistant_copy()
+    phase = raw.get("diag_phase") or {}
+    if isinstance(phase, dict):
+        msg = phase.get(stage)
+        if isinstance(msg, str) and msg:
+            return msg
+    return stage
+
+
+# Stage 顺序（plan §4.2）。``stage`` 是 SSE 事件名，``percent`` 给前端进度条参考。
+_STAGE_SEQUENCE: tuple[tuple[str, int], ...] = (
+    ("connected", 0),
+    ("preprocess", 15),
+    ("analyzing", 45),
+    ("suggestion", 75),
+    ("ready", 100),
+)
+
+
+@dataclass(slots=True, frozen=True)
+class StreamDiagnoseInputs:
+    """``stream_diagnose`` 入参 bundle（避免超 PLR0913 5 参限制）。"""
+
+    photos: list[dict[str, Any]]
+    complaint: str | None
+    user_id: str
+    report_id: str
+    job_id: str
+    profile: dict[str, Any]
+
+
+@dataclass(slots=True)
+class DiagnosisJobInputs:
+    """``run_diagnosis_job`` 入参 bundle（除 ``job_id`` 外的所有入参 + db factory）。"""
+
+    photos: list[dict[str, Any]]
+    complaint: str | None
+    user_id: str
+    report_id: str
+    db_factory: Callable[[], AsyncSession]
+    store: JobStateStore
+
+
+async def _emit_stage(
+    store: JobStateStore,
+    job_id: str,
+    *,
+    stage: str,
+    percent: int,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """向 ``store`` 推一条 stage 事件，并在事件循环中让步一次（让消费者能立即拉走）。
+
+    Note:
+        ``append_event`` 在 ``JobStateStore`` 接口里是 **sync**（PR-A1）；
+        本辅助函数只是包一层 await ``asyncio.sleep(0)`` 让出事件循环。
+
+    """
+    payload: dict[str, Any] = {
+        "stage": stage,
+        "percent": percent,
+        "message": _diag_phase_message(stage),
+        "ok": True,
+    }
+    if extra:
+        payload.update(extra)
+    store.append_event(job_id, {"kind": "stage", **payload})
+    await asyncio.sleep(0)
+
+
+async def _emit_done(
+    store: JobStateStore, job_id: str, *, report_id: str
+) -> None:
+    """向 ``store`` 推 done 事件（包含 report_id，stream 端点回送给前端）。"""
+    store.append_event(
+        job_id,
+        {"kind": "done", "report_id": report_id, "message": _diag_phase_message("ready")},
+    )
+
+
+async def _emit_error(
+    store: JobStateStore,
+    job_id: str,
+    *,
+    code: str,
+    message_zh: str,
+    stage: str,
+) -> None:
+    """向 ``store`` 推 error 事件（异常收尾；不抛 —— 调用方决定是否 re-raise）。"""
+    store.append_event(
+        job_id,
+        {
+            "kind": "error",
+            "code": code,
+            "message_zh": message_zh,
+            "stage": stage,
+        },
+    )
+
+
+async def _persist_report_ready(
+    db: AsyncSession,
+    *,
+    report_id: str,
+    user_id: str,
+    validated_photos: list[dict[str, Any]],
+    llm_output: dict[str, Any],
+) -> None:
+    """把 LLM 输出落库到 Report 行。
+
+    设计：
+    - Router 在 ``POST ?async=true`` 时已 INSERT status='queued' 行并 commit；
+    - 这里 ``SELECT`` 后 UPDATE ``status='ready'`` + LLM 三个字段；
+    - 兜底分支：若 SELECT 为 None（理论不应发生），INSERT 一条 ready 行，避免 SSE 阻塞。
+    """
+    report_uuid = UUID(str(report_id))
+    stmt = select(Report).where(Report.id == report_uuid)
+    result = await db.execute(stmt)
+    report = result.scalar_one_or_none()
+    now_ts = datetime.now(UTC)
+    if report is None:
+        try:
+            user_uuid = UUID(str(user_id))
+        except ValueError:
+            user_uuid = uuid4()
+        report = Report(
+            id=report_uuid,
+            user_id=user_uuid,
+            photos={"items": validated_photos},
+            directions={"items": llm_output["directions"]},
+            tags={"items": llm_output["tags"]},
+            summary=llm_output["summary"],
+            llm_model=llm_output["model"],
+            llm_cost=Decimal(llm_output["llm_cost"] or "0.0"),
+            status="ready",
+            created_at=now_ts,
+            created_by=str(user_id),
+            created_time=now_ts,
+            last_updated_time=now_ts,
+            last_updated_by=str(user_id),
+        )
+        db.add(report)
+    else:
+        report.directions = {"items": llm_output["directions"]}
+        report.tags = {"items": llm_output["tags"]}
+        report.summary = llm_output["summary"]
+        report.llm_model = llm_output["model"]
+        report.llm_cost = Decimal(llm_output["llm_cost"] or "0.0")
+        report.status = "ready"
+        report.last_updated_time = now_ts
+        report.last_updated_by = str(user_id)
+    await db.flush()
+
+
+async def stream_diagnose(
+    inputs: StreamDiagnoseInputs,
+    *,
+    store: JobStateStore,
+    db: AsyncSession,
+) -> None:
+    """按阶段执行诊断 pipeline，并逐条 ``JobEvent`` 推给 ``store``。
+
+    阶段顺序（plan §4.2）：
+        connected(0) → preprocess(15) → analyzing(45) → suggestion(75) → ready(100) → done。
+
+    Returns:
+        ``None``；成功时发出 5 条 stage 事件 + 1 条 done 事件，失败时追加 1 条 error。
+
+    Raises:
+        Exception: 内部 LLM 异常 / DB 异常会发出 error 事件后 **re-raise**
+            （router 侧可记 traceback；SSE 消费者已经看到 error）。
+
+    Note:
+        ``profile`` 由 ``run_diagnosis_job`` 提前从 user 档案读取后传入；
+        本函数不直接读 user，避免 SSE consumer 持有 DB session 的隐式耦合。
+
+    """
+    photos = inputs.photos
+    complaint = inputs.complaint
+    user_id = inputs.user_id
+    report_id = inputs.report_id
+    job_id = inputs.job_id
+    profile = inputs.profile
+    current_stage = "connected"
+
+    async def _on_error(exc: Exception) -> None:
+        await _emit_error(
+            store,
+            job_id,
+            code=E_DIAGNOSIS_PIPELINE_FAILED,
+            message_zh="诊断失败，请稍后重试",
+            stage=current_stage,
+        )
+
+    try:
+        # ── 1. 校验照片（复用 PR-A3 改过的 1-3 + face 校验）──────────────────────
+        validated_photos = _validate_photos(photos)
+        validated_complaint = _validate_complaint(complaint)
+
+        # ── 2. 阶段事件：connected → preprocess → analyzing ───────────────────────
+        await _emit_stage(store, job_id, stage="connected", percent=0)
+        current_stage = "preprocess"
+        await _emit_stage(store, job_id, stage="preprocess", percent=15)
+        current_stage = "analyzing"
+        await _emit_stage(store, job_id, stage="analyzing", percent=45)
+        current_stage = "suggestion"
+        await _emit_stage(store, job_id, stage="suggestion", percent=75)
+
+        # ── 3. 调 LLM（shared helper，复用 PR-A3 missing_parts 逻辑）──────────────
+        llm_output = await _invoke_llm_structured(
+            validated_photos, profile, validated_complaint
+        )
+
+        # ── 4. 持久化 Report（status='ready' + 新的 directions/tags/summary）──────
+        # Router 侧已在 POST ?async=true 时创建好 status='queued' 的 Report 行并 commit；
+        # 这里 SELECT 出来更新其 status + 三个 LLM 字段，避免重复 INSERT。
+        current_stage = "ready"
+        await _persist_report_ready(
+            db,
+            report_id=report_id,
+            user_id=user_id,
+            validated_photos=validated_photos,
+            llm_output=llm_output,
+        )
+
+        # ── 5. 推送 ready + done 事件（report_id 用入参，便于 router 提前创建 row）
+        await _emit_stage(
+            store,
+            job_id,
+            stage="ready",
+            percent=100,
+            extra={"report_id": report_id},
+        )
+        await _emit_done(store, job_id, report_id=report_id)
+
+        logger.info(
+            "stream_diagnose_done",
+            job_id=job_id,
+            report_id=report_id,
+            user_id=user_id,
+            model=llm_output["model"],
+        )
+    except Exception as exc:
+        logger.exception(
+            "stream_diagnose_failed",
+            job_id=job_id,
+            stage=current_stage,
+            error_type=type(exc).__name__,
+        )
+        try:
+            await _on_error(exc)
+        except Exception:
+            logger.exception("stream_diagnose_emit_error_failed", job_id=job_id)
+        raise
+
+
+async def run_diagnosis_job(
+    job_id: str,
+    inputs: DiagnosisJobInputs,
+) -> None:
+    """Router 层用 ``asyncio.create_task`` 启动的入口。
+
+    1. 通过 ``inputs.db_factory`` **新建**一个 ``AsyncSession``（不要复用请求 scope），
+       pipeline 跑完后统一 ``aclose``。
+    2. 从 user 档案读 profile 后调 ``stream_diagnose``。
+    3. 异常已由 ``stream_diagnose`` 内部 ``error`` 事件兜底；本函数记录日志，
+       不再 re-raise（asyncio.create_task 默认不吞异常，会被 log 抓 traceback）。
+
+    Note:
+        ``create_task`` 会拿到本 coroutine 返回的 None；调用方无需 await。
+
+    """
+    user_id = inputs.user_id
+    report_id = inputs.report_id
+    store = inputs.store
+    log = logger.bind(job_id=job_id, user_id=user_id, report_id=report_id)
+    log.info("diagnosis_job_started")
+    try:
+        async with inputs.db_factory() as db:
+            # ── 读 user 档案（与同步 ``create_diagnosis`` 行为一致）─────────────
+            try:
+                user_uuid = UUID(str(user_id))
+            except ValueError:
+                user_uuid = uuid4()
+            stmt = select(User).where(User.id == user_uuid)
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+            if user is None:
+                # router 已 create_job(user_id=...) 持有 user；这里拿不到说明数据不一致
+                # —— 兜底用空 profile，让 LLM 仍能给出建议
+                profile: dict[str, Any] = {}
+            else:
+                profile = {
+                    "age_range": user.age_range,
+                    "focus_parts": user.focus_parts or [],
+                    "intensity": user.intensity,
+                    "preferred_time": user.preferred_time,
+                    "sitting_hours": user.sitting_hours,
+                }
+            await stream_diagnose(
+                StreamDiagnoseInputs(
+                    photos=inputs.photos,
+                    complaint=inputs.complaint,
+                    user_id=user_id,
+                    report_id=report_id,
+                    job_id=job_id,
+                    profile=profile,
+                ),
+                store=store,
+                db=db,
+            )
+        log.info("diagnosis_job_done")
+    except Exception:
+        # stream_diagnose 已经 emit error 事件；这里只打 traceback
+        log.exception("diagnosis_job_crashed")
+        try:
+            store.update_status(job_id, "failed")
+        except Exception:
+            log.exception("diagnosis_job_failed_status_update")
+
+
 __all__ = [
     "CACHE_TTL_DAYS",
     "MAX_COMPLAINT_LENGTH",
     "MAX_IMAGE_BYTES",
     "DiagnosisError",
+    "DiagnosisJobInputs",
     "DiagnosisNotFoundError",
     "DiagnosisRateLimitError",
+    "StreamDiagnoseInputs",
     "create_diagnosis",
     "get_diagnosis",
+    "run_diagnosis_job",
+    "stream_diagnose",
 ]

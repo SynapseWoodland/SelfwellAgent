@@ -115,20 +115,45 @@ export interface CreateCheckinResp {
 export interface PresignReq {
   mime_type: 'image/jpeg' | 'image/png' | 'image/webp';
   byte_size: number;
+  purpose?: 'diagnosis' | 'feedback';
 }
 export interface PresignResp {
   upload_url: string;
   object_key: string;
-  expires_at: ISODateTime;
-  /** 头部必填字段（用于直传到对象存储） */
-  required_headers: Record<string, string>;
+  expires_in?: number;
+  cdn_url?: string;
+  /** 已废弃：保留向后兼容 */
+  expires_at?: ISODateTime;
+  /** 已废弃：保留向后兼容 */
+  required_headers?: Record<string, string>;
+}
+
+/** 单张诊断照片（向后兼容 v1 + v2）
+ *
+ * v1（@deprecated）：仅 ``url``。
+ * v2：``object_key`` + ``body_part`` + ``format`` + ``size_bytes``，后端用 presigned_get_url 解析。
+ */
+export interface PhotoInput {
+  /** 公开可访问 URL（v1 兼容） */
+  url?: string;
+  /** 对象 key（v2 推荐） */
+  object_key?: string;
+  body_part: 'face' | 'head' | 'shoulder_neck';
+  format?: 'jpg' | 'png' | 'webp' | 'heic';
+  size_bytes?: number;
 }
 
 export interface CreateDiagnosisReq {
-  /** 已上传的图片 object_key */
-  body_image_key: string;
-  /** 主观补充（可选） */
+  /** 多图版本（与 v1 单图互斥） */
+  photos?: PhotoInput[];
+  /** v1 单图字段（保留向后兼容） */
+  body_image_key?: string;
+  objectKey?: string;
+  /** 用户备注 */
   user_note?: string;
+  complaint?: string;
+  /** PR-A4：A 场景切换到异步 Job 模式（POST /diagnosis?async=true 时携带） */
+  async?: boolean;
 }
 
 export type DiagnosisPhase =
@@ -149,6 +174,73 @@ export interface DiagnosisSseEvent {
   partial_text?: string;
 }
 
+// ─────────────────────────────────────────────────
+// 诊断 Job 异步模式（与后端 POST /diagnosis?async=true 契约）
+// PR-A4 — 小程序侧承接；后端 PR-A2 PR-A1 落地后此契约生效
+// ─────────────────────────────────────────────────
+export interface DiagnosisJob {
+  job_id: string;
+  status: 'queued' | 'running' | 'ready' | 'failed';
+  stream_url: string;
+}
+
+// ─────────────────────────────────────────────────
+// SSE 事件 payload（GET /diagnosis/jobs/{id}/stream）
+// ─────────────────────────────────────────────────
+export type SseEventName = 'stage' | 'done' | 'error';
+
+export interface SseStagePayload {
+  stage: 'connected' | 'preprocess' | 'analyzing' | 'suggestion' | 'ready';
+  percent: number;          // 0..100
+  message: string;          // 中文文案
+  ok: boolean;
+  report_id?: string;       // 仅 stage=ready 携带
+}
+
+export interface SseDonePayload {
+  report_id: string;
+}
+
+export interface SseErrorPayload {
+  code: string;
+  message_zh: string;
+  stage?: string;
+}
+
+// ─────────────────────────────────────────────────
+// Plan 视图：?view=all 响应契约
+// ─────────────────────────────────────────────────
+export type PlanDayState = 'done' | 'today' | 'locked';
+
+export interface PlanDayCell {
+  day: number;          // 1..21
+  state: PlanDayState;
+  tasks_count: number;   // 1..3
+  phase: 1 | 2 | 3;
+}
+
+export interface PlanWeek {
+  week_no: 1 | 2 | 3;
+  title: string;         // 第一阶段 · 习惯启动 / ...
+  days: PlanDayCell[];   // length=7
+}
+
+export interface PlanAllViewData {
+  plan_id: string;
+  total_days: 21;
+  started_at: string;    // YYYY-MM-DD
+  current_day_index: number;  // 1..21
+  view: 'all';
+  weeks: PlanWeek[];     // length=3
+}
+
+// 兼容老 schema；同时为 directions[] 提供一个内层类型
+export interface DiagnosisDirection {
+  title: string;
+  description: string;
+  video_url?: string;
+}
+
 export interface DiagnosisReport {
   diagnosis_id: string;
   user_id_pseudo: string;
@@ -158,11 +250,31 @@ export interface DiagnosisReport {
   report_text: string;
   matched_video_ids: string[];
   recommended_plan_id?: string;
+  /** PR-A4：A 场景 GET /diagnosis/{id} 新契约方向列表 */
+  directions?: DiagnosisDirection[];
+  /** PR-A4：报告摘要（页面顶部文案） */
+  summary?: string;
+  /** PR-A4：LLM 模型标识（埋点/审计用） */
+  llm_model?: string;
 }
 
 /* ─────────── M5 智能管家 ─────────── */
 
 export type PersonaState = 'greeting' | 'listening' | 'thinking' | 'answer';
+
+/**
+ * SSE `end` 帧 data 结构（PR-A2 worker Y 落地：on end 整体落库后回写 ai_messages.id）。
+ * - 由 assistant-home 消费；types 层只补定义，runtime cast 不动。
+ * - ai_messages.id 是 UUID（128 位），超 JS Number 53 位精度 → 必须 string，**不要**改回 number。
+ */
+export type AssistantSseEndData = {
+  ok: boolean;
+  reply?: string;
+  persona_state?: string;
+  medical_guarded?: boolean;
+  /** end 帧整条落库后返回的 ai_messages.id；UUID 序列化字符串（PR-A2 decision B） */
+  ai_msg_id?: string;
+};
 
 export interface AssistantSession {
   session_id: string;

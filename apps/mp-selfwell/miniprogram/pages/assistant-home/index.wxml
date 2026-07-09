@@ -1,40 +1,124 @@
+<!--
+  PR-A4 Option A：智能分析 = 对话气泡内嵌卡片
+  真源：docs/design/figma-pixso-spec/pages/04a-smart-analyze-dialog.html
+  布局：nav-bar → chat-area (turns + entry cards) → chips-bar → input-area
+-->
 <view class="assistant">
-  <scroll-view class="assistant-stream" scroll-y scroll-into-view="{{lastTurnId}}">
+  <!-- 顶部导航 -->
+  <view class="assistant-nav">
+    <view class="assistant-nav-back" bindtap="onNavBack">‹</view>
+    <view class="assistant-nav-title">智能管家</view>
+    <view class="assistant-nav-actions">
+      <view class="assistant-nav-btn" data-test="history-btn" bindtap="onTapHistory">历史</view>
+      <view class="assistant-nav-btn" data-test="settings-btn" bindtap="onTapSettings">设置</view>
+      <view class="assistant-nav-more" bindtap="onNavAction">⋯</view>
+    </view>
+  </view>
+
+  <!-- 顶部回忆气泡（Day 7/14/21 触发器；目前为空占位 hook） -->
+  <view wx:if="{{false}}" class="assistant-recall-bubble" data-test="recall-bubble">
+    <text class="assistant-recall-text">回忆气泡</text>
+  </view>
+
+  <!-- 对话流 -->
+  <scroll-view
+    class="assistant-stream {{butlerCardsMode === 'collapsed' || butlerCardsMode === 'focused' ? 'is-collapsed' : ''}}"
+    scroll-y
+    scroll-into-view="{{lastTurnId}}"
+    enhanced
+    show-scrollbar="{{false}}"
+  >
     <view
       wx:for="{{turns}}"
       wx:key="id"
       id="{{item.id}}"
+      class="assistant-turn"
     >
       <persona-bubble
         state="{{item.state}}"
-        text="{{item.text}}"
-        title="{{item.title}}"
-      />
+        text="{{item.text || ''}}"
+        title="{{item.title || ''}}"
+      >
+        <!-- upload_card slot -->
+        <upload-card
+          wx:if="{{item.attachment.kind === 'upload_card'}}"
+          slot="upload-card"
+          title="{{item.title || '上传照片生成你的画像'}}"
+          slots="{{item.attachment.slots}}"
+          age-ranges="{{item.attachment.ageRanges}}"
+          submit-text="上传，开始分析"
+          bind:slotTap="onUploadSlotTap"
+          bind:ageChipTap="onSelectAge"
+          bind:startTap="onSubmitUpload"
+        />
+
+        <!-- progress_card slot -->
+        <progress-card
+          wx:if="{{item.attachment.kind === 'progress_card'}}"
+          slot="progress-card"
+          title="{{item.attachment.title || '正在为你生成画像'}}"
+          percent="{{item.attachment.percent}}"
+          steps="{{item.attachment.steps}}"
+        />
+
+        <!-- report_card slot -->
+        <report-card
+          wx:if="{{item.attachment.kind === 'report_card'}}"
+          slot="report-card"
+          avatar-text="{{item.attachment.avatarText}}"
+          name="{{item.attachment.name}}"
+          directions="{{item.attachment.directions}}"
+          cta-text="开始 21 天"
+          bind:ctaTap="onStartPlan"
+        />
+      </persona-bubble>
     </view>
+
+    <!-- entry cards 隐藏后，留一点底部留白，避免最后一条气泡贴底 -->
+    <view wx:if="{{entryHidden && !turns.length}}" class="assistant-stream-tail"></view>
   </scroll-view>
 
-  <view class="assistant-entries">
+  <!-- ✨ A2 入口卡块（新增组件，SPEC-A2 §4.1） -->
+  <butler-cards-block
+    mode="{{butlerCardsMode}}"
+    cards="{{entryCards}}"
+    popover-open="{{popoverOpen}}"
+    bind:cards-tap="onTapEntry"
+    bind:floating-tap="onTapFloatingIcon"
+    bind:popover-close="onPopoverClose"
+  />
+
+  <!-- chips 4 项（PRD §3.5.1） -->
+  <view class="chips-bar" data-test="chips-bar">
     <view
-      wx:for="{{entryCards}}"
+      wx:for="{{chips}}"
       wx:key="id"
-      class="assistant-entry"
-      bindtap="onTapEntry"
+      class="chip {{item.active ? 'chip-active' : ''}}"
       data-id="{{item.id}}"
+      bindtap="onTapChip"
     >
-      <view class="assistant-entry-title">{{item.title}}</view>
-      <view class="assistant-entry-sub">{{item.subtitle}}</view>
+      <block wx:if="{{item.id === 'smart_analyze'}}">🔍 智能分析</block>
+      <block wx:elif="{{item.id === 'today'}}">📅 今日 · 第 {{item.dayIndex || 1}} 天</block>
+      <block wx:elif="{{item.id === 'chat'}}">💬 聊聊今天</block>
+      <block wx:elif="{{item.id === 'compare'}}">📊 查看对比</block>
+      <block wx:else>{{item.text}}</block>
     </view>
   </view>
 
-  <view class="assistant-inputbar">
+  <!-- 输入区 -->
+  <view class="assistant-inputbar" data-test="input-area">
+    <view class="assistant-mic" data-test="mic-icon" bindtap="onTapMic">🎤</view>
     <input
       class="assistant-input"
-      placeholder="说点什么…"
+      placeholder="直接跟我说就好"
       value="{{inputText}}"
       bindinput="onInput"
+      bindfocus="onInputFocus"
+      bindblur="onInputBlur"
       confirm-type="send"
       bindconfirm="onSend"
     />
+    <view class="assistant-camera" data-test="camera-icon" bindtap="onTapCamera">📷</view>
     <view class="assistant-send" bindtap="onSend">发送</view>
   </view>
 </view>

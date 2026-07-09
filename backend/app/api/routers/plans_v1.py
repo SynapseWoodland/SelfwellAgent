@@ -2,20 +2,44 @@
 
 from __future__ import annotations
 
+from datetime import date
+from typing import Any, Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
+from app.db.models.plan import Plan
 from app.services.plan_service import (
+    PLAN_LENGTH_DAYS,
     PlanError,
     PlanNotFoundError,
+    aggregate_plan_weeks,
     generate_plan,
     get_current_plan,
     get_plan,
     get_today_plan_tasks,
     match_videos_for_tags,
 )
+from sqlalchemy import select
+
+
+async def _load_current_plan_orm(
+    session: AsyncSession, *, user_id: str
+) -> Plan:
+    stmt = (
+        select(Plan)
+        .where(Plan.user_id == user_id, Plan.status == "active")
+        .order_by(Plan.created_at.desc())
+        .limit(1)
+    )
+    res = await session.execute(stmt)
+    plan = res.scalar_one_or_none()
+    if plan is None:
+        raise PlanNotFoundError(field="current_plan")
+    return plan
+
 
 plans_router = APIRouter(prefix="/plans", tags=["plans"])
 videos_router = APIRouter(prefix="/videos", tags=["videos"])
@@ -56,9 +80,41 @@ async def generate_plan_endpoint(
 
 @plans_router.get("/current", response_model=PlanResponse, summary="当前进行中方案")
 async def get_current_plan_endpoint(
+    view: Literal["today", "all"] = Query(
+        default="today",
+        description="today=今日视图（默认，兼容老契约）；all=3 周 21 天聚合视图",
+    ),
     user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
 ) -> PlanResponse:
+    if view == "all":
+        try:
+            plan = await _load_current_plan_orm(session, user_id=user_id)
+            base = await get_plan(session, user_id=user_id, plan_id=str(plan.id))
+        except PlanNotFoundError as exc:
+            raise HTTPException(
+                status_code=exc.http_status,
+                detail={"code": exc.code, "message_zh": exc.render_zh()},
+            ) from exc
+        weeks = aggregate_plan_weeks(plan)
+        elapsed: int
+        if plan.started_at is not None:
+            elapsed = (date.today() - plan.started_at).days + 1
+        else:
+            elapsed = 1
+        current_day_index = max(1, min(PLAN_LENGTH_DAYS, elapsed))
+        data: dict[str, Any] = {
+            "plan_id": base["plan_id"],
+            "report_id": base.get("report_id"),
+            "status": base.get("status"),
+            "total_days": PLAN_LENGTH_DAYS,
+            "started_at": base.get("started_at"),
+            "current_day_index": current_day_index,
+            "view": "all",
+            "weeks": weeks,
+        }
+        return PlanResponse(data=data)
+
     try:
         result = await get_current_plan(session, user_id=user_id)
     except PlanNotFoundError as exc:
