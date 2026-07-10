@@ -132,15 +132,23 @@ ai_sessions 表新增 assistant_profile JSONB 字段：
 }
 ```
 
-**SSE 5 阶段 progress 协议**（与 `docs/api/sse-events.md` 对齐）：
+**SSE 5 阶段 progress 协议**（与 `docs/api/sse-events.md §5` 对齐）：
 
 ```
-阶段 1: progress {"stage": "analyzing_photos", "message": "正在分析照片..."}
-阶段 2: progress {"stage": "calling_vision_llm", "message": "正在调用视觉模型..."}
-阶段 3: progress {"stage": "summarizing", "message": "正在生成摘要..."}
-阶段 4: progress {"stage": "calling_text_llm", "message": "正在生成报告..."}
-阶段 5: done {"result": {...}}
+阶段 1: progress {"step": 1, "percent": 15, "label": "图片校验中"}
+阶段 2: progress {"step": 2, "percent": 45, "label": "正在分析体态"}
+阶段 3: progress {"step": 3, "percent": 75, "label": "生成养护建议"}
+阶段 4: progress {"step": 4, "percent": 100, "label": "分析完成"}
+阶段 5: progress {"step": 5, "percent": 100, "label": "已就绪"}
+end:    {"ok": true, "reply": "...", "persona_state": "...",
+        "is_mock": false, "medical_guarded": false, "is_quick_reply": false,
+        "level": "中度"}
+done:   {"result": {...}}
 ```
+
+> **V5.2.1-PR3 §7.6 字段名修正**：v1 字段名 `{stage, message}` 与代码 schema 真源（`assistant_v1.py:115`）
+> 的 `{step, percent, label}` 不一致；PR3 已 sync 为 `{step, percent, label}` + 补 step 5「已就绪」+
+> end 事件 7 字段（PR3 T17 + T19）。见 `.cursor/specs/SPEC-V521-PR3-sse-cost-adr.md` §4.1 / §4.2。
 
 **Vision 三级降级链**（来自子任务 1 §F.2）：
 
