@@ -23,6 +23,7 @@ from uuid import UUID, uuid4
 # 5. AI 回复：PromptTemplate | text_llm + 静态文案兜底
 from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import hash_user_id_pseudo
@@ -524,20 +525,6 @@ async def send_message(
 # PR-A2 SSE：send_message_stream（worker C 落地；LLM 真链路待后续 worker 替换）
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 与 SmartAnalyze 步骤对齐（与 assistant-home 现有 SMART_ANALYZE_COPY.stages 对齐）
-_SMART_ANALYZE_STAGES: tuple[tuple[str, int, str], ...] = (
-    ("analyzing", 33, "正在识别体态状态"),
-    ("analyzing", 66, "分析面部状态"),
-    ("analyzing", 100, "生成养护建议"),
-)
-
-# mock directions（与前端 SMART_ANALYZE_MOCK_DIRECTIONS 形状 1:1）
-_MOCK_DIRECTIONS: tuple[dict[str, Any], ...] = (
-    {"num": 1, "title": "侧颈前伸", "level": "轻度", "description": "建议每 2 小时做 1 次收下巴训练"},
-    {"num": 2, "title": "肩颈僵硬", "level": "中度", "description": "建议每日 8 分钟肩颈放松"},
-    {"num": 3, "title": "眼周疲劳", "level": "轻度", "description": "建议每日 5 分钟眼周穴位按压"},
-)
-
 
 def _sse_pack(event: str, data: dict[str, Any]) -> str:
     """组装一帧标准 SSE（与 diagnosis_v1._job_event_stream 同形）。"""
@@ -583,8 +570,14 @@ async def send_message_stream(
 
     yield _sse_pack("start", {"step": 0})
 
-    # 1) session 校验（同原逻辑）
-    stmt = select(AISession).where(AISession.id == session_id, AISession.user_id == user_id)
+    # 1) session 校验 + 加行锁（防止并发请求算出相同 seq）
+    # 注意：with_for_update() 在 PostgreSQL 上生成 SELECT ... FOR UPDATE，
+    # 第二个并发请求会被阻塞直到第一个 commit 后才继续，保证 seq 不会重复。
+    stmt = (
+        select(AISession)
+        .where(AISession.id == session_id, AISession.user_id == user_id)
+        .with_for_update()
+    )
     result = await session.execute(stmt)
     ai_session = result.scalar_one_or_none()
     if ai_session is None:
@@ -654,6 +647,20 @@ async def send_message_stream(
     except (SessionNotFoundError, SessionClosedError) as exc:
         yield _sse_pack("error", {"code": exc.code, "message_zh": exc.render_zh()})
         yield _sse_pack("end", {"ok": False, "reply": "", "persona_state": "neutral"})
+    except IntegrityError as exc:
+        # 并发写入导致 seq 唯一约束冲突（理论上 FOR UPDATE 锁应避免，
+        # 但 _stream_chat 内的 assistant msg 写入与 user msg 不在同一事务，
+        # 极端并发下仍有小概率触发）。返回限流提示，前端会 toast 并可重试。
+        logger.warning(
+            "assistant_seq_duplicate",
+            session_id=session_id,
+            error=str(exc)[:200],
+        )
+        yield _sse_pack(
+            "error",
+            {"code": "E_ASSISTANT_CONCURRENT_MESSAGE", "message_zh": "请求过于频繁，请稍后再试"},
+        )
+        yield _sse_pack("end", {"ok": False, "reply": "", "persona_state": "neutral"})
     except Exception as exc:
         logger.exception(
             "assistant_send_message_stream_error",
@@ -713,20 +720,39 @@ async def _stream_smart_analyze(
         is_mock = True
         start_ts = time.monotonic()
 
-        # 懒加载 feature_flags（避免循环 import）
+        # 懒加载 feature_flags 和 app_config（避免循环 import）
         if _FEATURE_FLAGS is None:
             from app.conf.feature_flags import feature_flags as _ff
             _FEATURE_FLAGS = _ff
 
+        _APP_CONFIG: Any = None  # lazy
+
         if _FEATURE_FLAGS.should_use_vision(user_id):
             try:
-                # 调用 diagnosis_service 的 LLM（复用已验证的 structured output）
-                result = await _invoke_llm_structured(photos, profile, text)
+                # 懒加载 app_config
+                if _APP_CONFIG is None:
+                    from app.conf.app_config import app_config as _ac
+                    _APP_CONFIG = _ac
+                vision_timeout = _APP_CONFIG.llm.vision_timeout_sec
+                # V4.1 Step 1.2：asyncio.wait_for 包裹 LLM 调用，超时触发 rule-engine fallback
+                result = await asyncio.wait_for(
+                    _invoke_llm_structured(photos, profile, text),
+                    timeout=vision_timeout,
+                )
                 directions = result["directions"]
                 tags = result["tags"]
                 summary = result["summary"]
                 llm_model = result["model"]
                 is_mock = False
+            except asyncio.TimeoutError:
+                # V4.1 Step 1.2：vision LLM 超时 → rule-engine fallback
+                logger.warning("smart_analyze_llm_timeout", job_id=job_id,
+                             timeout_sec=vision_timeout)
+                payload = _rule_engine_fallback(profile, text)
+                directions = payload["directions"]
+                tags = payload.get("tags", [])
+                summary = payload.get("summary", "")
+                is_mock = True
             except Exception as exc:
                 logger.exception("smart_analyze_llm_failed",
                                 job_id=job_id, error_type=type(exc).__name__)
@@ -736,7 +762,7 @@ async def _stream_smart_analyze(
                 summary = payload.get("summary", "")
                 is_mock = True
         else:
-            # Sprint 1 默认走 mock（rule_engine + _MOCK_DIRECTIONS）
+            # Sprint 1 默认走 rule_engine fallback
             payload = _rule_engine_fallback(profile, text)
             directions = payload["directions"]
             tags = payload.get("tags", [])

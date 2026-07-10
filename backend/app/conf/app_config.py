@@ -101,10 +101,10 @@ class MinioConfig(BaseSettings):
     bucket: str = "selfwell"
     secure: bool = False
     # 公网可访问的主机（供方舟 LLM 调用 MinIO presigned URL）。
-    # 开发环境：宿主机 IP/域名（如 192.168.1.100）或 ngrok/花生壳等内网穿透地址。
-    # 生产环境：MinIO 公网 LB/CNAME 或通过 nginx/Caddy 反向代理的地址。
+    # 格式：host:port（如 192.168.1.100:9000 或 husenlin.tail61999e.ts.net:443）
+    # 不含 scheme（http:// / https://），scheme 由 MINIO_SECURE 决定。
     # 注意：需与 MINIO_ENDPOINT 保持同端口（9000），否则 presigned URL 会失效。
-    public_host: str = Field(default="", description="MinIO 公网访问地址（不含路径）")
+    public_host: str = Field(default="", description="MinIO 公网访问 host:port（不含 scheme）")
 
 
 class StorageConfig(BaseSettings):
@@ -169,6 +169,11 @@ class LLMClientConfig(BaseSettings):
     backup_multi_api_key: str = Field(default="", alias="BACKUP_MULTI_API_KEY")
     backup_multi_model: str = Field(default="qwen-vl-max", alias="BACKUP_MULTI_MODEL")
     backup_multi_base_url: str = Field(default="", alias="BACKUP_MULTI_BASE_URL")
+
+    # ── vision LLM 超时 ──
+    # V4.1 Step 1.2 / V4.1.1 扩展：多模态 LLM 超时兜底（秒）。
+    # rule-engine fallback 兜底在 vision_timeout_sec 后自动触发。
+    vision_timeout_sec: float = Field(default=30.0, alias="VISION_TIMEOUT_SEC")
 
     # ── 通用参数 ──
     temperature: float = Field(default=0.7, alias="LLM_TEMPERATURE")
