@@ -100,6 +100,13 @@ VISION_LATENCY_SECONDS = Histogram(
     buckets=(1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 60.0, 120.0),
     registry=METRICS_REGISTRY,
 )
+# V5.2.1-PR3 T16：LLM cost 上报（基于 Ark response.usage 估算 + 回退公式）
+LLM_COST_YUAN_TOTAL = Counter(
+    "selfwell_llm_cost_yuan_total",
+    "Cumulative LLM cost in CNY (Ark response.usage 估算；缺则回退公式).",
+    ["model", "intent"],
+    registry=METRICS_REGISTRY,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -167,6 +174,7 @@ __all__ = [
     "LLM_CALLS_TOTAL",
     "LLM_LATENCY_SECONDS",
     "VISION_LATENCY_SECONDS",
+    "LLM_COST_YUAN_TOTAL",  # V5.2.1-PR3 T16
     # §五 smart_analyze
     "SMART_ANALYZE_DONE_TOTAL",
     "SMART_ANALYZE_FAILED_TOTAL",

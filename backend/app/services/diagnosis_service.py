@@ -461,11 +461,28 @@ async def _invoke_llm_structured(
         tags_count=len(payload.get("tags", [])),
     )
 
+    # V5.2.1-PR3 T16：上报 llm_cost 到 Prometheus LLM_COST_YUAN_TOTAL
+    raw_cost = payload.get("llm_cost", "0.0")
+    try:
+        cost_float = float(raw_cost)
+    except (TypeError, ValueError):
+        cost_float = 0.0
+    try:
+        from app.core.metrics import LLM_COST_YUAN_TOTAL
+        LLM_COST_YUAN_TOTAL.labels(model=model, intent="vision_diagnose").inc(cost_float)
+    except Exception as exc:  # noqa: BLE001
+        # 指标上报失败不应阻断主流程
+        logger.warning(
+            "llm_cost_metric_inc_failed",
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:200],
+        )
+
     return {
         "directions": _normalize_directions(payload.get("directions")),
         "tags": _normalize_tags(payload.get("tags")),
         "summary": str(payload.get("summary", "")),
-        "llm_cost": str(payload.get("llm_cost", "0.0")),
+        "llm_cost": str(cost_float),
         "model": model,
     }
 

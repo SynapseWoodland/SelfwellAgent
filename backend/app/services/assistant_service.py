@@ -830,12 +830,28 @@ async def _stream_smart_analyze(
 
         await session.commit()
 
+        # V5.2.1-PR3 T17：end event 之前补 step 5（"已就绪"，与 step 4 同样 100）
+        # "已就绪" 代表方向列表已落库、可被前端读取
+        yield await _emit_progress(5, 100, "已就绪")
+
+        # V5.2.1-PR3 T19：end event 7 字段 schema（ok / reply / persona_state /
+        #                          is_mock / medical_guarded / is_quick_reply / level）
         reply_text = f"基于你的照片，我为你生成了 {len(directions)} 条养护建议，可以看看。"
+        # medical_guarded / is_quick_reply PR4 之前为 None，PR4 改真值
+        medical_guarded = False  # PR4 T20 改安全检查真值
+        is_quick_reply = False  # 不走 ack_pool 兜底
+        # level 取第一条 direction 的 level（PR2 T13 Pydantic 提供 level；兜底 "轻度"）
+        primary_level: str = (
+            directions[0].get("level", "轻度") if directions else "轻度"
+        )
         yield _sse_pack("end", {
             "ok": True,
             "reply": reply_text,
             "persona_state": to_state,
             "is_mock": is_mock,
+            "medical_guarded": medical_guarded,
+            "is_quick_reply": is_quick_reply,
+            "level": primary_level,
         })
 
         logger.info("smart_analyze_done", job_id=job_id, llm_model=llm_model,
