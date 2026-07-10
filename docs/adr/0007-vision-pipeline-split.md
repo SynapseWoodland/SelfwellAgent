@@ -177,20 +177,23 @@ golden_set_v1.yaml metadata 更新为双分支结构：
 
 ```
 智能分析场景（vision pipeline）:
-  llm_multimodal_model:  "doubao-seed-2-0-lite-260428"
-  llm_multimodal_base_url: "https://ark.cn-beijing.volces.com/api/plan/v3"
-  llm_multimodal_api_key:  "<from .env 68-70行>"
+  llm_multimodal_model:      "doubao-seed-2-0-lite-260428"
+  llm_multimodal_base_url:   "https://ark.cn-beijing.volces.com/api/plan/v3"
+  llm_multimodal_api_key_ref: null   # 安全原则：API key 不写入 git
+                                     # 运行时由 runner.py 从 .env 读取，注入到 LLM 客户端
 
 对话场景（chat pipeline）:
-  llm_text_model:  "glm-4.2"
-  llm_text_base_url: "https://ark.cn-beijing.volces.com/api/plan/v3"
-  llm_text_api_key:  "<from .env 78-80行>"
+  llm_text_model:       "glm-4.2"
+  llm_text_base_url:   "https://ark.cn-beijing.volces.com/api/plan/v3"
+  llm_text_api_key_ref: null         # 同上，从 .env 读取
 
 通用参数:
   llm_temperature: 0.7
   llm_max_tokens: 2048
   llm_monthly_budget_yuan: 700
 ```
+
+> **安全原则**：API key 永远不写入 git 管理的配置文件（包括 golden_set_v1.yaml、baseline.json）。真值从 `.env` 读取，`.env` 本身在 `.gitignore` 中。
 
 40 条用例 `llm_capability` 分布：
 

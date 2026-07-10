@@ -17,10 +17,10 @@ metadata:
     L3-error-contract: 8
   llm_multimodal_model: doubao-seed-2-0-lite-260428
   llm_multimodal_base_url: https://ark.cn-beijing.volces.com/api/plan/v3
-  llm_multimodal_api_key: ark-8589187e-d711-47ab-a111-05773577da86-f7fcd
-  llm_text_model: glm-4.2
+  llm_multimodal_api_key_ref: null  # 安全：API key 不写入 git，运行时从 .env 读取
+  llm_text_model: glm-5.2
   llm_text_base_url: https://ark.cn-beijing.volces.com/api/plan/v3
-  llm_text_api_key: ark-8589187e-d711-47ab-a111-05773577da86-f7fcd
+  llm_text_api_key_ref: null  # 安全：API key 不写入 git，运行时从 .env 读取
   llm_temperature: 0.7
   llm_max_tokens: 2048
   llm_monthly_budget_yuan: 700
