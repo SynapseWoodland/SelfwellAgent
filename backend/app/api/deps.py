@@ -10,9 +10,12 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, Header, HTTPException, status
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt_handler import JWTError, JWTExpiredError
+from app.conf.app_config import app_config
 from app.core.errors import UserInputError
 from app.db.session import get_session
 from app.errors.codes import E_USER_NOT_FOUND
@@ -21,11 +24,48 @@ from app.services.auth.jwt_service import verify_token
 if TYPE_CHECKING:
     pass
 
+# ─────────────────────────────────────────────────────────────────────────────
+# §一 DB Session
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 async def db_session() -> AsyncIterator[AsyncSession]:
     """DB session 依赖（re-export 自 ``app.db.session.get_session``）。"""
     async for s in get_session():
         yield s
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §二 Redis Client（per-request connection）
+# ─────────────────────────────────────────────────────────────────────────────
+_redis_pool: Redis | None = None
+
+
+async def get_redis() -> AsyncIterator[Redis]:
+    """Redis 连接池依赖（lazy init；连接失败时返回 RedisError 透传到路由层）。
+
+    幂等：首次调用后 `_redis_pool` 持有单例连接池；重复调用 yield 同一实例。
+    """
+    global _redis_pool
+    if _redis_pool is None:
+        cfg = app_config.redis
+        url = cfg.url or f"redis://{cfg.host}:{cfg.port}/{cfg.db}"
+        password = cfg.password or None
+        _redis_pool = Redis.from_url(
+            url,
+            password=password,
+            decode_responses=False,
+        )
+    try:
+        yield _redis_pool
+    except RedisError:
+        # Redis 不可用时：路由层决定降级策略（当前 assistant_v1.py 透传异常）
+        raise
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §三 Auth
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def current_user_id(
@@ -101,6 +141,7 @@ def get_request_id(
 __all__ = [
     "current_user_id",
     "db_session",
+    "get_redis",
     "get_request_id",
     "require_user_exists",
 ]

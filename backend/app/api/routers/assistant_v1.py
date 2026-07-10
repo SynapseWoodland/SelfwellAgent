@@ -13,11 +13,18 @@ v4.1-prep（子任务 4）：统一错误响应 envelope —— router 内 ``rai
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import current_user_id, db_session
+from app.api.deps import current_user_id, db_session, get_redis
+from app.core.ratelimit import (
+    RateLimitExceeded,
+    build_key,
+    check_rate_limit,
+    raise_if_exceeded,
+)
 from app.errors.envelope import AppBusinessError
 from app.services.assistant_service import (
     DEFAULT_PRIMARY_INTENT,
@@ -95,6 +102,7 @@ async def send_message_endpoint(
     body: AssistantMessage,
     user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
+    redis: Redis = Depends(get_redis),
 ) -> StreamingResponse:
     """SSE 流式返回智能管家回复。
 
@@ -112,9 +120,32 @@ async def send_message_endpoint(
       - image_keys 有值 → smart_analyze 模式
       - image_keys 为空 → chat 模式（token_delta 流）
 
+    限流（Step 1.6）：
+      - per-user sliding window：60s window 内最多 5 次（5 RPS = 合理 chat 打字速度上限）
+      - 超出返回 429 + Retry-After 头，envelope error.code = E_ASSISTANT_RATE_LIMIT
+
     会话不存在 / 已关闭 → 在进入流之前以 HTTPException 抛出（保留 404 / 410 语义）。
     其它业务异常 → 在流中以 error 事件下发（前端可识别并 toast）。
     """
+    # ── 限流（Step 1.6）：per-user 5RPM ───────────────────────────────────
+    rl_key = build_key("chat", user_id)
+    try:
+        decision = await check_rate_limit(redis, rl_key, limit=5, window_sec=10)
+        raise_if_exceeded(decision, action="chat", key=rl_key)
+    except RateLimitExceeded as exc:
+        # 直接返回带 Retry-After 的 429（绕过 SSE StreamingResponse）
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message_zh": exc.message_zh,
+                    "message_en": "Rate limit exceeded, please retry later",
+                }
+            },
+            headers={"Retry-After": str(exc.retry_after_sec)},
+        )
+
     try:
         # 同步路径失败但保留 SSE：把基本校验留给 stream 内部；
         # 仅 session 缺失 / 关闭提前拦截，避免返回空流后才告知 404。

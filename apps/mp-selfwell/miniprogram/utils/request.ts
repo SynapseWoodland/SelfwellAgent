@@ -61,7 +61,8 @@ export interface RequestOptions<TReq = unknown> {
 /** 后端统一错误体（参考 docs/api/error-codes.md） */
 interface ApiErrorBody {
   code: string;
-  message: string;
+  message?: string;
+  message_zh?: string;  // 兼容后端 error.envelope 返回格式
   detail?: unknown;
 }
 
@@ -153,7 +154,7 @@ export function request<TRes = unknown, TReq = unknown>(
         reject(
           new ApiException(
             errBody.code ?? `HTTP_${status}`,
-            errBody.message ?? `HTTP ${status}`,
+            errBody.message_zh ?? errBody.message ?? `HTTP ${status}`,
             status,
             tp,
           ),

@@ -24,8 +24,9 @@
 // 仅 import 即生效，installAbortControllerPolyfill() 会在模块加载时自动执行。
 import '../../utils/abort-controller-polyfill';
 import { dlog } from '../../utils/dlog';
-import { post } from '../../utils/request';
+import { post, ApiException } from '../../utils/request';
 import { consumeSse, type SseConsumer, type SseEvent } from '../../utils/sse-http';
+import { API_BASE_URL, CURRENT_ENV } from '../../utils/config';
 import {
   presignAndUploadOneForAssistant,
   type BodyPart,
@@ -413,8 +414,13 @@ Page({
         personaState: 'greeting',
         lastTurnId: answer.id,
       });
-    } catch {
-      // 兜底 ack-pool
+    } catch (err) {
+      // 限流错误（429）：toast + 不追加 ack
+      if (err instanceof ApiException && err.httpStatus === 429) {
+        wx.showToast({ title: err.message || '请求过于频繁，请稍后再试', icon: 'none' });
+        return;
+      }
+      // 其它错误：兜底 ack-pool
       const fallback = pickRandomAck();
       const answer: ChatTurn = {
         id: 'a_' + Date.now(),
@@ -739,7 +745,7 @@ Page({
     const consumerSignal = ac.signal;
     (this.data as { _sseAbortController: AbortController | null })._sseAbortController = ac;
 
-    const baseURL = 'http://127.0.0.1:8000/api/v1';
+    const baseURL = API_BASE_URL[CURRENT_ENV];
     const url = `${baseURL}/assistant/sessions/${encodeURIComponent(sid)}/messages`;
     // #region agent log
     dlog('assistant-home/index.ts:runSmartAnalyze.consumeSse', 'about to call consumeSse', {

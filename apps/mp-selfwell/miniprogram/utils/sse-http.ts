@@ -242,6 +242,28 @@ export function consumeSse(
           ?? (res as { status?: number } | undefined)?.status;
         dlog('sse-http.ts:wxRequest.success', 'wx.request success', { url, method: httpMethod, status, resKeys: res && typeof res === 'object' ? Object.keys(res) : null });
         // #endregion
+        // HTTP 4xx/5xx：statusCode 存在且 >= 400 → 解析 body → 触发 error 事件（触发前端 toast）
+        if (status !== undefined && status >= 400) {
+          const resObj = res as { data?: string; statusCode?: number };
+          let code = 'E_UNKNOWN_HTTP_ERROR';
+          let message_zh = `请求失败 (${status})`;
+          // 尝试解析 JSON body 中的 error.code / error.message_zh
+          if (resObj.data) {
+            try {
+              const parsed = JSON.parse(resObj.data);
+              if (parsed?.error?.code) code = parsed.error.code;
+              if (parsed?.error?.message_zh) message_zh = parsed.error.message_zh;
+            } catch { /* use defaults */ }
+          }
+          const errEvt: SseEvent = {
+            name: 'error',
+            data: { code, message_zh },
+          };
+          dispatcher.push(errEvt);
+          opts.onTerminal?.(errEvt);
+          cleanup();
+          return;
+        }
         /* chunked success 在流关闭时触发；done/error 已独立处理 */
       },
       fail: (err) => {
