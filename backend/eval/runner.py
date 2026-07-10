@@ -107,7 +107,14 @@ class ExpectedBlock(BaseModel):
 
 @dataclass(frozen=True)
 class Case:
-    """单条 Golden Set 用例的反序列化结构。"""
+    """单条 Golden Set 用例的反序列化结构。
+
+    v4.1-prep 双 LLM 分支新增字段：
+    - ``llm_capability``: 调用哪个 LLM 分支
+        - ``text``       → ``text_llm``（意图分类 / 温暖话术）
+        - ``multimodal`` → ``multimodal_llm``（图像理解 / 摘要生成）
+        - 全部 40 条用例已按 layer/case_id 打完字段（text×35, multimodal×5）
+    """
 
     id: CaseId
     tier: int
@@ -118,6 +125,7 @@ class Case:
     schema_version: str
     expected: ExpectedBlock
     real_data_anchors: list[str]
+    llm_capability: str = "text"  # 默认 text；L2-vision-chat 中 VISION 标记为 multimodal
 
 
 class CaseResult(BaseModel):
@@ -186,6 +194,7 @@ def load_golden_set(path: Path) -> list[Case]:
                 schema_version=entry.get("schema_version", "v1.0.0"),
                 expected=expected,
                 real_data_anchors=entry.get("real_data_anchors", []) or [],
+                llm_capability=entry.get("llm_capability", "text"),
             )
         )
     logger.info("golden_set_loaded count={} path={}", len(parsed), path)
