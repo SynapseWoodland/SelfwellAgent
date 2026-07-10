@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-e2e-at-least-32-chars!")
@@ -44,7 +45,9 @@ def app_config():
     return app_config
 
 
-@pytest.fixture
+# V5.2.1-PR0.x: 把 async fixture 改用 pytest_asyncio.fixture；
+# pytest-asyncio 9.x strict mode 不再用 @pytest.fixture 装饰 async fixture。
+@pytest_asyncio.fixture
 async def async_client(app) -> AsyncClient:
     """异步 HTTP 客户端，直接调用 ASGI app（无需真实服务器）。"""
     transport = ASGITransport(app=app)
