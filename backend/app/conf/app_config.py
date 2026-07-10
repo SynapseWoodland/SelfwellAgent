@@ -95,7 +95,7 @@ class MinioConfig(BaseSettings):
         extra="ignore",
     )
 
-    endpoint: str = "localhost:9000"
+    endpoint: str = Field(default="localhost:9000", alias="MINIO_ENDPOINT")
     root_user: str = Field(default="minioadmin", alias="MINIO_ROOT_USER")
     root_password: str = Field(default="", alias="MINIO_ROOT_PASSWORD")
     bucket: str = "selfwell"
