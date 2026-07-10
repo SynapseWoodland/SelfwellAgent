@@ -120,8 +120,10 @@
 			}
 			# 大文件 PUT 不能有传输超时(我们设 0 = 不超时);Caddy 默认 30s 会断
 			flush_interval -1
-			# 关键:让 MinIO 看到公网 Host,否则 SigV4 验签直接 403 SignatureDoesNotMatch
-			header_up Host {host}
+			# MinIO SigV4 要求：请求的 Host header 必须与 presign URL 生成时的 endpoint 完全一致。
+			# {hostport} = Caddy 收到的原始 Host header（含端口），等于 SDK 签名时的 host。
+			# 注意：nginx 用 $http_host，Caddy 用 {hostport}（两者等价）。
+			header_up Host {hostport}
 			header_up X-Real-IP {remote_host}
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}

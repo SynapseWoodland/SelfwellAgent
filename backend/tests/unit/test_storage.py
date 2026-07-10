@@ -29,6 +29,9 @@ def _make_cfg(**overrides) -> MinioConfig:
         kwargs["MINIO_ROOT_USER"] = kwargs.pop("root_user")
     if "root_password" in kwargs:
         kwargs["MINIO_ROOT_PASSWORD"] = kwargs.pop("root_password")
+    # presigned_url 测试依赖 _public_host，默认注入避免测试退化
+    if "public_host" not in kwargs:
+        kwargs["public_host"] = "husenlin.tail61999e.ts.net"
     return MinioConfig(**kwargs)
 
 
@@ -153,7 +156,8 @@ async def test_minio_storage_presigned_url_put() -> None:
     ) as mock_sig:
         url = await storage.presigned_url("k", expires_sec=600)
 
-    assert url == fake_url
+    # MINIO_PUBLIC_HOST 已配置，netloc 替换为公网域名 + prepend /minio
+    assert url == "https://husenlin.tail61999e.ts.net/minio/selfwell/k?X-Amz-Signature=abc"
     mock_sig.assert_called_once()
     assert mock_sig.call_args.kwargs["expires"] == timedelta(seconds=600)
     assert mock_sig.call_args.kwargs["bucket_name"] == "selfwell"

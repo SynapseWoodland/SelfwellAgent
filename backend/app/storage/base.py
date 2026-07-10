@@ -50,5 +50,31 @@ class ObjectStorage(ABC):
         """
         return await self.presigned_url(key, expires_sec=expires_sec)
 
+    async def presigned_post_form(
+        self,
+        key: str,
+        *,
+        expires_sec: int = 3600,
+        content_type: str = "application/octet-stream",
+        max_size: int = 10 * 1024 * 1024,
+    ) -> dict[str, str]:
+        """生成 presigned POST 表单（multipart/form-data），返回签名字段 dict。
+
+        返回 dict 含：x-amz-algorithm / x-amz-credential / x-amz-date /
+        policy / x-amz-signature。调用方需自行加上 ``key`` 字段并拼装
+        multipart/form-data 请求体。
+
+        用途：wx.uploadFile / axios 等浏览器端上传工具需要 multipart/form-data，
+        无法使用 presigned PUT URL（S3 不兼容）。
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} 不支持 presigned POST 表单，请使用 presigned_url"
+        )
+
+    @property
+    def public_host(self) -> str:
+        """公网域名（用于拼接 form_url / cdn_url）。默认空字符串。"""
+        return ""
+
 
 __all__ = ["ObjectStorage"]

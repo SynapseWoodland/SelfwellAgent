@@ -49,15 +49,20 @@ class PresignRequest(BaseModel):
 class PresignResponse(BaseModel):
     """presign 上传响应。
 
+    返回 presigned POST 表单字段，前端用 ``wx.request`` POST multipart/form-data 上传。
+    不再返回 presigned PUT URL（wx.uploadFile 强制发 multipart，S3 不兼容 PUT 格式）。
+
     Attributes:
-        upload_url: PUT 直传 URL（前端把文件 PUT 到这个 URL）。
-        object_key: 服务端约定的对象 key（前端上传完成后需把 object_key 传给后续业务 endpoint）。
-        expires_in: URL 有效期（秒）。
-        cdn_url: 读路径（MVP = upload_url；预留 CDN 改造）。
+        form_url:    表单 POST 目标 URL（不含签名字段）
+        form_fields: 签名字段 dict（含 key 字段）；前端拼 multipart 时需加上
+        object_key:  服务端约定的对象 key
+        expires_in:  有效期（秒）
+        cdn_url:     读路径（MVP = form_url；预留 CDN 改造）
 
     """
 
-    upload_url: str
+    form_url: str
+    form_fields: dict[str, str]
     object_key: str
     expires_in: int
     cdn_url: str
@@ -66,7 +71,7 @@ class PresignResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # §二 常量
 # ─────────────────────────────────────────────────────────────────────────────
-_ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset({"image/jpeg", "image/png", "image/webp"})
+_ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset({"image/jpeg", "image/png", "image/webp", "image/heic"})
 _ALLOWED_PURPOSES: frozenset[str] = frozenset({"diagnosis", "feedback", "assistant"})
 _CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "image/jpeg": "jpg",
@@ -121,7 +126,13 @@ async def presign_upload_endpoint(
     object_key = f"{purpose}/{user_id}/{uuid4().hex}.{ext}"
 
     storage = get_storage()
-    upload_url = await storage.presigned_url(object_key, expires_sec=_PRESIGN_EXPIRES_SEC)
+    form_fields = await storage.presigned_post_form(
+        object_key,
+        expires_sec=_PRESIGN_EXPIRES_SEC,
+        content_type=content_type,
+    )
+    # form_fields 含 key，由后端填入（前端上传时不可改 key）
+    form_fields["key"] = object_key
 
     logger.info(
         "upload_presigned",
@@ -131,11 +142,14 @@ async def presign_upload_endpoint(
         object_key=object_key,
         expires_sec=_PRESIGN_EXPIRES_SEC,
     )
+    form_url = f"https://{storage.public_host}/minio/{storage.bucket}"
+    cdn_url = f"{form_url}/{object_key}"
     return PresignResponse(
-        upload_url=upload_url,
+        form_url=form_url,
+        form_fields=form_fields,
         object_key=object_key,
         expires_in=_PRESIGN_EXPIRES_SEC,
-        cdn_url=upload_url,
+        cdn_url=cdn_url,
     )
 
 

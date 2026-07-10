@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import TYPE_CHECKING
 
 from minio import Minio
+from minio.datatypes import PostPolicy
 from minio.error import S3Error
 
 from app.conf.app_config import MinioConfig
@@ -110,7 +111,13 @@ async def _with_retry(sync_fn, *, attempts: int = 4):
 
 
 class MinioStorage(ObjectStorage):
-    """MinIO 客户端适配。"""
+    """MinIO 客户端适配。
+
+    持两个客户端：
+    - ``_client``：用内网 endpoint，用于 put_object / get_object 等直接 API 调用
+    - ``_sign_client``：用公网 endpoint（若 ``_public_host`` 有值），专门生成 presigned URL
+      —— 签名时用的 Host 必须与前端请求的 Host 一致，MinIO 才能验签通过（SigV4 要求）
+    """
 
     def __init__(
         self,
@@ -150,17 +157,31 @@ class MinioStorage(ObjectStorage):
             self._bucket = bucket
             self._secure = bool(secure) if secure is not None else False
             self._public_host = ""
-        # minio SDK 自身要求 access_key / secret_key 非空；空字符串会抛 ValueError
+
         if not self._access_key or not self._secret_key:
             raise ValueError(
                 "MinioStorage 需有效的 access_key / secret_key（minio SDK 强制）"
             )
+
         self._client = Minio(
             self._endpoint,
             access_key=self._access_key,
             secret_key=self._secret_key,
             secure=self._secure,
         )
+
+        # 签名专用客户端：用公网域名，使 presign URL 的签名 Host 与前端请求的 Host 一致。
+        # MinIO 默认 region 为 us-east-1，显式传 region 避免 SDK 发起网络查询（SDK 会调
+        # /?location 查询 region，公网域名在服务器内部不可解析）。
+        self._sign_client: Minio | None = None
+        if self._public_host:
+            self._sign_client = Minio(
+                self._public_host,
+                access_key=self._access_key,
+                secret_key=self._secret_key,
+                secure=True,
+                region="us-east-1",
+            )
 
     @property
     def bucket(self) -> str:
@@ -226,19 +247,40 @@ class MinioStorage(ObjectStorage):
         key = _normalize_key(key)
 
         def _sign() -> str:
-            return self._client.presigned_put_object(
+            # 优先用公网域名签名的客户端（使签名 Host 与前端请求一致）
+            client = self._sign_client if self._sign_client else self._client
+            return client.presigned_put_object(
                 bucket_name=self._bucket,
                 object_name=key,
                 expires=timedelta(seconds=expires_sec),
             )
 
-        return await _with_retry(_sign)
+        raw_url = await _with_retry(_sign)
+        # 前端（小程序）走 Caddy 反代，Caddy 路由 /minio/* → MinIO :9000。
+        # 变换：netloc 替换为公网域名 + 路径 prepend /minio。
+        if self._public_host and raw_url:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(raw_url)
+            # scheme: http → https（Funnel 提供 TLS 终结）
+            public_url = f"https://{self._public_host}/minio{parsed.path}?{parsed.query}"
+            logger.debug(
+                "minio_presign_put",
+                raw_url=raw_url,
+                public_url=public_url,
+                object_key=key,
+                bucket=self._bucket,
+            )
+            return public_url
+        logger.warning("minio_presign_put_no_public_host", raw_url=raw_url, object_key=key)
+        return raw_url
 
     async def presigned_get_url(self, key: str, *, expires_sec: int = 3600) -> str:
         key = _normalize_key(key)
 
         def _sign_get() -> str:
-            return self._client.presigned_get_object(
+            client = self._sign_client if self._sign_client else self._client
+            return client.presigned_get_object(
                 bucket_name=self._bucket,
                 object_name=key,
                 expires=timedelta(seconds=expires_sec),
@@ -246,16 +288,48 @@ class MinioStorage(ObjectStorage):
 
         raw_url = await _with_retry(_sign_get)
         # 方舟 LLM 运行在云端，无法访问 localhost/127.0.0.1。
-        # 若 _public_host 已配置，将 presigned URL 中的内部地址替换为公网地址，
-        # 使方舟 API 能通过公网访问 MinIO。
+        # 变换：netloc 替换为公网域名 + 路径 prepend /minio，使方舟能访问。
         if self._public_host and raw_url:
-            from urllib.parse import urlparse, urlunparse
+            from urllib.parse import urlparse
 
             parsed = urlparse(raw_url)
-            # 替换 host:port 部分，保留 path、query、scheme
-            public_parsed = parsed._replace(netloc=self._public_host)
-            return urlunparse(public_parsed)
+            # scheme: http → https（Funnel 提供 TLS 终结）
+            return f"https://{self._public_host}/minio{parsed.path}?{parsed.query}"
         return raw_url
+
+    async def presigned_post_form(
+        self,
+        key: str,
+        *,
+        expires_sec: int = 3600,
+        content_type: str = "application/octet-stream",
+        max_size: int = 10 * 1024 * 1024,
+    ) -> dict[str, str]:
+        """生成 presigned POST 表单字段 dict。
+
+        内部用 MinIO ``presigned_post_policy`` API，签名 Host = ``_public_host``（公网域名），
+        保证 MinIO 验签通过。
+
+        返回字段不含 ``key``，调用方需在 multipart 表单里补上 ``key=<object_key>``。
+        """
+        key = _normalize_key(key)
+
+        def _sign_post() -> dict[str, str]:
+            client = self._sign_client if self._sign_client else self._client
+            policy = PostPolicy(
+                self._bucket,
+                datetime.now(timezone.utc) + timedelta(seconds=expires_sec),
+            )
+            policy.add_starts_with_condition("key", key)
+            policy.add_content_length_range_condition(1, max_size)
+            return client.presigned_post_policy(policy)
+
+        return await _with_retry(_sign_post)
+
+    @property
+    def public_host(self) -> str:
+        """公网域名（用于拼接 form_url / cdn_url）。"""
+        return self._public_host
 
     async def _ensure_bucket(self) -> None:
         def _ensure() -> None:

@@ -78,19 +78,23 @@ function isDebugMode(): boolean {
   }
 }
 
-/** 用 wx.uploadFile 直传对象存储（PUT）。返回是否成功。 */
-function putObject(uploadUrl: string, filePath: string, contentType: string): Promise<void> {
-  return new Promise((resolve, reject) => {
+/** 用 wx.uploadFile POST multipart/form-data 上传（presigned POST 表单）。返回是否成功。 */
+function postObjectForm(
+  uploadUrl: string,
+  formFields: Record<string, string>,
+  filePath: string,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     wx.uploadFile({
       url: uploadUrl,
       filePath,
       name: 'file',
-      header: { 'Content-Type': contentType },
+      formData: formFields,  // formData 字段作为 multipart 表单域发送，wx.uploadFile 自动追加 file 域
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve();
-        else reject(new Error(`object PUT HTTP ${res.statusCode}`));
+        else reject(new Error(`object POST HTTP ${res.statusCode}`));
       },
-      fail: (err) => reject(new Error(err.errMsg ?? 'object PUT fail')),
+      fail: (err) => reject(new Error(err.errMsg ?? 'object POST fail')),
     });
   });
 }
@@ -129,8 +133,13 @@ async function presignAndUploadOneWithPurpose(
       contentType,
       purpose,
     });
-    if (presign?.upload_url && presign?.object_key) {
-      await putObject(presign.upload_url, picked.path, contentType);
+    if (presign?.form_url && presign?.form_fields && presign?.object_key) {
+      // form_fields.key 由后端填入，前端不得修改
+      await postObjectForm(
+        presign.form_url,
+        presign.form_fields,
+        picked.path,
+      );
       return {
         objectKey: presign.object_key,
         bodyPart,
@@ -138,7 +147,7 @@ async function presignAndUploadOneWithPurpose(
         sizeBytes: picked.compressedSize,
       };
     }
-    throw new Error('presign missing upload_url/object_key');
+    throw new Error('presign missing form_url/form_fields/object_key');
   } catch (e) {
     if (debug) throw e;
     console.warn('[upload-helper] presign/upload fail, fallback mock', e);

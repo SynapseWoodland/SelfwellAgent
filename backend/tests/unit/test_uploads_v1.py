@@ -93,8 +93,9 @@ def test_presign_invalid_content_type(mock_jwt_user, mock_storage) -> None:
         headers={"Authorization": "Bearer fake"},
     )
     assert resp.status_code == 400
-    detail = resp.json()["detail"]
-    assert detail["code"] == E_UPLOAD_INVALID_CONTENT_TYPE
+    # 响应格式为 envelope：{"error": {code, message_zh, ...}}
+    error = resp.json()["error"]
+    assert error["code"] == E_UPLOAD_INVALID_CONTENT_TYPE
 
 
 def test_presign_invalid_purpose(mock_jwt_user, mock_storage) -> None:
@@ -105,8 +106,9 @@ def test_presign_invalid_purpose(mock_jwt_user, mock_storage) -> None:
         headers={"Authorization": "Bearer fake"},
     )
     assert resp.status_code == 400
-    detail = resp.json()["detail"]
-    assert detail["code"] == E_UPLOAD_INVALID_PURPOSE
+    # 响应格式为 envelope：{"error": {code, message_zh, ...}}
+    error = resp.json()["error"]
+    assert error["code"] == E_UPLOAD_INVALID_PURPOSE
 
 
 def test_presign_missing_field(mock_jwt_user, mock_storage) -> None:

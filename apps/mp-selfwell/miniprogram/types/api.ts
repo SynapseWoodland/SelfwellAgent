@@ -118,14 +118,15 @@ export interface PresignReq {
   purpose?: 'diagnosis' | 'feedback';
 }
 export interface PresignResp {
-  upload_url: string;
+  /** 表单 POST 目标 URL */
+  form_url: string;
+  /** 签名字段 dict（含 key 字段）；前端拼 multipart 时直接作为 formData 传入 */
+  form_fields: Record<string, string>;
   object_key: string;
   expires_in?: number;
   cdn_url?: string;
-  /** 已废弃：保留向后兼容 */
-  expires_at?: ISODateTime;
-  /** 已废弃：保留向后兼容 */
-  required_headers?: Record<string, string>;
+  /** 已废弃：保留向后兼容（请用 form_url + form_fields） */
+  upload_url?: string;
 }
 
 /** 单张诊断照片（向后兼容 v1 + v2）
