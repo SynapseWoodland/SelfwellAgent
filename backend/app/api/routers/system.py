@@ -1,11 +1,11 @@
 """System router（基础设施探针）。
 
 PR-1（SPEC-S1PR1-fastapi-boot）：
-- ``GET /healthz``：三段探针（db / redis / llm），返回 OK / DEGRADED / DOWN
+- ``GET /healthz``：四段探针（db / redis / minio / llm），返回 OK / DEGRADED / DOWN
 - 探针用 ``asyncio.gather`` 并发，单探针 2s timeout
-- 任一关键依赖（db / redis）down → HTTP 503；仅 LLM down → HTTP 200（degraded）
+- 任一关键依赖（db / redis）down → HTTP 503；llm / minio degraded → HTTP 200（降级不阻塞）
 
-真源：本文件 db / redis 探针复用 ``app.core.startup`` 的实现（单一真源）；
+真源：本文件 db / redis / minio 探针复用 ``app.core.startup`` 的实现（单一真源）；
      LLM 探针仅在运行时使用，留在本文件。
 """
 
@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 
 from app.conf.app_config import app_config
 from app.core.log import logger
-from app.core.startup import probe_postgres, probe_redis
+from app.core.startup import probe_postgres, probe_redis, probe_minio
 
 # ──────────────────────────────────────────────────────────────────────────────
 # §一 路由
@@ -52,6 +52,15 @@ async def _probe_redis() -> ProbeResult:
     except TimeoutError:
         logger.warning("healthz_redis_timeout", timeout_sec=_HEALTHZ_PROBE_TIMEOUT_SEC)
         return "down"
+
+
+async def _probe_minio() -> ProbeResult:
+    """MinIO 探针：复用 startup 的实现。失败 → 'degraded'（不阻塞 /healthz 200）。"""
+    try:
+        return await asyncio.wait_for(probe_minio(), timeout=_HEALTHZ_PROBE_TIMEOUT_SEC)
+    except TimeoutError:
+        logger.warning("healthz_minio_timeout", timeout_sec=_HEALTHZ_PROBE_TIMEOUT_SEC)
+        return "degraded"
 
 
 async def _probe_llm() -> ProbeResult:
@@ -105,23 +114,26 @@ async def _probe_llm() -> ProbeResult:
 @router.get(
     "/healthz",
     include_in_schema=False,  # 不污染 OpenAPI 业务契约（仅内部 liveness）
-    summary="Liveness + 三段探针（db / redis / llm）",
+    summary="Liveness + 四段探针（db / redis / minio / llm）",
 )
 async def healthz() -> JSONResponse:
-    """并发三段探针，返回 ``{status, checks}`` 响应体。
+    """并发四段探针，返回 ``{status, checks}`` 响应体。
 
     - 全部 ok → ``status=ok`` + HTTP 200
-    - 仅 llm degraded → ``status=degraded`` + HTTP 200
+    - 仅 llm / minio degraded → ``status=degraded`` + HTTP 200
     - 任一 db/redis down → ``status=down`` + HTTP 503
+    - minio degraded 不影响 HTTP 状态码（storage 可降级）
     """
-    db_res, redis_res, llm_res = await asyncio.gather(
+    db_res, redis_res, minio_res, llm_res = await asyncio.gather(
         _probe_db(),
         _probe_redis(),
+        _probe_minio(),
         _probe_llm(),
     )
     checks: dict[str, str] = {
         "db": db_res,
         "redis": redis_res,
+        "minio": minio_res,
         "llm": llm_res,
     }
 
@@ -129,7 +141,7 @@ async def healthz() -> JSONResponse:
     if db_res == "down" or redis_res == "down":
         status: Literal["ok", "degraded", "down"] = "down"
         http_code = 503
-    elif llm_res in {"degraded", "down"}:
+    elif llm_res in {"degraded", "down"} or minio_res in {"degraded", "down"}:
         status = "degraded"
         http_code = 200
     else:
