@@ -1,0 +1,19 @@
+{
+  "name": "mp-selfwell-miniprogram-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sprint A Phase 0 基建 · 微信小程序代码层 jest + ts-jest 单测（与 apps/mp-selfwell/tests/ 的 vitest 并存，业务层 utils 仍归 vitest；本目录专做 implementation-layer + SSE consumer 验证）",
+  "scripts": {
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --config jest.config.js --watch",
+    "test:ci": "jest --config jest.config.js --ci --colors --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.13",
+    "@types/node": "^20.19.43",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.0"
+  }
+}
