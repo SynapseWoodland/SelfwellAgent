@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-07-04",
+  "comment": "SelfwellAgent Phase 0 占位 baseline（仅 3 条示例 case）：1 条闲聊 / 1 条健康话题 / 1 条跨调用拦截。真实路由回归用例及对应 baseline 后续 PR 补。",
+  "source_run": "manual_phase0",
+  "pass_rate": 1.0,
+  "passed": 3,
+  "total_sampled": 3,
+  "route_distribution": {
+    "general_chat": 1,
+    "report_generate": 1,
+    "blocked": 1
+  },
+  "intercept_block_rate": 1.0,
+  "elapsed_ms_p95": 50,
+  "known_issues": [
+    "Phase 0 仅有 3 条示例 case，真实业务路由回归用例待立项后补全",
+    "_eval_against_mock 当前对非拦截 case 透传 expected.route（Phase 0 简化），Phase 1 接入真实 LangGraph 后替换",
+    "Tier 1/2/3 健康话题路径尚未实现，report_generate 路由仅为占位"
+  ],
+  "regression_thresholds": {
+    "pass_rate_drop_pct_max": 5.0,
+    "intercept_block_rate_drop_pct_max": 0.0
+  }
+}

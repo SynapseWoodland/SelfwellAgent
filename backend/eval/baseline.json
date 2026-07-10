@@ -1,25 +1,120 @@
 {
-  "version": "1.0.0",
-  "created_at": "2026-07-04",
-  "comment": "SelfwellAgent Phase 0 占位 baseline（仅 3 条示例 case）：1 条闲聊 / 1 条健康话题 / 1 条跨调用拦截。真实路由回归用例及对应 baseline 后续 PR 补。",
-  "source_run": "manual_phase0",
-  "pass_rate": 1.0,
-  "passed": 3,
-  "total_sampled": 3,
-  "route_distribution": {
-    "general_chat": 1,
-    "report_generate": 1,
-    "blocked": 1
-  },
-  "intercept_block_rate": 1.0,
-  "elapsed_ms_p95": 50,
-  "known_issues": [
-    "Phase 0 仅有 3 条示例 case，真实业务路由回归用例待立项后补全",
-    "_eval_against_mock 当前对非拦截 case 透传 expected.route（Phase 0 简化），Phase 1 接入真实 LangGraph 后替换",
-    "Tier 1/2/3 健康话题路径尚未实现，report_generate 路由仅为占位"
+  "_comment": [
+    "v4.1-prep 子任务 2 生成的 baseline 骨架。",
+    "实际 cases[] 数组为空（[]），需要 Phase 1 之后真正跑一次 eval runner",
+    "（模式 daily / release），把 RunSummary 反序列化回填到此文件后才能用作",
+    "回归基线（baseline.json 的 regression_vs_baseline 计算依赖 route_distribution）。",
+    "",
+    "回填完成前，此 baseline.json 与 baseline.v1.json（v1.0.0 的 3 条样本）都不应",
+    "参与实际回归比对。",
+    "",
+    "下一步（不在本子任务范围）：",
+    "  cd backend && uv run python -m eval.runner --mode daily \\",
+    "    --baseline baseline.json --output results/daily-YYYYMMDD.json",
+    "回填流程：读 results/*.json → 取 route_distribution / intercept_block_rate /",
+    "  confidence_histogram → 写入 baseline.json.cases[] 与 summary 字段。"
   ],
+  "version": "v2-three-layer",
+  "schema_version": "v2.0.0-three-layer",
+  "created_at": "2026-07-10",
+  "created_by": "SelfwellAgent AI 架构师（v4.1-prep 子任务 2 · 三层 Golden Set 合并后骨架生成）",
+  "generated_at": "2026-07-10T00:00:00Z",
+  "source_run": "manual_phase1_skeleton",
+  "source_run_note": "骨架模式：cases[] 为空；待 Phase 1 跑通后回填",
+
+  "golden_set_path": "backend/eval/golden_set_v1.yaml",
+  "golden_set_version": "v2.0.0-three-layer",
+  "case_count": 40,
+  "layer_breakdown": {
+    "L1-baseline": 21,
+    "L2-vision-chat": 11,
+    "L3-error-contract": 8
+  },
+
+  "golden_case_ids": [
+    "GN-CHAT-001", "GN-HEALTH-001", "GN-COMPLIANCE-001",
+    "GN-M5-001", "GN-M5-002", "GN-M5-003", "GN-M5-004", "GN-M5-005", "GN-M5-006",
+    "GN-M7-001", "GN-M7-002", "GN-M7-003", "GN-M7-004", "GN-M7-005", "GN-M7-006",
+    "GN-M8-001", "GN-M8-002", "GN-M8-003", "GN-M8-004", "GN-M8-005", "GN-M8-006",
+    "GN-ERR-001", "GN-ERR-002", "GN-ERR-003", "GN-ERR-004",
+    "GN-ERR-005", "GN-ERR-006", "GN-ERR-007", "GN-ERR-008",
+    "GN-ASSISTANT-VISION-001", "GN-ASSISTANT-VISION-002", "GN-ASSISTANT-VISION-003",
+    "GN-ASSISTANT-VISION-004", "GN-ASSISTANT-VISION-005",
+    "GN-ASSISTANT-CHAT-001", "GN-ASSISTANT-CHAT-002",
+    "GN-ASSISTANT-CHAT-003", "GN-ASSISTANT-CHAT-004",
+    "GN-CROSS-001", "GN-CROSS-002"
+  ],
+
+  "pass_rate": null,
+  "passed": null,
+  "total_sampled": null,
+  "route_distribution": {},
+  "intercept_block_rate": null,
+  "confidence_histogram": {},
+  "elapsed_ms_p95": null,
+
   "regression_thresholds": {
     "pass_rate_drop_pct_max": 5.0,
     "intercept_block_rate_drop_pct_max": 0.0
+  },
+
+  "known_issues": [
+    "L2-vision-chat 11 条用例处于 status=draft 状态，expected.route / expected.code 字段含",
+    "    <TODO: from V4.1 Step X.Y> 占位符。在 TODO 被替换为实路由名/E_CODE 前，",
+    "    runner.py 的 _route_matches() 会因字面相等失败，建议 Phase 1 跑 eval 时",
+    "    用 --mode schema 或子集采样（仅 L1+L3 共 29 条）来获得有意义的基线，",
+    "    L2 的 11 条用例等 Step 1.1 ~ Step 2.11 实施完成、占位符被替换后再加入回归。",
+    "本 baseline.json 是骨架（cases=[]），未实际跑 eval；待 Phase 1 跑通后回填。"
+  ],
+
+  "phase_recipes": {
+    "phase_a_骨架 (current)": {
+      "cases_filled": false,
+      "note": "本文件就是此阶段的产出。version=v2-three-layer, case_count=40, cases=[]"
+    },
+    "phase_b_Phase1_Eval": {
+      "command": "cd backend && uv run python -m eval.runner --mode daily --baseline backend/eval/baseline.json --output backend/eval/results/daily-phase1.json",
+      "expected_route_distribution": {
+        "general_chat": "<L1 GN-CHAT-001 ~ GN-M5-006 等>",
+        "report_generate": "<L1 GN-HEALTH-001>",
+        "module_redirect": "<L1 GN-M5-001>",
+        "read_query": "<L1 GN-M5-002>",
+        "unknown": "<L1 GN-M5-003>",
+        "recall": "<L1 GN-M5-004, GN-M8-001~006>",
+        "medical_reject": "<L1 GN-M5-005>",
+        "feedback_create_own": "<L1 GN-M7-001 ~ GN-M7-004>",
+        "blocked": "<L1 GN-COMPLIANCE-001, GN-M7-005, GN-M8-005 + L3 全部 8 条 + L2-VISION-004>",
+        "TODO_L2_vision": "<L2 VISION-001~003/005 待 V4.1 Step 1.1/1.2/1.3/2.3 实路由回填>",
+        "TODO_L2_chat": "<L2 CHAT-001~004 待 V4.1 Step 1.5/2.1/2.5/2.8 实路由回填>",
+        "TODO_L2_cross": "<L2 CROSS-001~002 待 V4.1 Step 2.9/2.11 实路由回填>"
+      }
+    },
+    "phase_c_回填流程": {
+      "scripts": "见 .cursor/skills/golden-set/SKILL.md §回填流程；本期不在范围内"
+    }
+  },
+
+  "interface_touchpoints": {
+    "subtask_3_Pydantic_ExpectedBlock_扩展": {
+      "file": "backend/eval/runner.py",
+      "new_fields": ["code (str | None)", "code_match (str)", "http_status (int | None)"],
+      "yaml_back_compat": "21 老用例 expected.code 默认为 None → 不卡 E_CODE"
+    },
+    "subtask_4_envelope_layer": {
+      "file": "backend/app/errors/envelope.py",
+      "new_fields": ["error.request_id", "error.details"],
+      "yaml_codes_added": "GN-ERR-001 ~ GN-ERR-008 共 8 条"
+    }
+  },
+
+  "v1_baseline_backup": "backend/eval/baseline.v1.json",
+  "v1_baseline_backup_note": "v1.0.0 备份（944 字节 · 含 3 条 Phase 0 占位用例：general_chat=1 / report_generate=1 / blocked=1）。仅用于历史对照，不参与回归计算。",
+
+  "cases": [],
+  "_cases_note": "Per user q7 decision（合并完成后一次性重生成 baseline），先放置空数组。Phase 1 跑通后回填 route_distribution / pass_rate / per-case 详情。",
+
+  "approvals": {
+    "human_q2_decision": "渐进式三层（L1+L2+L3）",
+    "human_q7_decision": "合并完成后一次性重生成 baseline.json"
   }
 }

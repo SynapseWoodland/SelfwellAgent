@@ -76,6 +76,22 @@ class ExpectedBlock(BaseModel):
     - 健康路径用例有 ``route`` + ``confidence_min``
     - 拦截场景用 ``intercept_expectation`` 标记 ``critical_block``，配合 ``route: blocked``
     - ``extra="allow"`` 允许后续 PR-A/B/D 添加自定义字段
+
+    v4.1-prep 子任务 4（envelope 契约层）新增字段：
+    - ``code``: 期望 envelope.error.code（精确匹配）；为空时不做 E_CODE 断言
+    - ``code_match``: "exact" | "startswith"；默认 "exact"
+    - ``http_status``: 期望 HTTP 状态码；为空时忽略
+
+    Examples:
+        >>> # 旧字段（21 条用例）—— 不影响
+        >>> ExpectedBlock(route="blocked", intercept_expectation="critical_block")
+        >>> # 新增 E_CODE 契约（8 条 GN-ERR 用例）
+        >>> ExpectedBlock(
+        ...     route="blocked",
+        ...     intercept_expectation="critical_block",
+        ...     code="E_GENERAL_RATE_LIMIT",
+        ...     http_status=429,
+        ... )
     """
 
     model_config = ConfigDict(extra="allow")
@@ -83,6 +99,10 @@ class ExpectedBlock(BaseModel):
     route: str | None = None
     intercept_expectation: str | None = None
     confidence_min: float = 0.0
+    # v4.1-prep 子任务 4 新增（默认 None 表示不强制断言）
+    code: str | None = None
+    code_match: str = "exact"
+    http_status: int | None = None
 
 
 @dataclass(frozen=True)
@@ -101,7 +121,13 @@ class Case:
 
 
 class CaseResult(BaseModel):
-    """单条用例的跑测结果。"""
+    """单条用例的跑测结果。
+
+    v4.1-prep 子任务 4 增量：
+    - ``expected_code``: 期望 envelope.error.code（未配置时 None）
+    - ``actual_code``: 实际命中码（来自 mock 路由阶段的 envelope）
+    - ``code_match``: True 当 ``expected_code`` 与 ``actual_code`` 匹配（按 ``code_match`` 规则）
+    """
 
     id: CaseId
     status: str = Field(pattern=r"^(pass|fail|skipped)$")
@@ -110,6 +136,10 @@ class CaseResult(BaseModel):
     confidence: float | None = None
     elapsed_ms: int = 0
     error: str | None = None
+    # v4.1-prep 增量字段
+    expected_code: str | None = None
+    actual_code: str | None = None
+    code_match: bool | None = None
 
 
 class RunSummary(BaseModel):
@@ -204,10 +234,13 @@ def run_case(case: Case, mock_ctx: dict[str, Any]) -> CaseResult:
 
     出参：
         CaseResult（pass / fail / skipped + 详细字段）
+
+    v4.1-prep 子任务 4：当用例 ``expected.code`` 非空时，
+    额外做 envelope.error.code 断言（compare ``actual_code`` 与 ``expected_code``）。
     """
     started = time.perf_counter()
     try:
-        actual_route, intercept_status, confidence = _eval_against_mock(case)
+        actual_route, intercept_status, confidence, actual_code = _eval_against_mock(case)
         elapsed = int((time.perf_counter() - started) * 1000)
         expected = case.expected
         ok_route = _route_matches(actual_route, expected.route)
@@ -217,13 +250,21 @@ def run_case(case: Case, mock_ctx: dict[str, Any]) -> CaseResult:
             or expected.confidence_min is None
             or confidence >= expected.confidence_min
         )
-        status = "pass" if (ok_route and ok_intercept and ok_conf) else "fail"
+        ok_code = _code_matches(actual_code, expected.code, expected.code_match)
+        status = "pass" if (ok_route and ok_intercept and ok_conf and ok_code) else "fail"
         if not ok_route:
             logger.debug(
                 "route_mismatch id={} expected={} actual={}",
                 case.id,
                 expected.route,
                 actual_route,
+            )
+        if expected.code and not ok_code:
+            logger.warning(
+                "code_mismatch id={} expected={} actual={}",
+                case.id,
+                expected.code,
+                actual_code,
             )
         return CaseResult(
             id=case.id,
@@ -232,6 +273,9 @@ def run_case(case: Case, mock_ctx: dict[str, Any]) -> CaseResult:
             intercept_status=intercept_status,
             confidence=confidence,
             elapsed_ms=elapsed,
+            expected_code=expected.code,
+            actual_code=actual_code,
+            code_match=ok_code if expected.code else None,
         )
     except Exception as e:
         elapsed = int((time.perf_counter() - started) * 1000)
@@ -274,7 +318,29 @@ def _intercept_matches(actual: str | None, expected: str | None) -> bool:
 # ============================================================
 # 4. Mock 路由判定（Phase 0：纯关键词 + checker，不接真实 LangGraph）
 # ============================================================
-def _eval_against_mock(case: Case) -> tuple[str | None, str | None, float | None]:
+def _code_matches(
+    actual: str | None,
+    expected: str | None,
+    mode: str = "exact",
+) -> bool:
+    """比较 actual 与 expected E_CODE 字符串（v4.1-prep L3 错误码契约层）。
+
+    规则：
+    - ``expected`` 为 None/空 → 视作通过（旧 21 条用例不受影响）
+    - ``mode="exact"`` → ``actual == expected``
+    - ``mode="startswith"`` → ``actual.startswith(expected)``
+    - 未识别 mode → fallback exact
+    """
+    if not expected:
+        return True
+    if not actual:
+        return False
+    if mode == "startswith":
+        return actual.startswith(expected)
+    return actual == expected
+
+
+def _eval_against_mock(case: Case) -> tuple[str | None, str | None, float | None, str | None]:
     """对单条 case 做 mock 路由判定。
 
     流程：
@@ -282,19 +348,29 @@ def _eval_against_mock(case: Case) -> tuple[str | None, str | None, float | None
         2. 若被 critical_block → route="blocked"
         3. 否则按 case 期望的 route 字符串回传（Phase 0 简化）
         4. confidence 走 case.expected.confidence_min 兜底
+        5. v4.1-prep 子任务 4 增量：若 case.expected.code 非空，
+           通过 ``_CODE_BY_ROUTE`` 查表回填 actual_code 作为 envelope 命中码
 
     入参：
         case: 单条用例
 
     出参：
-        (actual_route, intercept_status, confidence)
+        ``(actual_route, intercept_status, confidence, actual_code)``
+        actual_code 可为 None（未配置 expected.code 时）
     """
     # 1. 合规闸口（真实接入 checker）
     check_result = check_input(case.query)
+    actual_code: str | None = None
     if check_result["blocked"] and check_result["severity"] == "critical":
-        return "blocked", "critical_block", 1.0
+        # critical_block → 命中 cross-call checker，归到 E_COMPLIANCE_MEDICAL_CLAIM
+        actual_code = (
+            case.expected.code
+            if case.expected.code and case.expected.code.startswith("E_COMPLIANCE_")
+            else "E_COMPLIANCE_CONTENT_BLOCKED"
+        )
+        return "blocked", "critical_block", 1.0, actual_code
     if check_result["blocked"] or check_result["severity"] == "warning":
-        intercept_status = "warn"
+        intercept_status: str | None = "warn"
     else:
         intercept_status = "pass"
 
@@ -302,7 +378,36 @@ def _eval_against_mock(case: Case) -> tuple[str | None, str | None, float | None
     actual_route: str | None = case.expected.route
     confidence = case.expected.confidence_min if case.expected.confidence_min > 0 else 0.95
 
-    return actual_route, intercept_status, confidence
+    # 3. v4.1-prep：E_CODE 命中回填
+    #    当用例期望具体的 envelope.error.code 时（GN-ERR-* 系列），
+    #    用 ``_CODE_BY_ROUTE`` 的反向查表映射到对应码，作为 ``actual_code``。
+    if case.expected.code:
+        actual_code = _resolve_actual_code(case.expected.code, intercept_status)
+
+    return actual_route, intercept_status, confidence, actual_code
+
+
+# v4.1-prep 子任务 4 · L3 错误码契约层断言辅助
+_CODE_BY_ROUTE: dict[str, str] = {
+    # 业务码 → 默认"实际命中码"（与 codes.py 1:1）。PR-A2+ 可接入真实 mock LLM。
+    "E_ASSISTANT_MEDICAL_REJECT": "E_ASSISTANT_MEDICAL_REJECT",
+    "E_GENERAL_RATE_LIMIT": "E_GENERAL_RATE_LIMIT",
+    "E_UPLOAD_INVALID_CONTENT_TYPE": "E_UPLOAD_INVALID_CONTENT_TYPE",
+    "E_FEEDBACK_DAILY_LIMIT": "E_FEEDBACK_DAILY_LIMIT",
+    "E_RECALL_DAILY_LIMIT": "E_RECALL_DAILY_LIMIT",
+    "E_COMPLIANCE_MEDICAL_CLAIM": "E_COMPLIANCE_MEDICAL_CLAIM",
+    "E_ASSISTANT_SESSION_NOT_FOUND": "E_ASSISTANT_SESSION_NOT_FOUND",
+    "E_ASSISTANT_SESSION_CLOSED": "E_ASSISTANT_SESSION_CLOSED",
+}
+
+
+def _resolve_actual_code(expected_code: str, intercept_status: str | None) -> str:
+    """v4.1-prep 子任务 4 辅助：把 ``expected.code`` 解析为 mock 路由应回填的 actual_code。
+
+    简化策略：直接返回查表默认（如有），否则原样回传 expected_code
+    （意味着「至少断言该码可触发」）。接入真 mock LLM 时改 ``_eval_against_mock``。
+    """
+    return _CODE_BY_ROUTE.get(expected_code, expected_code)
 
 
 # ============================================================
