@@ -590,7 +590,7 @@ cases:
   previous_query: null
   is_followup: false
   expected:
-    route: '<TODO: from V4.1 Step 2.3 — smart_analyze 或 report_generate>'
+    route: stream_smart_analyze_level
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:

@@ -81,14 +81,19 @@ def test_golden_schema_mode_returns_route_distribution_with_11_pr1_fills() -> No
 
 
 @pytest.mark.golden_set
-def test_golden_yaml_todo_count_equals_one_residual() -> None:
-    """PR1 完成后仅剩 VISION-005 1 处 TODO 占位（PR2 后回填）。"""
-    yaml_path = Path(__file__).resolve().parents[1] / "eval" / "golden_set_v1.yaml"
+def test_golden_yaml_vision_005_route_is_filled_in_pr2() -> None:
+    """PR2 后 VISION-005 route 已填实字符串。"""
+    yaml_path = (
+        Path(__file__).resolve().parent
+        / "golden_set_v1.yaml"
+    )
     content = yaml_path.read_text(encoding="utf-8")
+    assert "route: stream_smart_analyze_level" in content, (
+        "VISION-005 route 未回填（PR2 应填 stream_smart_analyze_level）"
+    )
     todo_count = content.count("TODO: from V4.1")
-    assert todo_count == 1, (
-        f"PR1 回填后应仅剩 1 处 TODO（VISION-005），实为 {todo_count} 处。"
-        f"检查 yaml 是否漏回填 / 多回填。"
+    assert todo_count == 0, (
+        f"PR2 完成后应 0 处 TODO，实为 {todo_count}。"
     )
 
 

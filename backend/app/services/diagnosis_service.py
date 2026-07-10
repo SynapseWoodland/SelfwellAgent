@@ -340,35 +340,12 @@ def _diagnosis_prompt(profile: dict[str, Any], complaint: str | None) -> str:
 async def _photo_image_urls(photos: list[dict[str, Any]]) -> list[str]:
     """提取多模态模型可用的图片地址。
 
-    关键：必须生成公网可访问的预签名 URL，因为 Ark SDK 运行在云端，
-    无法访问 localhost 的 MinIO 存储。
+    V5.2.1-PR2 T14：改调 ``_photo_urls.build_photo_urls`` 公共 helper，
+    消除内联实现（保留此函数作为薄壳，行为不变）。
     """
-    from app.storage.factory import get_storage
+    from app.services._photo_urls import build_photo_urls
 
-    urls: list[str] = []
-    storage = get_storage()
-
-    for photo in photos:
-        url = str(photo.get("url", "")).strip()
-        if not url:
-            continue
-        # 已经是公网 URL（可能是 COS 或其他公网存储）
-        if url.startswith(("http://", "https://", "data:image/")):
-            urls.append(url)
-            continue
-        # object_key 场景：生成公网预签名 URL
-        try:
-            presigned = await storage.presigned_get_url(url, expires_sec=3600)
-            urls.append(presigned)
-        except Exception:
-            # 兜底：构造 MinIO 直接访问 URL（开发环境可能可用）
-            from app.conf.app_config import app_config
-
-            cfg = app_config.storage
-            scheme = "https" if cfg.minio.secure else "http"
-            key = quote(url, safe="/")
-            urls.append(f"{scheme}://{cfg.minio.endpoint}/{cfg.minio.bucket}/{key}")
-    return urls
+    return await build_photo_urls(photos)
 
 
 async def _invoke_llm_structured(

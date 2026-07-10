@@ -16,6 +16,7 @@
 - focus_parts (JSONB, nullable) — 多选枚举见 ``docs/data/body-parts.yaml``
 - intensity (VARCHAR(10), nullable) — 枚举 ``轻柔 / 适中 / 进阶``
 - preferred_time (VARCHAR(10), nullable) — 枚举 ``早 / 中 / 晚 / 不固定``
+- skin_type (VARCHAR(10), nullable) — V5.2.1-PR2 T15 新增字段；枚举待 PR5 前端档案页落档后回填（默认 NULL）
 - push_token (VARCHAR(512), nullable)
 - push_channel (VARCHAR(20), nullable) — 枚举见 data-dictionary §1.2
 - email (VARCHAR(254), nullable, RFC 5321)
@@ -66,6 +67,8 @@ class User(Base):
     focus_parts: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     intensity: Mapped[str | None] = mapped_column(VARCHAR(10), nullable=True)
     preferred_time: Mapped[str | None] = mapped_column(VARCHAR(10), nullable=True)
+    # V5.2.1-PR2 T15：profile 6 字段含 skin_type，对应 users.skin_type 列
+    skin_type: Mapped[str | None] = mapped_column(VARCHAR(10), nullable=True)
     push_token: Mapped[str | None] = mapped_column(VARCHAR(512), nullable=True)
     push_channel: Mapped[str | None] = mapped_column(VARCHAR(20), nullable=True)
     email: Mapped[str | None] = mapped_column(VARCHAR(254), nullable=True)

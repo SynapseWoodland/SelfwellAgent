@@ -698,7 +698,7 @@ async def _stream_smart_analyze(
         # ── Phase 1: preprocess (15%) ───────────────────────────
         yield await _emit_progress(1, 15, "图片校验中")
 
-        # 构建 photo dicts（与 diagnosis_service 对齐）
+        # 构建 photo dicts（V5.2.1-PR2 T14：调公共 helper，不再 inline 构造）
         photos = [
             {"object_key": key, "body_part": part}
             for key, part in zip(image_keys, body_parts + ["face"] * max(0, len(image_keys) - len(body_parts)))
@@ -707,11 +707,14 @@ async def _stream_smart_analyze(
         # ── Phase 2: analyzing (45%) ───────────────────────────
         yield await _emit_progress(2, 45, "正在分析体态")
         user = await session.get(User, user_id) if user_id else None
+        # V5.2.1-PR2 T15：profile 字段从 4 个补到 6 个（age_range + skin_type）
         profile = {
             "focus_parts": (user.focus_parts or []) if user else [],
             "intensity": getattr(user, "intensity", None) if user else None,
             "preferred_time": getattr(user, "preferred_time", None) if user else None,
             "sitting_hours": getattr(user, "sitting_hours", None) if user else None,
+            "age_range": getattr(user, "age_range", None) if user else None,
+            "skin_type": getattr(user, "skin_type", None) if user else None,
         }
 
         # ── Phase 3: LLM 调用 ──────────────────────────────────
