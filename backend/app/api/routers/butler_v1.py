@@ -1,11 +1,16 @@
-"""M8 主动回忆路由（``/api/v1/butler`` recall 部分）。"""
+"""M8 主动回忆路由（``/api/v1/butler`` recall 部分）。
+
+v4.1-prep（子任务 4）：router 内 ``raise HTTPException`` 改为 ``raise AppBusinessError(...)``，
+最终 envelope 形态由 ``app/errors/envelope.AppBusinessError`` + exception_handler 出。
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
+from app.errors.envelope import AppBusinessError
 from app.services.recall_service import (
     RecallDailyLimitError,
     RecallError,
@@ -34,7 +39,12 @@ async def generate_recall_endpoint(
             ),
         }
     except (RecallError, RecallDailyLimitError) as exc:
-        raise HTTPException(exc.http_status, {"code": exc.code, "message_zh": exc.render_zh()})
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
+        ) from exc
 
 
 @butler_router.get("/recall/{recall_id}")
@@ -46,7 +56,12 @@ async def get_recall_endpoint(
     try:
         return {"code": 0, "data": await get_recall(session, user_id=user_id, recall_id=recall_id)}
     except RecallError as exc:
-        raise HTTPException(exc.http_status, {"code": exc.code, "message_zh": exc.render_zh()})
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
+        ) from exc
 
 
 @butler_router.get("/recall/day/{day}")

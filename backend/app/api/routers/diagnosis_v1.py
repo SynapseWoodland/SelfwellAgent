@@ -12,6 +12,10 @@ PR-A2 增量（async 真 pipeline · 2026-07-08）：
 - 新增 ``GET /jobs/{job_id}/stream`` SSE 端点：从 ``app.state.job_state`` 拉阶段事件。
 - 保留 ``GET /{report_id}/stream`` 旧 stub：原 3 个测试仍调此路径（mock
   ``get_report_status``）；本 PR 把它**改接** ``JobStateStore`` 而非硬编码 30s sleep。
+
+v4.1-prep（子任务 4）：统一错误响应 envelope —— router 内 ``raise HTTPException``
+改为 ``raise AppBusinessError(...)``，最终 envelope 形态由
+``app/errors/envelope.AppBusinessError`` + ``app/api/middleware/exception_handler`` 出。
 """
 
 from __future__ import annotations
@@ -22,7 +26,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated, Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import current_user_id, db_session
 from app.core.job_state import JobStateStore
 from app.errors.codes import E_DIAGNOSIS_JOB_NOT_FOUND, E_DIAGNOSIS_NOT_FOUND
+from app.errors.envelope import AppBusinessError
 from app.services.diagnosis_service import (
     DiagnosisError,
     DiagnosisJobInputs,
@@ -250,9 +255,11 @@ async def create_diagnosis_endpoint(
             complaint=body.resolve_complaint(),
         )
     except DiagnosisError as exc:
-        raise HTTPException(
-            status_code=exc.http_status,
-            detail={"code": exc.code, "message_zh": exc.render_zh()},
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
         ) from exc
     return DiagnosisResponse(data=DiagnosisData(**result))
 
@@ -368,9 +375,11 @@ async def get_diagnosis_endpoint(
     try:
         result = await get_diagnosis(session, user_id=user_id, report_id=report_id)
     except DiagnosisNotFoundError as exc:
-        raise HTTPException(
-            status_code=exc.http_status,
-            detail={"code": exc.code, "message_zh": exc.render_zh()},
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
         ) from exc
     return ReportGetResponse(data=result)
 
@@ -503,12 +512,10 @@ async def stream_diagnosis_job_endpoint(
         job_state = get_job_state_store()
 
     if job_state.get_status(job_id, user_id=_user_id) is None:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "code": E_DIAGNOSIS_JOB_NOT_FOUND,
-                "message_zh": "诊断任务不存在或已结束",
-            },
+        raise AppBusinessError(
+            code=E_DIAGNOSIS_JOB_NOT_FOUND,
+            message_zh="诊断任务不存在或已结束",
+            http_status=404,
         )
 
     return StreamingResponse(

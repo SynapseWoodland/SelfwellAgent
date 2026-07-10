@@ -1,13 +1,16 @@
-"""异常处理中间件（Sprint 0 骨架）。
+"""异常处理中间件（Sprint 0 骨架 + v4.1-prep envelope 集成）。
 
 真源：``docs/api/openapi.yaml#/components/schemas/ErrorResponse`` +
-``docs/api/error-codes.md`` + ``app/core/errors.to_error_response()``。
+``docs/api/error-codes.md`` + ``app/errors/envelope.make_envelope()``。
 
 职责：
-1. 捕获所有 ``SelfwellError`` 子类 → 返回对应 ``error.code / http_status`` + body
+1. 捕获所有 ``SelfwellError`` 子类 → envelope 响应 + ``error.code / http_status``
 2. 兜底捕获其它异常 → E_GENERAL_INTERNAL_ERROR + 500
 3. 5xx 响应必须带 ``X-Request-ID`` / ``traceparent`` 头（TraceContextMiddleware 已注入）
 4. 日志用 ``logger.exception`` 自动抓 traceback
+5. v4.1-prep：envelope 形态 ``{"error": {code, message_zh, message_en, request_id, details}}``
+   取代旧 ``to_error_response()`` 形态；``error.code / message_zh / message_en`` 字段保持不变
+   以兼容现有 78 个测试。
 """
 
 from __future__ import annotations
@@ -16,8 +19,9 @@ from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.errors import SelfwellError, to_error_response
+from app.core.errors import SelfwellError
 from app.core.log import logger
+from app.errors.envelope import make_envelope
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -50,7 +54,7 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
             )
             return JSONResponse(
                 status_code=exc.http_status,
-                content=to_error_response(exc),
+                content=make_envelope(exc, request=request),
             )
         except Exception:
             logger.exception(
@@ -64,6 +68,8 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
                         "code": "E_GENERAL_INTERNAL_ERROR",
                         "message_zh": "服务端错误，请稍后重试",
                         "message_en": "Server error, please retry later",
+                        "request_id": getattr(request.state, "request_id", "-") or "-",
+                        "details": None,
                     }
                 },
             )

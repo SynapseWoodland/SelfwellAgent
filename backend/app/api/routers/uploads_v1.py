@@ -7,18 +7,22 @@
 - ``object_key`` 命名规范：``{purpose}/{user_id}/{uuid4()}.{ext}``
 - ``upload_url`` = ``storage.presigned_url(object_key, expires_sec=3600)``（PUT 直传 URL）
 - ``cdn_url`` = 同源（MVP 不实现专门 CDN；前端直接从 ``upload_url`` 自取读路径）
+
+v4.1-prep（子任务 4）：router 内 ``raise HTTPException`` 改为 ``raise AppBusinessError(...)``，
+最终 envelope 形态由 ``app/errors/envelope.AppBusinessError`` + exception_handler 出。
 """
 
 from __future__ import annotations
 
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.api.deps import current_user_id
 from app.core.log import logger
 from app.errors.codes import E_UPLOAD_INVALID_CONTENT_TYPE, E_UPLOAD_INVALID_PURPOSE
+from app.errors.envelope import AppBusinessError
 from app.storage.factory import get_storage
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -97,24 +101,20 @@ async def presign_upload_endpoint(
     purpose = body.purpose.strip().lower()
 
     if content_type not in _ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": E_UPLOAD_INVALID_CONTENT_TYPE,
-                "message_zh": f"contentType 不允许：{body.contentType}",
-                "field": "contentType",
-                "allowed": sorted(_ALLOWED_CONTENT_TYPES),
-            },
+        raise AppBusinessError(
+            code=E_UPLOAD_INVALID_CONTENT_TYPE,
+            message_zh=f"contentType 不允许：{body.contentType}",
+            http_status=400,
+            field="contentType",
+            allowed=sorted(_ALLOWED_CONTENT_TYPES),
         )
     if purpose not in _ALLOWED_PURPOSES:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": E_UPLOAD_INVALID_PURPOSE,
-                "message_zh": f"purpose 不允许：{body.purpose}",
-                "field": "purpose",
-                "allowed": sorted(_ALLOWED_PURPOSES),
-            },
+        raise AppBusinessError(
+            code=E_UPLOAD_INVALID_PURPOSE,
+            message_zh=f"purpose 不允许：{body.purpose}",
+            http_status=400,
+            field="purpose",
+            allowed=sorted(_ALLOWED_PURPOSES),
         )
 
     ext = _CONTENT_TYPE_TO_EXT[content_type]

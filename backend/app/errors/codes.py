@@ -16,6 +16,8 @@ Sprint 0 落地：仅做骨架定义；业务模块按 Sprint 1+ 实施时增量
 
 from __future__ import annotations
 
+from enum import Enum
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1xxx 通用错误
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,8 +192,79 @@ E_SHARE_RENDER_FAILED = "E_SHARE_RENDER_FAILED"
 E_SHARE_PLAN_NOT_FOUND = "E_SHARE_PLAN_NOT_FOUND"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# §类别枚举（v4.1-prep 子任务 4 · envelope 分级)
+# ─────────────────────────────────────────────────────────────────────────────
+class CodeCategory(str, Enum):
+    """业务码分级枚举（与 error-codes.md 段落标识对齐）。
+
+    设计要点：
+    - 字符串值与字典前缀一致，便于 O(1) 字符串映射
+    - 与 envelope 集成：``GROUP_BY_CATEGORY[category]`` 可直接喂给测试做参数化
+    """
+
+    GENERAL = "1xxx"        # 通用错误
+    USER_AUTH = "2xxx"      # 用户 / 认证
+    DIAGNOSIS = "3xxx"      # 诊断
+    UPLOAD = "4xxx-up"      # 上传 / presign
+    PLAN_VIDEO = "4xxx-pv"  # 方案 / 视频（4xxx 段共用）
+    CHECKIN = "5xxx"        # 打卡
+    COMMUNITY = "6xxx"      # 社区
+    VIDEO = "7xxx"          # 视频推荐
+    NOTIFICATION = "8xxx"   # 推送 / 通知
+    COMPLIANCE = "9xxx"     # 合规 / 安全
+    ASSISTANT = "10xxx"     # 智能管家助理
+    FEEDBACK = "11xxx"      # 反馈
+    RECALL = "12xxx"        # 主动回忆
+    SHARE = "13xxx"         # 分享
+
+
+def _category_of(code: str) -> CodeCategory:
+    """根据 E_CODE 字符串前缀决定分类（详情见 v4.1-prep/04-error-envelope.md §4）。"""
+    if code.startswith("E_UPLOAD_"):
+        return CodeCategory.UPLOAD
+    if code.startswith("E_PLAN_") or code.startswith("E_VIDEO_"):
+        return CodeCategory.PLAN_VIDEO
+    bucket = code.split("_", 1)[1][:4] if "_" in code else ""
+    return {
+        "GENE": CodeCategory.GENERAL,
+        "USER": CodeCategory.USER_AUTH,
+        "AUTH": CodeCategory.USER_AUTH,
+        "DIAG": CodeCategory.DIAGNOSIS,
+        "CHEC": CodeCategory.CHECKIN,
+        "COMM": CodeCategory.COMMUNITY,
+        "VIDE": CodeCategory.VIDEO,
+        "NOTI": CodeCategory.NOTIFICATION,
+        "COMP": CodeCategory.COMPLIANCE,
+        "ASSI": CodeCategory.ASSISTANT,
+        "FEED": CodeCategory.FEEDBACK,
+        "RECA": CodeCategory.RECALL,
+        "SHAR": CodeCategory.SHARE,
+    }.get(bucket, CodeCategory.GENERAL)
+
+
+def build_group_by_category() -> dict[CodeCategory, list[str]]:
+    """扫描模块内所有 ``E_*`` 字符串常量并按 ``CodeCategory`` 分组。
+
+    出参：``{CodeCategory: [code1, code2, ...]}``；不含空分类。
+    使用样例：``>>> GROUP_BY_CATEGORY[CodeCategory.GENERAL][0] == 'E_GENERAL_INVALID_REQUEST'``。
+    实现要点：直接扫描``globals()``，避免对``__all__``的循环依赖。
+    """
+    out: dict[CodeCategory, list[str]] = {}
+    for _name, value in globals().items():
+        if not (isinstance(value, str) and value.startswith("E_")):
+            continue
+        cat = _category_of(value)
+        out.setdefault(cat, []).append(value)
+    return {k: v for k, v in out.items() if v}
+
+
+# 启动期一次性算好，避免每次枚举重复扫描
+GROUP_BY_CATEGORY: dict[CodeCategory, list[str]] = build_group_by_category()
+
+
 __all__: list[str] = [
     name
     for name, value in globals().items()
     if not name.startswith("_") and isinstance(value, str) and value.startswith("E_")
-]
+] + ["CodeCategory", "GROUP_BY_CATEGORY", "build_group_by_category", "_category_of"]

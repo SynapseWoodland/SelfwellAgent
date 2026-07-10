@@ -4,16 +4,21 @@
 
 PR-A2（worker C）增量：``POST /sessions/{id}/messages`` 切换为 ``StreamingResponse``，
 事件序列见 ``assistant_service.send_message_stream`` 注释（start/progress/report/end/error）。
+
+v4.1-prep（子任务 4）：统一错误响应 envelope —— router 内 ``raise HTTPException``
+改为 ``raise AppBusinessError(...)``，最终 envelope 形态由
+``app/errors/envelope.AppBusinessError`` + ``app/api/middleware/exception_handler`` 出。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user_id, db_session
+from app.errors.envelope import AppBusinessError
 from app.services.assistant_service import (
     DEFAULT_PRIMARY_INTENT,
     AssistantError,
@@ -72,7 +77,12 @@ async def create_session_endpoint(
             session, user_id=user_id, **body.model_dump()
         )}
     except AssistantError as exc:
-        raise HTTPException(exc.http_status, {"code": exc.code, "message_zh": exc.render_zh()})
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
+        ) from exc
 
 
 @assistant_router.post(
@@ -133,9 +143,12 @@ async def send_message_endpoint(
         if not ai_session.user_active or ai_session.closed_at is not None:
             raise SessionClosedError(field="session_id")
     except (SessionNotFoundError, SessionClosedError) as exc:
-        raise HTTPException(
-            exc.http_status, {"code": exc.code, "message_zh": exc.render_zh()}
-        )
+        raise AppBusinessError(
+            code=exc.code,
+            message_zh=exc.render_zh(),
+            http_status=exc.http_status,
+            **exc.context,
+        ) from exc
 
     return StreamingResponse(
         send_message_stream(
