@@ -46,6 +46,12 @@ async def probe_postgres() -> ProbeResult:
         async def _do_probe() -> ProbeResult:
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
+            logger.info(
+                "startup_db_ok",
+                host=app_config.postgres.host,
+                port=app_config.postgres.port,
+                db=app_config.postgres.db,
+            )
             return "ok"
 
         return await asyncio.wait_for(_do_probe(), timeout=_STARTUP_PROBE_TIMEOUT_SEC)
@@ -86,6 +92,11 @@ async def probe_redis() -> ProbeResult:
 
         async def _do_probe() -> ProbeResult:
             await cast("Awaitable[bool]", client.ping())
+            logger.info(
+                "startup_redis_ok",
+                host=app_config.redis.host,
+                port=app_config.redis.port,
+            )
             return "ok"
 
         try:
@@ -112,9 +123,13 @@ async def probe_redis() -> ProbeResult:
 
 
 async def probe_minio() -> ProbeResult:
-    """MinIO 探针：HTTP HEAD bucket endpoint。失败 → 'down'（不影响主流程 critical 决策）。
+    """MinIO 探针：HTTP GET /minio/health/live。失败 → 'degraded'（不影响主流程 critical 决策）。
 
     失败不阻塞启动（业务读图走 fallback）；只打日志提示。
+
+    注意：
+    - 不依赖 bucket 是否存在（避免开发态 404 误判）
+    - 不走 Caddy 反代路径（开发态 Caddy 可能没起），直接探 MinIO S3 API 端口
     """
     minio_cfg = app_config.storage.minio
     if not minio_cfg.endpoint or not minio_cfg.root_password:
@@ -124,15 +139,20 @@ async def probe_minio() -> ProbeResult:
         import httpx
 
         scheme = "https" if minio_cfg.secure else "http"
-        url = f"{scheme}://{minio_cfg.endpoint}/{minio_cfg.bucket}"
+        health_url = f"{scheme}://{minio_cfg.endpoint}/minio/health/live"
 
         async def _do_probe() -> ProbeResult:
             async with httpx.AsyncClient(timeout=_STARTUP_PROBE_TIMEOUT_SEC) as client_http:
-                resp = await client_http.head(url)
-                # MinIO 不存在 bucket → 404；存在 → 200/403
-                if resp.status_code in {200, 403}:
+                resp = await client_http.get(health_url)
+                if resp.status_code == 200:
+                    logger.info("startup_minio_ok", endpoint=minio_cfg.endpoint)
                     return "ok"
-                return "down"
+                logger.warning(
+                    "startup_minio_health_check_failed",
+                    endpoint=minio_cfg.endpoint,
+                    status_code=resp.status_code,
+                )
+                return "degraded"
 
         return await asyncio.wait_for(_do_probe(), timeout=_STARTUP_PROBE_TIMEOUT_SEC)
     except TimeoutError:
