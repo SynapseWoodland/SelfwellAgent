@@ -45,21 +45,26 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
         try:
             return await call_next(request)  # type: ignore[operator, no-any-return]
         except SelfwellError as exc:
-            logger.warning(
+            # 用 logger.exception 而非 logger.warning：自动捕获当前 sys.exc_info() 的
+            # traceback（loguru 的 backtrace=True 会把 SelfwellError 链一路追溯到原始
+            # raise 处）。响应体继续走 make_envelope（sanitized，不含堆栈）。
+            logger.exception(
                 "selfwell_error",
                 code=exc.code,
                 http_status=exc.http_status,
                 severity=exc.severity,
                 path=request.url.path,
+                exc_type=type(exc).__name__,
             )
             return JSONResponse(
                 status_code=exc.http_status,
                 content=make_envelope(exc, request=request),
             )
-        except Exception:
+        except Exception as exc:
             logger.exception(
                 "unhandled_exception",
                 path=request.url.path,
+                exc_type=type(exc).__name__,
             )
             return JSONResponse(
                 status_code=500,

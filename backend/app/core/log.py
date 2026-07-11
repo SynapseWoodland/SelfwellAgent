@@ -112,7 +112,7 @@ LOG_FORMAT: str = (
     "<level>{level: <8}</level> | "
     "<magenta>request_id - {extra[request_id]}</magenta> | "
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-    "<level>{message}</level>"
+    "<level>{message}</level>\n{exception}"
 )
 
 
