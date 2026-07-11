@@ -76,7 +76,15 @@ def test_vision_end_event_has_7_fields_per_v521_pr3_t19() -> None:
     end_match = re.search(r'_sse_pack\(\s*"end"\s*,\s*\{', smart_body)
     assert end_match, "_stream_smart_analyze 缺 _sse_pack(\"end\", ...) yield"
     end_start = end_match.start()
-    end_block = smart_body[end_start : end_start + 600]
+    inline_end_block = smart_body[end_start : end_start + 600]
+
+    # V5.2.1-PR4 F4：end_payload dict 中转形式（在 inline yield 之前构造）
+    end_payload_match = re.search(r"end_payload\s*[:=]", smart_body)
+    if end_payload_match is not None:
+        end_block = smart_body[end_payload_match.start() : end_payload_match.start() + 1000]
+    else:
+        end_block = inline_end_block
+
     for key in expected_keys:
         assert key in end_block, (
             f"smart_analyze 成功路径 end event 缺字段 {key}；end 段:\n{end_block}"

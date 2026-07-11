@@ -532,21 +532,23 @@ def check_text_safety(text: str) -> dict[str, object]:
 
 
 def _rule_engine_fallback(profile: dict[str, Any], complaint: str | None) -> dict[str, Any]:
-    """规则引擎兜底：基于档案标签 + intensity 输出标准方案。"""
-    parts = profile.get("focus_parts") or ["整体气色"]
-    directions = []
-    for i, part in enumerate(parts[:3]):
-        directions.append(
-            {
-                "title": f"{part} 方向 {i + 1}",
-                "description": "建议从轻柔训练开始，配合规律作息。",
-                "video_id": None,
-            }
-        )
+    """规则引擎兜底：缺料时不返假报告（V5.2.1-PR4 T22 + F4）.
+
+V5.2.1 §3.10 旧版返 directions[] 含形如 part 方向 N 的垃圾标题——前端识别不出
+"这是 fallback 不是 LLM 真实报告"，用户看到"脸 方向 1"这种长得像报告但不是报告的内容。
+
+PR4 F4 改：directions/tags 留空 + is_fallback=true + fallback_reason="资料不足"，前端
+识别后不渲染 report card，转引导用户补料（参 docs/api/sse-events.md §5.5）。
+
+Returns:
+    dict 含 is_fallback=True、fallback_reason、空 directions/tags、引导 summary。
+"""
     return {
-        "directions": directions,
-        "tags": ["基础养护"] + [str(p) for p in parts[:6]],
-        "summary": "已为您生成基础养护方向。",
+        "is_fallback": True,
+        "fallback_reason": "资料不足",
+        "directions": [],
+        "tags": [],
+        "summary": "请先补充档案与图片后再进行智能分析。",
         "llm_cost": "0.0",
     }
 

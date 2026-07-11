@@ -38,6 +38,7 @@ from app.db.models.user import User
 from app.errors.codes import (
     E_ASSISTANT_FORBIDDEN_CALLER,
     E_ASSISTANT_LLM_ERROR,
+    E_ASSISTANT_MEDICAL_REJECT,
     E_ASSISTANT_MESSAGE_INVALID,
     E_ASSISTANT_MESSAGE_TOO_LONG,
     E_ASSISTANT_SESSION_CLOSED,
@@ -684,7 +685,11 @@ async def _stream_smart_analyze(
     user_msg: AIMessage,
 ) -> AsyncIterator[str]:
     """智能分析模式：vision LLM 5 阶段流（Sprint 1 走 rule_engine mock）。"""
-    from app.services.diagnosis_service import _invoke_llm_structured, _rule_engine_fallback
+    from app.services.diagnosis_service import (
+        _check_text_safety,
+        _invoke_llm_structured,
+        _rule_engine_fallback,
+    )
     from app.conf.feature_flags import feature_flags
     from app.conf.app_config import app_config
 
@@ -693,6 +698,30 @@ async def _stream_smart_analyze(
 
     async def _emit_progress(step: int, percent: int, label: str) -> str:
         return _sse_pack("progress", {"step": step, "percent": percent, "label": label})
+
+    # ── V5.2.1-PR4 T21：medical_reject 短路（早返，不调 vision LLM）──────
+    # 必须在 try 之前 / progress(1) 之前，确保 SSE error 帧在 progress 之前
+    # （V5.2.1 §5.5 E4-2 约束 + 合规审计 ADR-0015 §2.4.4 三事件之一）
+    safety_check = _check_text_safety(text)
+    if not safety_check["passed"]:
+        try:
+            audit_kwargs: dict[str, object] = {
+                "user_id_pseudo": hash_user_id_pseudo(str(user_id)),
+                "session_id": session_id,
+                "trigger": "smart_analyze_medical_reject_short_circuit",
+                "to_state": "medical_guarded",
+            }
+            audit_persona_state_switch(**audit_kwargs)
+        except Exception as audit_exc:
+            # 审计失败不阻断主流程（仅记日志）
+            logger.warning("audit_persona_state_switch_failed",
+                           error=str(audit_exc)[:200])
+        yield _sse_pack("error", {
+            "code": E_ASSISTANT_MEDICAL_REJECT,
+            "message_zh": "我无法回答医疗问题，建议您咨询专业医师。",
+            "medical_guarded": True,
+        })
+        return
 
     try:
         # ── Phase 1: preprocess (15%) ───────────────────────────
@@ -781,6 +810,7 @@ async def _stream_smart_analyze(
         yield await _emit_progress(4, 100, "分析完成")
 
         # 落库：assistant AIMessage（含 directions JSONB）
+        # V5.2.1-PR4 T20：safety_passed 显式赋真值（不再依赖 Pydantic 默认 True）
         seq2 = ai_session.message_count + 1
         assistant_msg = AIMessage(
             id=uuid4(),
@@ -792,6 +822,7 @@ async def _stream_smart_analyze(
             token_count=len(directions),
             llm_model=llm_model,
             llm_latency_ms=llm_latency_ms,
+            safety_passed=safety_check["passed"],
             created_at=datetime.now(UTC),
             created_by=str(user_id),
             created_time=datetime.now(UTC),
@@ -838,13 +869,14 @@ async def _stream_smart_analyze(
         #                          is_mock / medical_guarded / is_quick_reply / level）
         reply_text = f"基于你的照片，我为你生成了 {len(directions)} 条养护建议，可以看看。"
         # medical_guarded / is_quick_reply PR4 之前为 None，PR4 改真值
-        medical_guarded = False  # PR4 T20 改安全检查真值
+        medical_guarded = not safety_check["passed"]  # PR4 T20 改真值
         is_quick_reply = False  # 不走 ack_pool 兜底
         # level 取第一条 direction 的 level（PR2 T13 Pydantic 提供 level；兜底 "轻度"）
         primary_level: str = (
             directions[0].get("level", "轻度") if directions else "轻度"
         )
-        yield _sse_pack("end", {
+        # V5.2.1-PR4 F4：fallback 标记透传到 end event payload
+        end_payload: dict[str, object] = {
             "ok": True,
             "reply": reply_text,
             "persona_state": to_state,
@@ -852,7 +884,11 @@ async def _stream_smart_analyze(
             "medical_guarded": medical_guarded,
             "is_quick_reply": is_quick_reply,
             "level": primary_level,
-        })
+        }
+        if payload.get("is_fallback"):
+            end_payload["is_fallback"] = True
+            end_payload["fallback_reason"] = payload.get("fallback_reason", "资料不足")
+        yield _sse_pack("end", end_payload)
 
         logger.info("smart_analyze_done", job_id=job_id, llm_model=llm_model,
                     is_mock=is_mock, latency_ms=llm_latency_ms,
@@ -895,6 +931,7 @@ async def _stream_chat(
       - D 类 → 引导回忆入口
     """
     # ── 快问服务初始化 ────────────────────────────────────────────────────────
+    from app.services.diagnosis_service import _check_text_safety
     quick_reply_svc = get_quick_reply_service()
     emotion_classifier = get_emotion_classifier()
     light_llm_svc = get_light_llm_service()
@@ -1221,6 +1258,9 @@ async def _stream_chat(
         audit_persona_state_switch(**audit_kwargs)
 
     # 落库
+    # V5.2.1-PR4 T20：safety_passed 显式赋真值（不再硬编码 True）
+    safety_check = _check_text_safety(text)
+    safety_passed = safety_check["passed"] and to_state != "medical_guarded"
     seq2 = ai_session.message_count + 1
     assistant_msg = AIMessage(
         id=uuid4(),
@@ -1228,7 +1268,7 @@ async def _stream_chat(
         seq=seq2,
         role="assistant",
         content=full_reply,
-        safety_passed=True,
+        safety_passed=safety_passed,
         llm_model=llm_model,
         llm_latency_ms=llm_latency_ms,
         referenced_feedback_ids=[],

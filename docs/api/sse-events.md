@@ -731,6 +731,41 @@ data: {"code": "E_ASSISTANT_*",
 - `E_ASSISTANT_SESSION_NOT_FOUND`（404，跳出 SSE 流）
 - `E_ASSISTANT_SESSION_CLOSED`（410，跳出 SSE 流）
 - `E_ASSISTANT_CONCURRENT_MESSAGE`（并发消息冲突）
+- `E_ASSISTANT_MEDICAL_REJECT`（smart_analyze medical_reject 短路，PR4 引入；流停在 error 帧，不发后续 progress/report/end）
+
+### §5.6 fallback 协议（V5.2.1-PR4 F4 追加）
+
+**触发条件**：vision LLM 调用失败或超时（`diagnosis_service._invoke_llm_structured` 走 `_rule_engine_fallback` 降级路径）。
+
+**end event payload 增量字段**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `is_fallback` | `bool` | `true` = 当前是规则引擎兜底，不是 LLM 真实生成 |
+| `fallback_reason` | `str` | 兜底原因（V5.2.1-PR4 固定 `"资料不足"`） |
+
+**示例**：
+```
+event: end
+data: {"ok": true,
+       "reply": "基于你的照片，我为你生成了 0 条养护建议，可以看看。",
+       "persona_state": "neutral",
+       "is_mock": true,
+       "medical_guarded": false,
+       "is_quick_reply": false,
+       "level": "轻度",
+       "is_fallback": true,
+       "fallback_reason": "资料不足"}
+```
+
+**前端处理**：
+- `is_fallback=true` 时**不渲染 report card**（directions/tags 为空，渲染会显示空态）
+- 引导用户去 `pages/profile/index` 补档案 + 去 `pages/smart-analyze-upload/index` 补图
+- 复用 §5.2 的 `summary` 字段（"请先补充档案与图片后再进行智能分析。"）作为 toast 文案
+
+**真源**：
+- 后端：`backend/app/services/diagnosis_service.py:_rule_engine_fallback` (return dict) + `backend/app/services/assistant_service.py:_stream_smart_analyze` (end_payload 透传)
+- 测试：`backend/tests/unit/services/test_vision_fallback_personalize.py`（5 个契约测试）
 
 ## §6 · 与 §1 ~ §4 diagnosis 域契约的关系
 
