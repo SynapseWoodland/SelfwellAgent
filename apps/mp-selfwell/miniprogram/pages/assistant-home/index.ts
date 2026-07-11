@@ -33,6 +33,15 @@ import {
   type UploadedPhoto,
 } from '../../utils/upload-helper';
 import { pickRandomAck } from '../../data/ack-pool';
+import {
+  readUserProfile,
+  countFilledFields,
+  type UserProfile6Fields,
+} from '../../utils/profile-storage';
+import {
+  checkSmartAnalyzePrerequisites,
+  buildSmartAnalyzeBody,
+} from './index.smart-body';
 
 type PersonaState =
   | 'greeting'
@@ -582,16 +591,61 @@ Page({
       // #endregion
       return;
     }
-    const filledCount = att.slots.filter((s) => s.filled).length;
-    if (filledCount < 1) {
-      // #region agent log
-      dlog('assistant-home/index.ts:onSubmitUpload.guard.filled', 'guard: filledCount<1', { filledCount, slots: att.slots.map(s=>({label:s.label,filled:s.filled,hasUrl:!!s.filledUrl})) });
-      // #endregion
-      wx.showToast({ title: '请至少上传 1 张照片', icon: 'none' });
+
+    // V5.2.1-PR5 FR-7 §5.2.1-3 微调 2：缺料前置校验（≥1 张图 + face 必含 + ≥3 项档案）。
+    // 纯函数 checkSmartAnalyzePrerequisites 返回 reason，UI 副作用按 reason 分档：
+    //   - no_photo / no_face → showToast（硬阻断）
+    //   - profile_insufficient → showModal（软阻断，给"继续分析"兜底）
+    // 槽位 label → bodyPart 映射：'正面脸部' = face / '侧面体态' = shoulder_neck / '发质特写' = head
+    const LABEL_TO_BODYPART: Record<string, string> = {
+      '正面脸部': 'face',
+      '侧面体态': 'shoulder_neck',
+      '发质特写': 'head',
+    };
+    const slotsForCheck = att.slots.map((s, idx) => ({
+      index: idx,
+      label: s.label,
+      bodyPart: LABEL_TO_BODYPART[s.label] ?? 'face',
+      filled: s.filled,
+      filledUrl: s.filledUrl,
+    }));
+    const profile = readUserProfile();
+    const prereq = checkSmartAnalyzePrerequisites({ slots: slotsForCheck, profile });
+
+    if (!prereq.ok) {
+      if (prereq.reason === 'no_photo') {
+        dlog('assistant-home/index.ts:onSubmitUpload.guard.noPhoto', 'guard: no_photo', {});
+        wx.showToast({ title: '请至少上传 1 张照片', icon: 'none' });
+        return;
+      }
+      if (prereq.reason === 'no_face') {
+        dlog('assistant-home/index.ts:onSubmitUpload.guard.noFace', 'guard: no_face', {});
+        wx.showToast({ title: '请上传面部照片（必备）', icon: 'none' });
+        return;
+      }
+      // profile_insufficient：弹 modal 让用户选择
+      const filled = prereq.filledCount ?? 0;
+      const missing = prereq.missing ?? 3;
+      dlog('assistant-home/index.ts:onSubmitUpload.guard.profileInsufficient', 'guard: profile_insufficient', { filled, missing });
+      wx.showModal({
+        title: '档案未完善',
+        content: `已完善 ${filled}/6 项档案，还需 ${missing} 项才能获得针对性分析。是否现在去完善档案？`,
+        confirmText: '去完善',
+        cancelText: '继续分析',
+        success: (res) => {
+          if (res.confirm) {
+            wx.navigateTo({ url: '/pages/profile/index' });
+          } else {
+            // "继续分析" 兜底：仍发请求，后端 PR4 F4 is_fallback=true 兜底
+            this.runSmartAnalyze();
+          }
+        },
+      });
       return;
     }
+
     // #region agent log
-    dlog('assistant-home/index.ts:onSubmitUpload.invokeStartSmart', 'invoking runSmartAnalyze', { filledCount, sessionId: this.data.sessionId });
+    dlog('assistant-home/index.ts:onSubmitUpload.invokeStartSmart', 'invoking runSmartAnalyze', { filledCount: slotsForCheck.filter((s) => s.filled).length, profileFilledCount: countFilledFields(profile), sessionId: this.data.sessionId });
     // #endregion
     this.runSmartAnalyze();
   },
@@ -757,14 +811,18 @@ Page({
     // #endregion
     const consumer: SseConsumer = consumeSse(url, {
       method: 'POST',
-      // 后端 AssistantMessage（assistant_v1.py）字段：text / image_keys[] / body_parts[]
+      // 后端 AssistantMessage（assistant_v1.py）字段：text / image_keys[] / body_parts[] / profile（PR5）
       // image_keys 有值触发 smart_analyze 模式（_stream_smart_analyze）；
-      // body_parts 与 image_keys 一一对应，与后端 _validate_image_keys 白名单一致。
-      body: {
+      // body_parts 与 image_keys 一一对应，与后端 _validate_image_keys 白名单一致；
+      // profile 由 utils/profile-storage.ts 读 storage 拼装，全 null 时省略（PR5 FR-6）。
+      // #region agent log
+      // body 构造委托给纯函数 buildSmartAnalyzeBody（jest 测试覆盖）；page.ts 不直接拼接 profile。
+      body: buildSmartAnalyzeBody({
         text: 'smart_analyze',
-        image_keys: imageKeys,
-        body_parts: bodyParts,
-      },
+        imageKeys,
+        bodyParts,
+      }) as unknown as Record<string, unknown>,
+      // #endregion
       header: {
         Accept: 'text/event-stream',
         Authorization: `Bearer ${wx.getStorageSync('jwt') || ''}`,

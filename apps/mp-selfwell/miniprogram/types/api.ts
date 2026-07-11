@@ -295,6 +295,44 @@ export interface AssistantMessage {
   created_at: ISODateTime;
 }
 
+/**
+ * V5.2.1-PR5 · 6 字段用户档案（snake_case，与后端 User ORM + assistant_profile JSONB 对齐）。
+ *
+ * 真源：SPEC-V521-PR5-frontend-contract.md §FR-5 + utils/profile-storage.ts。
+ *
+ * 6 字段：
+ *  - age_range: 年龄段（"18-29" / "30-39" / "40-49" / "50+"，与 profile 页 picker 一致）
+ *  - sitting_hours: 每日久坐小时数（0-24）
+ *  - focus_parts: 重点关注部位（["面部","肩颈"]，与后端 body_part 白名单对齐）
+ *  - intensity: 干预强度（"轻柔" / "标准" / "强效"）
+ *  - preferred_time: 偏好干预时段（"早上" / "中午" / "晚上"）
+ *  - skin_type: 肤质（"油性" / "干性" / "中性" / "混合" / "敏感"）
+ *
+ * 与 utils/profile-storage.ts 中的 `UserProfile6Fields` **保持字段一致**；
+ * 这里再次定义是因为 types 层是 DTO 单源（避免 utils 改动直接影响 DTO 类型）。
+ */
+export interface UserProfile6Fields {
+  age_range?: string | null;
+  sitting_hours?: number | null;
+  focus_parts?: string[] | null;
+  intensity?: string | null;
+  preferred_time?: string | null;
+  skin_type?: string | null;
+}
+
+/**
+ * V5.2.1-PR5 · assistant-home runSmartAnalyze SSE body 契约。
+ *
+ * 与后端 `POST /assistant/sessions/{id}/messages` body 字段对齐（`assistant_v1.py`）；
+ * `profile` 字段由前端 utils/profile-storage.ts 读 storage 拼装，全 null 时省略。
+ */
+export interface SendAssistantMessageBody {
+  text: string;
+  image_keys?: string[] | null;
+  body_parts?: string[] | null;
+  profile?: UserProfile6Fields | null;
+}
+
 export interface SendAssistantMessageReq {
   text: string;
   client_platform: ClientPlatform;

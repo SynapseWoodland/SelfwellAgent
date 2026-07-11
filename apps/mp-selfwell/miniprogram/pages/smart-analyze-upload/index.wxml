@@ -4,5 +4,10 @@
   （见 assistant-home/index.ts 的 startSmartAnalyze）。
   本页面仅保留最小可编译 wxml，避免 DevTools wxml-compiler / 旧缓存 / PR-A4 测试
   (assistant_home_entry_pr_a4.test.ts 中的 navigateTo 兜底) 找不到路径而编译失败。
+
+  V5.2.1-PR5 FR-4：加"完善档案"链接（占位页 onboarding 入口）
 -->
 <view class="smart-analyze-upload-placeholder">智能分析上传</view>
+<navigator url="/pages/profile/index" class="smart-analyze-upload-profile-link">
+  完善档案 ›
+</navigator>
