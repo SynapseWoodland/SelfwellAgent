@@ -1,30 +1,29 @@
 /**
  * IA-REF: docs/design/ia-and-wireframe.md §4.6 P11 我的
  * 设计稿: docs/design/figma-pixso-spec/pages/11-profile.html
- * 后端端点:
- *   - openapi.yaml tag=users operationId=getCurrentUser  GET  /users/me
- *   - openapi.yaml tag=users operationId=updatePushToken POST /users/push-token
  *
- * V5.2.1-PR5 FR-2：6 字段档案表单（age_range / sitting_hours / focus_parts /
- *   intensity / preferred_time / skin_type），写 utils/profile-storage.ts storage。
+ * V5.2.1-PR5.1 改造：
+ * - 移除 PR5 内嵌的 6 字段表单（搬到 pages/profile-edit 子页，对齐设计稿 §4.6）
+ * - onTapSetting('profile') 跳子页（之前是弹 toast'请向下滚动'，是绕设计稿的 tmp）
+ * - loadProfileMiniSummary 读 storage 计算 filledCount 显示在设置列表「用户档案」右侧
  *
- * 行为（SF4 完工态 + PR5）：
- *  - onLoad 拉 /users/me + 读 storage profile（6 字段）
+ * 行为（SF4 完工态 + PR5.1）：
+ *  - onLoad 拉 /users/me + 读 storage 计算档案完成度
  *  - "订阅推送"入口 → 调 utils/subscribe.subscribeMessages + 上报 /users/push-token
+ *  - 「用户档案」→ wx.navigateTo('/pages/profile-edit/index')（不是 switchTab，子页不在 tabBar）
  *  - 文案禁用：禁止 "你的进度打败了 X% 的用户" 等排名/分数焦虑词
- *  - 6 字段表单填写 → onSubmitProfile → writeUserProfile → showToast
- *  - intensity / skin_type 必填校验
- *  - 顶部 banner 实时显示 "已完善 X/6 项"
  */
+
 import { get, post } from '../../utils/request';
 import { subscribeMessages, reportSubscribeResults } from '../../utils/subscribe';
 import { STORAGE_KEYS, CLIENT_PLATFORM } from '../../utils/config';
 import {
   readUserProfile,
-  writeUserProfile,
   countFilledFields,
-  type UserProfile6Fields,
 } from '../../utils/profile-storage';
+import {
+  PICK_PROFILE_TARGET_PATH,
+} from '../profile-edit/index.smart-body';
 
 interface UserProfile {
   id: string;
@@ -35,37 +34,13 @@ interface UserProfile {
   currentDay: number;
 }
 
-// PR5 FR-2：表单选项常量（与 utils/profile-storage.ts 的 UserProfile6Fields 字段命名对齐）
-const AGE_RANGE_OPTIONS = [
-  { value: '18-29', label: '18-29' },
-  { value: '30-39', label: '30-39' },
-  { value: '40-49', label: '40-49' },
-  { value: '50+', label: '50+' },
-];
-const FOCUS_PART_OPTIONS = [
-  { value: '面部', label: '面部' },
-  { value: '头部', label: '头部' },
-  { value: '肩颈', label: '肩颈' },
-  { value: '眼周', label: '眼周' },
-  { value: '颈部', label: '颈部' },
-];
-const INTENSITY_OPTIONS = [
-  { value: '轻柔', label: '轻柔' },
-  { value: '标准', label: '标准' },
-  { value: '强效', label: '强效' },
-];
-const PREFERRED_TIME_OPTIONS = [
-  { value: '早上', label: '早上' },
-  { value: '中午', label: '中午' },
-  { value: '晚上', label: '晚上' },
-];
-const SKIN_TYPE_OPTIONS = [
-  { value: '油性', label: '油性' },
-  { value: '干性', label: '干性' },
-  { value: '中性', label: '中性' },
-  { value: '混合', label: '混合' },
-  { value: '敏感', label: '敏感' },
-];
+/**
+ * PR5.1 · 读 storage 6 字段并计算档案完成度，只在设置列表「用户档案」右侧展示。
+ * 不渲染表单；表单在子页。
+ */
+function getProfileFilledCount(): number {
+  return countFilledFields(readUserProfile());
+}
 
 Page({
   data: {
@@ -75,35 +50,40 @@ Page({
     currentDay: 7,
     percent: 33,
     settings: [
-      { id: 'profile', label: '用户档案' },
-      { id: 'notification', label: '通知设置' },
-      { id: 'about', label: '关于自愈' },
-      { id: 'privacy', label: '隐私政策' },
-      { id: 'support', label: '联系客服' },
+      // 「用户档案」右侧显示进度（filled/total）；在 wxml 用 data 属性读
+      // 注意：profileFilledLabel 在 onLoad/onShow 时计算并 merge 进 settings[0]
     ],
-    // PR5 FR-2：6 字段档案
-    ageRangeOptions: AGE_RANGE_OPTIONS,
-    focusPartOptions: FOCUS_PART_OPTIONS,
-    intensityOptions: INTENSITY_OPTIONS,
-    preferredTimeOptions: PREFERRED_TIME_OPTIONS,
-    skinTypeOptions: SKIN_TYPE_OPTIONS,
-    ageRange: '' as string,
-    sittingHours: '' as string, // input number 字符串，避免 input value 0 渲染问题
-    focusParts: [] as string[],
-    intensity: '' as string,
-    preferredTime: '' as string,
-    skinType: '' as string,
-    profileFilledCount: 0,
+    /** PR5.1 · 显示在设置列表「用户档案」右侧；子页全文展示 */
+    profileSummary: { filledCount: 0, totalCount: 6, label: '0/6' },
   },
 
   onLoad() {
+    this.refreshSettingsWithSummary();
     this.fetchMe();
-    this.loadProfile();
   },
 
   onShow() {
+    this.refreshSettingsWithSummary();
     this.fetchMe();
-    this.loadProfile();
+  },
+
+  /**
+   * PR5.1 · 重算 settings 列表头项「用户档案」右侧 label。
+   * 用户从子页回来立刻看到最新完成度。
+   */
+  refreshSettingsWithSummary() {
+    const filled = getProfileFilledCount();
+    const label = `${filled}/6`;
+    this.setData({
+      settings: [
+        { id: 'profile', label: '用户档案', filledLabel: label },
+        { id: 'notification', label: '通知设置' },
+        { id: 'about', label: '关于自愈' },
+        { id: 'privacy', label: '隐私政策' },
+        { id: 'support', label: '联系客服' },
+      ],
+      profileSummary: { filledCount: filled, totalCount: 6, label },
+    });
   },
 
   async fetchMe() {
@@ -121,74 +101,6 @@ Page({
     } catch {
       /* mock 兜底 */
     }
-  },
-
-  /** PR5 FR-2：读 storage 6 字段填表单 + 计算 filledCount。 */
-  loadProfile() {
-    const p = readUserProfile();
-    this.setData({
-      ageRange: p.age_range ?? '',
-      sittingHours: p.sitting_hours !== null && p.sitting_hours !== undefined ? String(p.sitting_hours) : '',
-      focusParts: Array.isArray(p.focus_parts) ? p.focus_parts : [],
-      intensity: p.intensity ?? '',
-      preferredTime: p.preferred_time ?? '',
-      skinType: p.skin_type ?? '',
-      profileFilledCount: countFilledFields(p),
-    });
-  },
-
-  onSelectAgeRange(e: WechatMiniprogram.BaseEvent) {
-    const value = (e.currentTarget.dataset as { value: string }).value;
-    this.setData({ ageRange: value });
-  },
-
-  onInputSittingHours(e: WechatMiniprogram.Input) {
-    this.setData({ sittingHours: e.detail.value });
-  },
-
-  onToggleFocusPart(e: WechatMiniprogram.BaseEvent) {
-    const value = (e.currentTarget.dataset as { value: string }).value;
-    const cur: string[] = this.data.focusParts || [];
-    const next = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value];
-    this.setData({ focusParts: next });
-  },
-
-  onSelectIntensity(e: WechatMiniprogram.BaseEvent) {
-    const value = (e.currentTarget.dataset as { value: string }).value;
-    this.setData({ intensity: value });
-  },
-
-  onSelectPreferredTime(e: WechatMiniprogram.BaseEvent) {
-    const value = (e.currentTarget.dataset as { value: string }).value;
-    this.setData({ preferredTime: value });
-  },
-
-  onSelectSkinType(e: WechatMiniprogram.BaseEvent) {
-    const value = (e.currentTarget.dataset as { value: string }).value;
-    this.setData({ skinType: value });
-  },
-
-  /** PR5 FR-2：保存 6 字段档案到 storage。必填校验 intensity / skin_type。 */
-  onSubmitProfile() {
-    if (!this.data.intensity) {
-      wx.showToast({ title: '请填写必填项：干预强度', icon: 'none' });
-      return;
-    }
-    if (!this.data.skinType) {
-      wx.showToast({ title: '请填写必填项：肤质', icon: 'none' });
-      return;
-    }
-    const profile: UserProfile6Fields = {
-      age_range: this.data.ageRange || null,
-      sitting_hours: this.data.sittingHours === '' ? null : Number(this.data.sittingHours),
-      focus_parts: this.data.focusParts.length > 0 ? this.data.focusParts : null,
-      intensity: this.data.intensity || null,
-      preferred_time: this.data.preferredTime || null,
-      skin_type: this.data.skinType || null,
-    };
-    writeUserProfile(profile);
-    this.setData({ profileFilledCount: countFilledFields(profile) });
-    wx.showToast({ title: '档案已保存', icon: 'success' });
   },
 
   async onSubscribePush() {
@@ -221,14 +133,16 @@ Page({
 
   onTapSetting(e: WechatMiniprogram.BaseEvent) {
     const id = (e.currentTarget.dataset as { id: string }).id;
+    if (id === 'profile') {
+      // PR5.1：跳子页（PR5 这里弹 toast'请向下滚动填写档案'，绕设计稿的临时方案）
+      // 子页 profile-edit 不在 tabBar 列表，必须用 wx.navigateTo（switchTab 会 fail silently）
+      wx.navigateTo({ url: PICK_PROFILE_TARGET_PATH });
+      return;
+    }
     if (id === 'notification') {
       void this.onSubscribePush();
-    } else if (id === 'profile') {
-      // PR5：点 "用户档案" 滚动到档案表单区
-      // （未来可跳独立子页；目前 page 内有表单，滚动更轻量）
-      wx.showToast({ title: '请向下滚动填写档案', icon: 'none' });
-    } else {
-      wx.showToast({ title: `${id} 占位`, icon: 'none' });
+      return;
     }
+    wx.showToast({ title: `${id} 占位`, icon: 'none' });
   },
 });

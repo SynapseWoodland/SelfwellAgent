@@ -1,13 +1,11 @@
 <!--
-  profile 页 V5.2.1-PR5：6 字段档案表单
-  - 顶部 banner: "已完善 X/6 项"
-  - 6 字段：ageRange / sittingHours / focusParts / intensity / preferredTime / skinType
-  - intensity / skinType 必填（前端校验）
-  - onSubmitProfile 调 utils/profile-storage.writeUserProfile 持久化
+  profile 页 V5.2.1-PR5.1
+  - 与 IA §4.6 P06 对齐：header + 进度环 + 设置列表，**不再内嵌 6 字段表单**
+  - 6 字段表单已搬到 pages/profile-edit 子页
+  - onTapSetting(profile) → wx.navigateTo('/pages/profile-edit/index')
 
   关键约束（frontend-standards §WXSS class 命名）：
-  - 业务字段值（如 intensity='轻柔'）是中文 → class 名禁止拼接中文
-  - 用 [data-value='轻柔'] 属性选择器（见 index.wxss）
+  - 业务字段值不拼接 class 名
 -->
 <view class="profile">
   <view class="profile-header">
@@ -21,114 +19,7 @@
     <view class="profile-progress-hint" bindtap="onGotoShare">领取抱抱卡 ›</view>
   </view>
 
-  <!-- PR5 FR-2：档案表单区 -->
-  <view class="profile-form">
-    <view class="profile-form-banner">
-      <text class="profile-form-banner-text">已完善 {{profileFilledCount}}/6 项档案</text>
-    </view>
-
-    <!-- 年龄段 -->
-    <view class="profile-field">
-      <view class="profile-field-label">年龄段</view>
-      <view class="profile-field-options">
-        <view
-          wx:for="{{ageRangeOptions}}"
-          wx:key="value"
-          class="profile-chip {{ageRange === item.value ? 'profile-chip-selected' : ''}}"
-          data-value="{{item.value}}"
-          bindtap="onSelectAgeRange"
-        >
-          {{item.label}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 久坐小时数 -->
-    <view class="profile-field">
-      <view class="profile-field-label">每日久坐小时数</view>
-      <input
-        class="profile-field-input"
-        type="number"
-        maxlength="2"
-        placeholder="0-24"
-        value="{{sittingHours}}"
-        bindinput="onInputSittingHours"
-      />
-    </view>
-
-    <!-- 重点关注部位（多选） -->
-    <view class="profile-field">
-      <view class="profile-field-label">重点关注部位（可多选）</view>
-      <view class="profile-field-options">
-        <view
-          wx:for="{{focusPartOptions}}"
-          wx:key="value"
-          class="profile-chip {{focusParts.indexOf(item.value) >= 0 ? 'profile-chip-selected' : ''}}"
-          data-value="{{item.value}}"
-          bindtap="onToggleFocusPart"
-        >
-          {{item.label}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 干预强度（必填） -->
-    <view class="profile-field">
-      <view class="profile-field-label">
-        干预强度
-        <text class="profile-required">*</text>
-      </view>
-      <view class="profile-field-options">
-        <view
-          wx:for="{{intensityOptions}}"
-          wx:key="value"
-          class="profile-chip {{intensity === item.value ? 'profile-chip-selected' : ''}}"
-          data-value="{{item.value}}"
-          bindtap="onSelectIntensity"
-        >
-          {{item.label}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 偏好干预时段 -->
-    <view class="profile-field">
-      <view class="profile-field-label">偏好干预时段</view>
-      <view class="profile-field-options">
-        <view
-          wx:for="{{preferredTimeOptions}}"
-          wx:key="value"
-          class="profile-chip {{preferredTime === item.value ? 'profile-chip-selected' : ''}}"
-          data-value="{{item.value}}"
-          bindtap="onSelectPreferredTime"
-        >
-          {{item.label}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 肤质（必填） -->
-    <view class="profile-field">
-      <view class="profile-field-label">
-        肤质
-        <text class="profile-required">*</text>
-      </view>
-      <view class="profile-field-options">
-        <view
-          wx:for="{{skinTypeOptions}}"
-          wx:key="value"
-          class="profile-chip {{skinType === item.value ? 'profile-chip-selected' : ''}}"
-          data-value="{{item.value}}"
-          bindtap="onSelectSkinType"
-        >
-          {{item.label}}
-        </view>
-      </view>
-    </view>
-
-    <button class="profile-submit-btn" bindtap="onSubmitProfile">保存档案</button>
-  </view>
-
+  <!-- 设置列表（IA §4.6 P06 规范）：用户档案点跳子页 -->
   <view class="profile-list">
     <view
       wx:for="{{settings}}"
@@ -138,7 +29,13 @@
       data-id="{{item.id}}"
     >
       <text class="profile-row-label">{{item.label}}</text>
-      <text class="profile-row-arrow">›</text>
+      <view class="profile-row-right">
+        <text
+          wx:if="{{item.filledLabel}}"
+          class="profile-row-summary"
+        >档案 {{item.filledLabel}}</text>
+        <text class="profile-row-arrow">›</text>
+      </view>
     </view>
   </view>
 </view>

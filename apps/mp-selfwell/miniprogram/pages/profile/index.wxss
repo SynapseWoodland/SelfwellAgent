@@ -75,91 +75,19 @@
   color: #2D3436;
 }
 
+/* PR5.1 · 设置列表「用户档案」右侧 0/6 进度提示；profile-edit 子页不展示 */
+.profile-row-right {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.profile-row-summary {
+  font-size: 24rpx;
+  color: #718096;
+}
+
 .profile-row-arrow {
   font-size: 32rpx;
   color: #A0AEC0;
-}
-
-/* ─────────── PR5 FR-3：6 字段档案表单样式 ─────────── */
-
-.profile-form {
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 32rpx 24rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.profile-form-banner {
-  background-color: #F0F7F2;
-  border-radius: 12rpx;
-  padding: 16rpx 24rpx;
-  margin-bottom: 24rpx;
-  text-align: center;
-}
-
-.profile-form-banner-text {
-  font-size: 26rpx;
-  color: #5A8C6E;
-  font-weight: 500;
-}
-
-.profile-field {
-  margin-bottom: 24rpx;
-}
-
-.profile-field-label {
-  font-size: 28rpx;
-  color: #2D3436;
-  margin-bottom: 12rpx;
-  font-weight: 500;
-}
-
-.profile-required {
-  color: #E53E3E;
-  margin-left: 4rpx;
-}
-
-.profile-field-input {
-  border: 2rpx solid #E2E8F0;
-  border-radius: 12rpx;
-  padding: 16rpx 24rpx;
-  font-size: 28rpx;
-  color: #2D3436;
-  background-color: #FAFBFC;
-}
-
-.profile-field-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-/* chip 选中态：用 class 拼接 .profile-chip-selected，避免 [data-value='中文'] 在 wxss 编译器被替换 */
-.profile-chip {
-  padding: 12rpx 24rpx;
-  border: 2rpx solid #E2E8F0;
-  border-radius: 32rpx;
-  font-size: 26rpx;
-  color: #4A5568;
-  background-color: #FAFBFC;
-}
-
-.profile-chip-selected {
-  background-color: #A8C5B5;
-  border-color: #A8C5B5;
-  color: #FFFFFF;
-}
-
-.profile-submit-btn {
-  margin-top: 16rpx;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  border-radius: 16rpx;
-  font-size: 30rpx;
-  padding: 24rpx 0;
-}
-
-.profile-submit-btn::after {
-  border: none;
 }

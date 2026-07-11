@@ -13,6 +13,7 @@
     "pages/recall-compare/index",
     "pages/community/index",
     "pages/profile/index",
+    "pages/profile-edit/index",
     "pages/share-hug-card/index",
     "pages/smart-analyze-loading/index",
     "pages/smart-analyze-report/index",
