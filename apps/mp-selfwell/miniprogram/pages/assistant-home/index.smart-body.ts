@@ -111,6 +111,35 @@ export interface BuildBodyOutput {
 }
 
 /**
+ * V5.2.1-PR5 §修正（post-merge bugfix）· ActionSheet 3 选项决策。
+ *
+ * 背景：原实现用 wx.showModal（2 button），用户反馈：
+ *   1) 没有"取消"选项（继续分析会被强制 = 降质量分析）
+ *   2) iOS 点遮罩关不掉 modal（官方明示 wx.showModal 不支持）
+ * 业界做法（小红书/抖音/企业微信）= 底部 ActionSheet，支持点遮罩关闭。
+ *
+ * 本函数把 tapIndex → 用户意图 抽成纯函数，便于 jest 测试与回滚。
+ *
+ * 注意：itemList 文案与顺序必须与 assistant-home/index.ts:onSubmitUpload 完全一致。
+ */
+export type ProfileInsufficientAction =
+  | { kind: 'goto_profile' }
+  | { kind: 'continue_fallback' }
+  | { kind: 'cancel' };
+
+export const PROFILE_INSUFFICIENT_ITEM_LIST = [
+  '去完善档案',
+  '继续分析（资料不足会降质量）',
+  '稍后再分析',
+] as const;
+
+export function pickProfileInsufficientAction(tapIndex: number | undefined): ProfileInsufficientAction {
+  if (tapIndex === 0) return { kind: 'goto_profile' };
+  if (tapIndex === 1) return { kind: 'continue_fallback' };
+  return { kind: 'cancel' }; // tapIndex === 2 / undefined / 越界
+}
+
+/**
  * 构造 smart_analyze SSE 调用的 body（SPEC FR-6）。
  *
  * profile 字段处理：

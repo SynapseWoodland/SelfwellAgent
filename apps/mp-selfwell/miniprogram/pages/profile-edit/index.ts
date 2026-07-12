@@ -77,6 +77,7 @@ const TOAST_PROFILE_SYNCED = '档案已同步';
 const TOAST_PROFILE_SYNC_FAILED = '同步失败，本地已保存';
 const TOAST_REQUIRED_INTENSITY = '请填写必填项：干预强度';
 const TOAST_REQUIRED_SKIN_TYPE = '请填写必填项：肤质';
+const TOAST_SITTING_HOURS_RANGE = '请输入 0-24 的数字';
 
 Page({
   data: {
@@ -87,6 +88,7 @@ Page({
     skinTypeOptions: SKIN_TYPE_OPTIONS,
     ageRange: '' as string,
     sittingHours: '' as string,
+    sittingHoursError: '' as string,
     focusParts: [] as string[],
     focusPartsSelected: buildFocusPartsSelected([]),
     intensity: '' as string,
@@ -115,6 +117,7 @@ Page({
         p.sitting_hours !== null && p.sitting_hours !== undefined
           ? String(p.sitting_hours)
           : '',
+      sittingHoursError: '',
       focusParts,
       focusPartsSelected: buildFocusPartsSelected(focusParts),
       intensity: p.intensity ?? '',
@@ -130,7 +133,25 @@ Page({
   },
 
   onInputSittingHours(e: WechatMiniprogram.Input) {
-    this.setData({ sittingHours: e.detail.value });
+    const value = e.detail.value;
+    this.setData({ sittingHours: value, sittingHoursError: '' });
+  },
+
+  /** onBlur 校验 0-24，避免输入过程中打扰；失败时前端直接拦截 */
+  onBlurSittingHours() {
+    const value = this.data.sittingHours.trim();
+    if (value === '') {
+      this.setData({ sittingHoursError: '' });
+      return;
+    }
+
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < 0 || num > 24) {
+      this.setData({ sittingHoursError: TOAST_SITTING_HOURS_RANGE });
+      return;
+    }
+
+    this.setData({ sittingHoursError: '' });
   },
 
   onToggleFocusPart(e: WechatMiniprogram.BaseEvent) {
@@ -199,6 +220,16 @@ Page({
             : TOAST_REQUIRED_SKIN_TYPE;
         wx.showToast({ title: msg, icon: 'none' });
         return; // 注意：finally 仍会执行，把 submitting 重置回 false
+      }
+
+      // 久坐小时数范围校验 0-24（onBlur + submit 双重保障）
+      if (this.data.sittingHours.trim() !== '') {
+        const sittingNum = Number(this.data.sittingHours);
+        if (!Number.isInteger(sittingNum) || sittingNum < 0 || sittingNum > 24) {
+          this.setData({ sittingHoursError: TOAST_SITTING_HOURS_RANGE });
+          wx.showToast({ title: TOAST_SITTING_HOURS_RANGE, icon: 'none' });
+          return;
+        }
       }
 
       // local-first：本地 6 字段先写（skin_type 保留给 SSE）

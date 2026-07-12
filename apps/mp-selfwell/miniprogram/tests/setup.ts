@@ -76,6 +76,7 @@ const wxSetStorageMock = jest.fn((key: string, value: unknown) => undefined);
   setStorageSync: wxSetStorageMock,
   showToast: jest.fn(),
   showModal: jest.fn(),
+  showActionSheet: jest.fn(),
   navigateTo: jest.fn(),
   redirectTo: jest.fn(),
   switchTab: jest.fn(),

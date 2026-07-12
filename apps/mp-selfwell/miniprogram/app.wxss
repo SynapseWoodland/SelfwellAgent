@@ -61,6 +61,75 @@ page {
  *   - 背景卡片  #F5E6D3 / #F0D9C4
  * ────────────────────────────────────────────────────────────── */
 
+/* ──────────────────────────────────────────────────────────────
+ * V2 STYLE TOKENS · Selfwell 命名风格（PR-6 锁定，PR-3/5 兑现）
+ * ──────────────────────────────────────────────────────────────
+ * 命名规则：扁平 + 连字符 + --{category}-{role}-{name}
+ * 锁值策略：vitest snapshot（apps/mp-selfwell/tests/v2-tokens-snapshot.test.ts）
+ * 变更原则：数值变更必须新增变量，不删旧变量（向下兼容）。
+ * 真源：docs/spec/SPEC-A6-V2-STYLE-TOKENS.md
+ * 真源：docs/design/ia-and-wireframe.md §2A.1
+ * 真源：plans/v2-unified-parent.md §2.6 + §3 决策 #16
+ *
+ * 注意：上面 page { } 块内已有旧命名 token（--mint / --ink-900 等 rpx 体系），
+ * V2 token 用 px 体系 + Selfwell 命名风格，两套并存。PR-7 将统一迁移。
+ */
+:root,
+page {
+  /* ── 8 颜色 token（品牌 + 辅助）── */
+  --color-primary-mint: #A8C5B5;          /* 主色：薄荷绿（品牌色） */
+  --color-primary-mint-dark: #5A8270;     /* 主色深 */
+  --color-secondary-cream: #F5E6D3;       /* 奶油杏 */
+  --color-secondary-lavender: #D4C5E2;    /* 薰衣草紫 */
+  --color-secondary-peach: #F0D9C4;       /* 蜜桃粉 */
+  --color-secondary-sky: #B8D4E3;         /* 天空蓝 */
+  --color-accent-warm: #9C7AB8;           /* 强调色：薰衣草紫深 */
+  --color-accent-earth: #A0724F;          /* 强调色：赭石 */
+
+  /* ── 6 字号 token（caption / body-sm / body / body-lg / heading / title / display）── */
+  --font-size-caption: 10px;
+  --font-size-body-sm: 12px;
+  --font-size-body: 14px;
+  --font-size-body-lg: 16px;
+  --font-size-heading: 18px;
+  --font-size-title: 22px;
+  --font-size-display: 28px;
+
+  /* ── 7 圆角 token ── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ── 间距 token（4 阶梯递增）── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── 阴影 token ── */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* ── 进度环 token（首页 P02 进度环-120 / 我的 P06 进度环-80 共享基线）── */
+  --progress-ring-size: 37;        /* SVG r 值 */
+  --progress-ring-stroke: 6;       /* stroke-width 值 */
+  --progress-ring-fg: #A8C5B5;     /* 前景色（已完成） */
+  --progress-ring-bg: #E2E8F0;     /* 背景色（未完成） */
+
+  /* ── 字体回退 ── */
+  --font-family-cn: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family-num: 'SF Pro Display', 'Inter', sans-serif;
+}
+
 /* 通用工具类（避免在 page 内联硬编码） */
 .text-primary { color: #A8C5B5; }
 .text-secondary { color: #718096; }

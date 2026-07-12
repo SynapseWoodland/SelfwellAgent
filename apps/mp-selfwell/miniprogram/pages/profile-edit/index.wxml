@@ -33,13 +33,15 @@
   <view class="profile-field">
     <view class="profile-field-label">每日久坐小时数</view>
     <input
-      class="profile-field-input"
+      class="profile-field-input profile-field-input-large"
       type="number"
       maxlength="2"
       placeholder="0-24"
       value="{{sittingHours}}"
       bindinput="onInputSittingHours"
+      bindblur="onBlurSittingHours"
     />
+    <text wx:if="{{sittingHoursError}}" class="profile-field-error">{{sittingHoursError}}</text>
   </view>
 
   <!-- 重点关注部位（多选） -->

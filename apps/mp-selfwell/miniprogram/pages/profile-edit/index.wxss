@@ -54,6 +54,18 @@
   box-sizing: border-box;
 }
 
+.profile-field-input-large {
+  min-height: 88rpx;
+  padding: 24rpx 28rpx;
+  font-size: 32rpx;
+}
+
+.profile-field-error {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: #E53E3E;
+}
+
 .profile-field-options {
   display: flex;
   flex-wrap: wrap;

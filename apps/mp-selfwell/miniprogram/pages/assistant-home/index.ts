@@ -41,6 +41,8 @@ import {
 import {
   checkSmartAnalyzePrerequisites,
   buildSmartAnalyzeBody,
+  pickProfileInsufficientAction,
+  PROFILE_INSUFFICIENT_ITEM_LIST,
 } from './index.smart-body';
 
 type PersonaState =
@@ -623,22 +625,37 @@ Page({
         wx.showToast({ title: '请上传面部照片（必备）', icon: 'none' });
         return;
       }
-      // profile_insufficient：弹 modal 让用户选择
+      // profile_insufficient：弹 ActionSheet 让用户 3 选 1
+      // 设计依据（业界惯例）：
+      //   - 微信原生 wx.showModal 只支持 2 button + iOS 不能点遮罩关闭（官方明示）；
+      //   - 业界（小红书/抖音/企业微信）通用做法 = 底部 ActionSheet，
+      //     支持点遮罩关闭 + 多选项（≤6），更轻量、更尊重用户选择权。
+      //   - "pages/profile/index" 是 tabBar 页（见 app.json §tabBar），
+      //     必须用 wx.switchTab；用 wx.navigateTo 会 fail silently
+      //     （"navigateTo:fail cannot navigateTo a tabbar page"）。
+      //   - 决策逻辑抽到 index.smart-body.ts:pickProfileInsufficientAction（纯函数，jest 覆盖）。
       const filled = prereq.filledCount ?? 0;
       const missing = prereq.missing ?? 3;
       dlog('assistant-home/index.ts:onSubmitUpload.guard.profileInsufficient', 'guard: profile_insufficient', { filled, missing });
-      wx.showModal({
-        title: '档案未完善',
-        content: `已完善 ${filled}/6 项档案，还需 ${missing} 项才能获得针对性分析。是否现在去完善档案？`,
-        confirmText: '去完善',
-        cancelText: '继续分析',
+      wx.showActionSheet({
+        itemList: [...PROFILE_INSUFFICIENT_ITEM_LIST],
         success: (res) => {
-          if (res.confirm) {
-            wx.navigateTo({ url: '/pages/profile/index' });
-          } else {
-            // "继续分析" 兜底：仍发请求，后端 PR4 F4 is_fallback=true 兜底
+          const tap = (res as { tapIndex?: number }).tapIndex;
+          const action = pickProfileInsufficientAction(tap);
+          dlog('assistant-home/index.ts:onSubmitUpload.actionSheetTap', 'actionsheet tap', { tap, action: action.kind });
+          if (action.kind === 'goto_profile') {
+            // 注意：profile 是 tabBar 页，必须 switchTab（navigateTo 会 fail silently）
+            wx.switchTab({ url: '/pages/profile/index' });
+          } else if (action.kind === 'continue_fallback') {
+            // 兜底：仍发请求，后端 PR4 F4 is_fallback=true 兜底
             this.runSmartAnalyze();
           }
+          // action.kind === 'cancel'：不执行任何操作，回到上传卡（用户点遮罩或"稍后再分析"）
+        },
+        fail: (err) => {
+          // 点遮罩取消 / 系统返回键：err.errMsg === 'showActionSheet:fail cancel'
+          // 不需要额外处理，return 静默回到上传卡
+          dlog('assistant-home/index.ts:onSubmitUpload.actionSheetCancel', 'actionsheet dismissed', { err: err?.errMsg ?? '' });
         },
       });
       return;

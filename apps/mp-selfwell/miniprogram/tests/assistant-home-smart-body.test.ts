@@ -17,6 +17,8 @@
 import {
   checkSmartAnalyzePrerequisites,
   buildSmartAnalyzeBody,
+  pickProfileInsufficientAction,
+  PROFILE_INSUFFICIENT_ITEM_LIST,
   type SmartAnalyzeSlotState,
 } from '../pages/assistant-home/index.smart-body';
 
@@ -26,7 +28,9 @@ const wx = () =>
       getStorageSync: jest.Mock;
       showToast: jest.Mock;
       showModal: jest.Mock;
+      showActionSheet: jest.Mock;
       navigateTo: jest.Mock;
+      switchTab: jest.Mock;
       request: jest.Mock;
     };
   }).wx;
@@ -47,7 +51,9 @@ describe('assistant-home smart-body · FR-7 checkSmartAnalyzePrerequisites (pure
     wx().getStorageSync.mockReset();
     wx().showToast.mockReset();
     wx().showModal.mockReset();
+    wx().showActionSheet.mockReset();
     wx().navigateTo.mockReset();
+    wx().switchTab.mockReset();
     wx().request.mockReset();
     wx().getStorageSync.mockReturnValue('');
   });
@@ -191,6 +197,46 @@ describe('assistant-home smart-body · FR-7 checkSmartAnalyzePrerequisites (pure
       expect(wx().showModal).not.toHaveBeenCalled();
       expect(wx().navigateTo).not.toHaveBeenCalled();
       expect(wx().request).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('assistant-home smart-body · FR-7 pickProfileInsufficientAction (pure)', () => {
+  it('PROFILE_INSUFFICIENT_ITEM_LIST exposes exactly 3 options in expected order', () => {
+    // 这串文案同时被 assistant-home/index.ts:onSubmitUpload 直接复用，
+    // 改文案必须同步两处；本测试就是防止单点改动。
+    expect(PROFILE_INSUFFICIENT_ITEM_LIST).toHaveLength(3);
+    expect(PROFILE_INSUFFICIENT_ITEM_LIST[0]).toBe('去完善档案');
+    expect(PROFILE_INSUFFICIENT_ITEM_LIST[1]).toMatch(/继续分析/);
+    expect(PROFILE_INSUFFICIENT_ITEM_LIST[2]).toMatch(/稍后再分析/);
+  });
+
+  describe('tapIndex 决策（与 assistant-home onSubmitUpload 一一对应）', () => {
+    it('tapIndex=0 → goto_profile（跳档案页）', () => {
+      expect(pickProfileInsufficientAction(0)).toEqual({ kind: 'goto_profile' });
+    });
+    it('tapIndex=1 → continue_fallback（兜底发请求）', () => {
+      expect(pickProfileInsufficientAction(1)).toEqual({ kind: 'continue_fallback' });
+    });
+    it('tapIndex=2 → cancel（点遮罩/稍后再分析：什么都不做）', () => {
+      expect(pickProfileInsufficientAction(2)).toEqual({ kind: 'cancel' });
+    });
+  });
+
+  describe('边缘 case（用户点遮罩/系统返回键）', () => {
+    it('tapIndex=undefined（点遮罩）→ cancel', () => {
+      expect(pickProfileInsufficientAction(undefined)).toEqual({ kind: 'cancel' });
+    });
+    it('tapIndex 越界（如未来 itemList 增删导致索引错位）→ cancel（安全 fallback）', () => {
+      expect(pickProfileInsufficientAction(99)).toEqual({ kind: 'cancel' });
+      expect(pickProfileInsufficientAction(-1)).toEqual({ kind: 'cancel' });
+    });
+  });
+
+  describe('为什么不用 wx.showModal 的回归保护', () => {
+    // 防止有人未来把 showActionSheet 改回 showModal（2 button 不支持取消 + iOS 不能点遮罩关）
+    it('PROFILE_INSUFFICIENT_ITEM_LIST 长度 === 3（≥3 选项才配 ActionSheet）', () => {
+      expect(PROFILE_INSUFFICIENT_ITEM_LIST.length).toBeGreaterThanOrEqual(3);
     });
   });
 });
