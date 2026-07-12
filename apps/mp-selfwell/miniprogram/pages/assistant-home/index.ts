@@ -452,7 +452,7 @@ Page({
    * 点击入口卡（4 张：smart_analyze / mood_diary / recall_self / direct_input）
    *  - smart_analyze  → 隐藏入口卡 + 追加 upload 气泡（PR-A4 Option A 内嵌卡片）
    *  - mood_diary     → 跳转 feedback-diary（保留旧行为）
-   *  - recall_self    → 跳转 recall-compare（保留旧行为）
+   *  - recall_self    → 进入主动回忆对话流
    */
   onTapEntry(e: WechatMiniprogram.BaseEvent) {
     // 事件源是 <butler-cards-block bind:cards-tap="onTapEntry">，e.currentTarget 是
@@ -470,7 +470,9 @@ Page({
       return;
     }
     if (id === 'recall_self') {
-      wx.navigateTo({ url: '/pages/recall-compare/index' });
+      wx.navigateTo({
+        url: '/pages/recall-flow/index?trigger=user_manual&days_offset=7',
+      });
       return;
     }
     if (id === 'direct_input') {

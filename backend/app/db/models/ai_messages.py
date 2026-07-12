@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -62,7 +62,7 @@ class AIMessage(Base):
     seq: Mapped[int] = mapped_column(INTEGER, nullable=False)
     role: Mapped[str] = mapped_column(VARCHAR(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    context_photos: Mapped[dict[str, object] | None] = mapped_column(
+    context_photos: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )
     referenced_feedback_ids: Mapped[list[UUID]] = mapped_column(

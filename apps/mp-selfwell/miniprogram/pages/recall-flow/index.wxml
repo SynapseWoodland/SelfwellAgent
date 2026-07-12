@@ -1,0 +1,67 @@
+<view class="recall-flow">
+  <view class="recall-flow__header">
+    <button class="recall-flow__back" bindtap="onBack" aria-label="返回">‹</button>
+    <view class="recall-flow__title">问问过去的自己</view>
+    <view class="recall-flow__header-spacer"></view>
+  </view>
+
+  <scroll-view class="recall-flow__body" scroll-y enhanced>
+    <view class="recall-flow__periods" aria-label="选择回忆时段">
+      <button
+        wx:for="{{periods}}"
+        wx:key="value"
+        class="recall-flow__chip {{selectedPeriod === item.value ? 'is-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onSelectPeriod"
+      >{{item.label}}</button>
+    </view>
+
+    <view wx:if="{{customPickerVisible}}" class="recall-flow__custom-sheet">
+      <view class="recall-flow__sheet-title">想回到哪一天？</view>
+      <picker mode="date" value="{{customDate}}" end="{{maxDate}}" bindchange="onCustomDateChange">
+        <view class="recall-flow__date-value">{{customDate}}</view>
+      </picker>
+      <view class="recall-flow__sheet-actions">
+        <button class="recall-flow__sheet-button is-muted" bindtap="onCancelCustom">取消</button>
+        <button class="recall-flow__sheet-button is-primary" bindtap="onConfirmCustom">确定</button>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="recall-flow__status">正在翻找过去的记录…</view>
+
+    <view wx:elif="{{errorMessage}}" class="recall-flow__empty">
+      <view class="recall-flow__empty-title">这段时光还很安静</view>
+      <view class="recall-flow__empty-copy">{{errorMessage}}</view>
+    </view>
+
+    <view wx:elif="{{recall}}" class="recall-flow__conversation">
+      <view class="recall-flow__avatar">S</view>
+      <view class="recall-flow__bubble">
+        <view class="recall-flow__eyebrow">{{daysOffset}} 天前的你</view>
+        <view class="recall-flow__summary">{{recall.context_photos.summary || recall.summary}}</view>
+        <view wx:if="{{recall.encourage}}" class="recall-flow__encourage">{{recall.encourage}}</view>
+        <scroll-view
+          wx:if="{{recall.referenced_photos.length}}"
+          class="recall-flow__photos"
+          scroll-x
+          enhanced
+          show-scrollbar="{{false}}"
+        >
+          <image
+            wx:for="{{recall.referenced_photos}}"
+            wx:key="url"
+            class="recall-flow__photo"
+            src="{{item.url}}"
+            mode="aspectFill"
+            aria-label="{{item.caption || '历史照片'}}"
+          />
+        </scroll-view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="recall-flow__footer">
+    <button class="recall-flow__cta is-secondary" bindtap="onContinueChat">继续聊</button>
+    <button class="recall-flow__cta is-primary" bindtap="onSaveAsDiary">保存为日记</button>
+  </view>
+</view>

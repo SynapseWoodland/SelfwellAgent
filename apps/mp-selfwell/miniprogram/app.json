@@ -11,6 +11,7 @@
     "pages/checkin/index",
     "pages/assistant-home/index",
     "pages/feedback-diary/index",
+    "pages/recall-flow/index",
     "pages/recall-compare/index",
     "pages/community/index",
     "pages/profile/index",

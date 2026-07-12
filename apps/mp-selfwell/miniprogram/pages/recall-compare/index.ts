@@ -80,6 +80,23 @@ Page({
     }
   },
 
+  onContinueChat() {
+    wx.switchTab({ url: '/pages/assistant-home/index' });
+  },
+
+  onSaveAsDiary() {
+    const summary = this.data.snapshot?.emotionTrend ?? '';
+    wx.navigateTo({
+      url: `/pages/feedback-diary/index?source=recall&text=${encodeURIComponent(summary)}`,
+    });
+  },
+
+  onAskAnother() {
+    wx.navigateTo({
+      url: '/pages/recall-flow/index?trigger=user_manual&days_offset=7',
+    });
+  },
+
   onShareAppMessage() {
     const day = this.data.activeDay;
     return {

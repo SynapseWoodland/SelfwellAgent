@@ -1,0 +1,240 @@
+.recall-flow {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding-bottom: calc(156rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #f4ece4 0%, #fafbfc 42%);
+  color: var(--color-text-primary, #2d3436);
+}
+
+.recall-flow__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(20rpx + env(safe-area-inset-top)) 28rpx 18rpx;
+}
+
+.recall-flow__back,
+.recall-flow__header-spacer {
+  width: 72rpx;
+  height: 72rpx;
+}
+
+.recall-flow__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 0 8rpx;
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.78);
+  color: #5a8270;
+  font-size: 56rpx;
+  line-height: 1;
+  box-shadow: 0 4rpx 16rpx rgba(45, 52, 54, 0.06);
+}
+
+.recall-flow__back::after,
+.recall-flow__chip::after,
+.recall-flow__sheet-button::after,
+.recall-flow__cta::after {
+  border: 0;
+}
+
+.recall-flow__title {
+  font-size: 34rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.recall-flow__body {
+  height: calc(100vh - 260rpx - env(safe-area-inset-top));
+  box-sizing: border-box;
+  padding: 8rpx 32rpx 48rpx;
+}
+
+.recall-flow__periods {
+  display: flex;
+  gap: 14rpx;
+  margin: 12rpx 0 38rpx;
+}
+
+.recall-flow__chip {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  height: 64rpx;
+  border: 1rpx solid rgba(90, 130, 112, 0.18);
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.75);
+  color: #718096;
+  font-size: 24rpx;
+  line-height: 64rpx;
+}
+
+.recall-flow__chip.is-active {
+  background: #5a8270;
+  color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(90, 130, 112, 0.22);
+}
+
+.recall-flow__custom-sheet {
+  margin-bottom: 30rpx;
+  padding: 30rpx;
+  border: 1rpx solid #f0f2f5;
+  border-radius: 28rpx;
+  background: #fff;
+  box-shadow: 0 12rpx 36rpx rgba(45, 52, 54, 0.08);
+}
+
+.recall-flow__sheet-title {
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.recall-flow__date-value {
+  padding: 22rpx 24rpx;
+  border-radius: 18rpx;
+  background: #fafbfc;
+  color: #5a8270;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.recall-flow__sheet-actions {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.recall-flow__sheet-button {
+  flex: 1;
+  margin: 0;
+  border-radius: 20rpx;
+  font-size: 26rpx;
+}
+
+.recall-flow__sheet-button.is-muted {
+  background: #f0f2f5;
+  color: #718096;
+}
+
+.recall-flow__sheet-button.is-primary {
+  background: #a8c5b5;
+  color: #2d3436;
+}
+
+.recall-flow__conversation {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+}
+
+.recall-flow__avatar {
+  display: flex;
+  flex: 0 0 68rpx;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a8c5b5 0%, #b8d4e3 100%);
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.recall-flow__bubble {
+  min-width: 0;
+  padding: 30rpx;
+  border-radius: 8rpx 30rpx 30rpx;
+  background: #fff;
+  box-shadow: 0 12rpx 40rpx rgba(45, 52, 54, 0.07);
+}
+
+.recall-flow__eyebrow {
+  margin-bottom: 14rpx;
+  color: #9c7ab8;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.recall-flow__summary {
+  font-size: 30rpx;
+  line-height: 1.75;
+}
+
+.recall-flow__encourage {
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid #f0f2f5;
+  color: #718096;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.recall-flow__photos {
+  width: 100%;
+  margin-top: 24rpx;
+  white-space: nowrap;
+}
+
+.recall-flow__photo {
+  display: inline-block;
+  width: 176rpx;
+  height: 176rpx;
+  margin-right: 14rpx;
+  border-radius: 20rpx;
+  background: #f0f2f5;
+}
+
+.recall-flow__status,
+.recall-flow__empty {
+  margin-top: 80rpx;
+  color: #718096;
+  text-align: center;
+}
+
+.recall-flow__empty-title {
+  margin-bottom: 16rpx;
+  color: #2d3436;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.recall-flow__empty-copy {
+  font-size: 26rpx;
+  line-height: 1.7;
+}
+
+.recall-flow__footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  gap: 20rpx;
+  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid rgba(240, 242, 245, 0.9);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.recall-flow__cta {
+  flex: 1;
+  margin: 0;
+  border-radius: 36rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.recall-flow__cta.is-secondary {
+  border: 1rpx solid #a8c5b5;
+  background: #fff;
+  color: #5a8270;
+}
+
+.recall-flow__cta.is-primary {
+  background: #a8c5b5;
+  color: #2d3436;
+}

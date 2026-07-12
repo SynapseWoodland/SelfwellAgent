@@ -16,6 +16,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.contracts.ai_message import build_ai_message_context_photos
 from app.core.audit import hash_user_id_pseudo
 from app.core.errors import SelfwellError, UserInputError
 from app.core.log import (
@@ -173,12 +174,20 @@ def _build_summary(referenced: list[dict[str, Any]]) -> str:
 
 
 async def _load_referenced_feedbacks(
-    session: AsyncSession, *, user_id: str, limit: int = 5
+    session: AsyncSession,
+    *,
+    user_id: str,
+    days_offset: int,
+    limit: int = 5,
 ) -> list[dict[str, Any]]:
-    """加载用户最近 feedbacks 作为 reference。"""
+    """Load recent feedbacks created on or before the selected recall date."""
+    recall_date = datetime.now(UTC) - timedelta(days=days_offset)
     stmt = (
         select(Feedback)
-        .where(Feedback.created_by == str(user_id))
+        .where(
+            Feedback.created_by == str(user_id),
+            Feedback.created_time <= recall_date,
+        )
         .order_by(Feedback.created_time.desc())
         .limit(limit)
     )
@@ -189,6 +198,7 @@ async def _load_referenced_feedbacks(
             "body_part": f.body_part,
             "snippet": (f.text_content or "")[:60],
             "feedback_type": f.feedback_type,
+            "photo_url": f.photo_url,
             "created_at": f.created_time.isoformat() if f.created_time else None,
             "created_by": f.created_by,
         }
@@ -212,23 +222,21 @@ async def generate_recall(
     user_id: str,
     trigger: str = "user_manual",
     plan_id: str | None = None,
-    days_offset: int | None = None,
+    days_offset: int = DEFAULT_DAYS_OFFSET,
 ) -> dict[str, Any]:
     """生成主动回忆（Day 7/14/21 触发或手动）。
 
-    PR-2 V2 增量：新增 ``days_offset`` 参数（PR-4 M8 主动回忆对话流）。
-    - days_offset 为 None 时按 trigger 自动推断（auto_day7=7 / auto_day14=14 / auto_day21=21）
-    - days_offset > 0 时使用给定值（向前兼容，默认 7）
-    - days_offset 必须在 [1, 365] 范围内；越界抛 UserInputError
+    ``days_offset`` defaults to 7 and accepts 1..365 for custom recall dates.
     """
     trigger = _validate_trigger(trigger)
 
-    # PR-2 V2 增量：days_offset 默认值 + 范围校验
-    if days_offset is None:
-        days_offset = {"auto_day7": 7, "auto_day14": 14, "auto_day21": 21}.get(
-            trigger, DEFAULT_DAYS_OFFSET
+    if not isinstance(days_offset, int) or isinstance(days_offset, bool):
+        raise UserInputError(
+            f"days_offset 非法：{days_offset}（必须 ∈ [1, 365]）",
+            code=E_RECALL_EMPTY,
+            field="days_offset",
         )
-    if not isinstance(days_offset, int) or days_offset < 1 or days_offset > 365:
+    if days_offset < 1 or days_offset > 365:
         raise UserInputError(
             f"days_offset 非法：{days_offset}（必须 ∈ [1, 365]）",
             code=E_RECALL_EMPTY,
@@ -247,7 +255,11 @@ async def generate_recall(
         raise RecallDailyLimitError()
 
     # 2. 加载 referenced feedbacks
-    refs = await _load_referenced_feedbacks(session, user_id=user_id)
+    refs = await _load_referenced_feedbacks(
+        session,
+        user_id=user_id,
+        days_offset=days_offset,
+    )
     if not refs and trigger == "user_manual":
         raise RecallError("用户尚无任何 feedback 记录可回顾")
 
@@ -276,6 +288,16 @@ async def generate_recall(
         encourage = SAFE_FALLBACK_ENCOURAGE
         safety_passed = True
 
+    referenced_photos = [
+        {
+            "url": str(ref["photo_url"]),
+            "caption": ref.get("snippet") or "历史记录",
+            "created_at": ref.get("created_at"),
+        }
+        for ref in refs
+        if ref.get("photo_url")
+    ]
+
     # 5. 写 recall_session
     rs = RecallSession(
         id=uuid4(),
@@ -285,7 +307,7 @@ async def generate_recall(
         ai_summary=summary,
         ai_encourage=encourage,
         referenced_feedbacks=refs,
-        referenced_photos=[],
+        referenced_photos=referenced_photos,
         llm_cost=Decimal("0.0010"),
         safety_passed=safety_passed,
         created_at=now_ts,
@@ -311,8 +333,13 @@ async def generate_recall(
         "encourage": encourage,
         "safety_passed": safety_passed,
         "referenced_feedbacks": refs,
+        "referenced_photos": referenced_photos,
+        "context_photos": build_ai_message_context_photos(
+            directions=[],
+            tags=[],
+            summary=summary,
+        ),
         "created_at": now_ts.isoformat(),
-        # PR-2 V2 增量：days_offset 回传给前端（PR-4 M8 主动回忆对话流用）
         "days_offset": days_offset,
     }
 

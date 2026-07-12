@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.contracts.ai_message import build_ai_message_context_photos
 from app.core.audit import hash_user_id_pseudo
 from app.core.errors import SelfwellError, UserInputError
 from app.core.log import (
@@ -825,7 +826,11 @@ async def _stream_smart_analyze(
             seq=seq2,
             role="assistant",
             content=summary or "",
-            context_photos={"directions": directions, "tags": tags, "summary": summary},
+            context_photos=build_ai_message_context_photos(
+                directions=directions,
+                tags=tags,
+                summary=summary,
+            ),
             token_count=len(directions),
             llm_model=llm_model,
             llm_latency_ms=llm_latency_ms,
