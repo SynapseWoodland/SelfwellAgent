@@ -1,8 +1,13 @@
 /**
- * profile-edit 子页 · V5.2.1-PR5.1
+ * profile-edit 子页 · V5.2.1-PR5.1 (edit) + V2-PR5 (read mode)
  *
  * 真源：SPEC-V521-PR5.1-profile-edit-subpage.md §FR-1/§FR-2/§FR-3/§FR-4
+ * 真源：plans/v2-unified-parent.md §2.5 + plans/v2-IA-pr-internal.md §PR-5
  * 依赖：utils/profile-storage.ts（PR5）+ utils/request.ts（post + ApiException）
+ *
+ * V2-PR5 扩展：双模（mode: 'edit' | 'read'）
+ * - edit（默认，向前兼容）：6 字段表单 + 保存
+ * - read（路由参数 mode=read 触发）：6 字段只读 + tag chip 区 + 21 天小档案 + [编辑] CTA
  *
  * 设计要点：
  * - 6 字段表单从 PR5 pages/profile/index.ts 平移过来（diff 控制在净增 ≤30 行）
@@ -10,7 +15,7 @@
  * - skin_type 写本地 storage（前端 SSE 入参需要），不上送后端
  * - 所有副作用走 wx.showToast / wx.setStorageSync / post；纯逻辑委托给 index.smart-body.ts
  *
- * IA 引用：docs/design/ia-and-wireframe.md §4.6 P06 子页（用户档案编辑）
+ * IA 引用：docs/design/ia-and-wireframe.md §4.6 P06 子页（用户档案编辑/只读）
  */
 
 import {
@@ -19,12 +24,47 @@ import {
   countFilledFields,
   type UserProfile6Fields,
 } from '../../utils/profile-storage';
-import { post, ApiException } from '../../utils/request';
+import { post, get, ApiException } from '../../utils/request';
 import {
   buildProfileBackendPayload,
   validateProfileRequiredFields,
   PICK_PROFILE_TARGET_PATH,
 } from './index.smart-body';
+
+/** PR-5 · read 模式：从 /me/archive/summary 拉 21 天小档案 */
+interface ArchiveProfile {
+  nickname: string;
+  avatar: string;
+  status: string;
+}
+interface ArchiveTags {
+  body_part: string[];
+  concern: string[];
+  lifestyle: string[];
+  intensity: string[];
+}
+interface ArchiveCheckin {
+  total: number;
+  streak_days: number;
+  last_checkin_date: string | null;
+}
+interface ArchivePlan {
+  active_plan_id: string;
+  current_day: number;
+  total_days: number;
+  stage: string;
+  started_at: string | null;
+}
+interface ArchiveSummary {
+  profile: ArchiveProfile;
+  tags: ArchiveTags;
+  plan: ArchivePlan | null;
+  checkin: ArchiveCheckin;
+  archive_generated_at: string;
+}
+
+/** PR-5 · 模式（默认 edit，向前兼容） */
+export type ProfileEditMode = 'edit' | 'read';
 
 // PR5 选项常量（与 pages/profile/index.ts:39-68 完全一致；平移避免变更面）
 const AGE_RANGE_OPTIONS = [
@@ -81,6 +121,8 @@ const TOAST_SITTING_HOURS_RANGE = '请输入 0-24 的数字';
 
 Page({
   data: {
+    /** PR-5 · 双模开关（默认 edit，向前兼容） */
+    mode: 'edit' as ProfileEditMode,
     ageRangeOptions: AGE_RANGE_OPTIONS,
     focusPartOptions: FOCUS_PART_OPTIONS,
     intensityOptions: INTENSITY_OPTIONS,
@@ -97,10 +139,22 @@ Page({
     profileFilledCount: 0,
     /** FR-4：提交中状态锁（防抖），WXML disabled 绑定此字段 */
     submitting: false as boolean,
+    /** PR-5 · read mode 视图状态 */
+    archiveSummary: null as ArchiveSummary | null,
+    archiveLoading: false as boolean,
+    archiveError: '' as string,
   },
 
-  onLoad() {
-    this.loadProfile();
+  onLoad(options: { mode?: string }) {
+    const mode: ProfileEditMode = options?.mode === 'read' ? 'read' : 'edit';
+    this.setData({ mode });
+    // 模式决定导航栏标题（edit=「用户档案」/ read=「档案概览」）
+    wx.setNavigationBarTitle({
+      title: mode === 'read' ? '档案概览' : '用户档案',
+    });
+    if (mode === 'read') {
+      void this.fetchArchive();
+    }
   },
 
   onShow() {
@@ -264,6 +318,26 @@ Page({
       // FR-4 · 释放锁：无论成功/失败/校验失败都要回到可点击
       this.setData({ submitting: false });
     }
+  },
+
+  /**
+   * PR-5 · read mode：从 /me/archive/summary 拉 21 天小档案。
+   * 失败仅静默展示 archiveError；本地 6 字段档案仍可用（loadProfile 已先于 fetchArchive 调用）。
+   */
+  async fetchArchive() {
+    this.setData({ archiveLoading: true, archiveError: '' });
+    try {
+      const resp = await get<ArchiveSummary>('/me/archive/summary');
+      this.setData({ archiveSummary: resp, archiveLoading: false });
+    } catch (err) {
+      const msg = err instanceof ApiException ? err.message : '档案加载失败，请稍后重试';
+      this.setData({ archiveLoading: false, archiveError: msg });
+    }
+  },
+
+  /** PR-5 · read mode 底部 [编辑] CTA → 切到 edit 模式（保留已加载的 storage 数据） */
+  onTapEditMode() {
+    wx.redirectTo({ url: '/pages/profile-edit/index?mode=edit' });
   },
 });
 

@@ -1,0 +1,71 @@
+<!--
+  PR-5 · album 子页（V2 17-record-album.html · 时间段切换 + 照片网格 + 统计卡）
+  ─────────────────────────────────────────────────────────────────
+  真源：plans/v2-IA-pr-internal.md §PR-5
+-->
+<view class="al-page">
+  <!-- 时间段切换 -->
+  <scroll-view class="al-week-bar" scroll-x="true">
+    <view class="al-week-list">
+      <view
+        wx:for="{{weeks}}"
+        wx:key="value"
+        class="al-week-chip {{selectedWeek === item.value ? 'al-week-chip-selected' : ''}}"
+        data-week="{{item.value}}"
+        bindtap="onSelectWeek"
+        data-test="al-week-{{item.value}}"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 统计卡 -->
+  <view class="al-stats" data-test="al-stats">
+    <view class="al-stat-item">
+      <text class="al-stat-num">{{stats.total_photos}}</text>
+      <text class="al-stat-label">总照片</text>
+    </view>
+    <view class="al-stat-item">
+      <text class="al-stat-num">{{stats.total_checkin_days}}</text>
+      <text class="al-stat-label">打卡天数</text>
+    </view>
+    <view class="al-stat-item">
+      <text class="al-stat-num">{{stats.total_diary_entries}}</text>
+      <text class="al-stat-label">日记数</text>
+    </view>
+    <view class="al-stat-item">
+      <text class="al-stat-num">{{stats.days_in_app}}</text>
+      <text class="al-stat-label">在 App</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="al-loading">
+    <text>加载中…</text>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="al-error">
+    <text>{{errorMessage}}</text>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{weekData.count === 0}}" class="al-empty">
+      <view class="al-empty-icon">·</view>
+      <view class="al-empty-text">这一周还没有照片</view>
+      <view class="al-empty-hint">完成一次心情记录就能解锁这一格</view>
+    </view>
+
+    <view wx:else class="al-grid">
+      <view
+        wx:for="{{weekData.photos}}"
+        wx:key="feedback_id"
+        class="al-grid-cell"
+        data-url="{{item.photo_url}}"
+        bindtap="onTapPhoto"
+        data-test="al-photo-{{item.feedback_id}}"
+      >
+        <image class="al-grid-img" src="{{item.photo_url}}" mode="aspectFill" lazy-load="true" />
+      </view>
+    </view>
+  </block>
+</view>

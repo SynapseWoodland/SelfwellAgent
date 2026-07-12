@@ -1,0 +1,28 @@
+<!--
+  PR-5 · privacy-policy 子页（V2 20-privacy.html）
+  ─────────────────────────────────────────────────────────────────
+  静态 markdown 段；6 段 + 顶部版本号
+-->
+<view class="pp-page">
+  <view class="pp-meta">
+    <text class="pp-meta-version">版本 {{version}}</text>
+    <text class="pp-meta-effective">生效时间 {{effectiveAt}}</text>
+  </view>
+
+  <view class="pp-card">
+    <view class="pp-intro">
+      Selfwell 自愈是一款陪伴你度过 21 天自愈周期的轻量 AI 应用。本政策说明我们如何收集、使用、存储与保护你的个人数据。
+    </view>
+
+    <block wx:for="{{sections}}" wx:key="title">
+      <view class="pp-section" data-test="pp-section-{{index}}">
+        <view class="pp-section-title">{{item.title}}</view>
+        <view class="pp-section-body">{{item.body}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="pp-footer">
+    <text>有疑问？请通过「我的 → 联系客服」与我们取得联系。</text>
+  </view>
+</view>

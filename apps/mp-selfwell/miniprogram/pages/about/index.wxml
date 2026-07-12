@@ -1,0 +1,47 @@
+<!--
+  PR-5 · about 子页（V2 21-about.html）
+  ─────────────────────────────────────────────────────────────────
+  顶部 logo + 名称 + slogan；中部 info 列表；底部鸣谢
+-->
+<view class="ab-page">
+  <view class="ab-hero">
+    <view class="ab-logo">
+      <text>自</text>
+    </view>
+    <view class="ab-app-name">Selfwell 自愈</view>
+    <view class="ab-slogan">21 天 · 一点点靠近自己</view>
+  </view>
+
+  <view class="ab-card">
+    <view class="ab-row" data-test="ab-row-version">
+      <text class="ab-row-label">应用版本</text>
+      <text class="ab-row-value">v{{appVersion}}</text>
+    </view>
+    <view class="ab-row" data-test="ab-row-system">
+      <text class="ab-row-label">系统</text>
+      <text class="ab-row-value">{{system}} {{systemVersion}}</text>
+    </view>
+    <view class="ab-row" data-test="ab-row-wechat">
+      <text class="ab-row-label">微信基础库</text>
+      <text class="ab-row-value">{{wechatVersion}}</text>
+    </view>
+    <view class="ab-row" data-test="ab-row-check">
+      <view class="ab-row-label">版本检查</view>
+      <view class="ab-row-btn" bindtap="onCheckUpdate">检查更新</view>
+    </view>
+  </view>
+
+  <view class="ab-card">
+    <view class="ab-thanks-title">致谢</view>
+    <view class="ab-thanks-body">
+      感谢你愿意花 21 天与自己的身体对话。无论走多远，每一步都算数。
+    </view>
+  </view>
+
+  <view class="ab-footer">
+    <text class="ab-footer-line">© {{buildYear}} Selfwell · 仅供学习与个人使用</text>
+    <view class="ab-footer-link" bindtap="onCopyContact" data-test="ab-copy-contact">
+      联系我们：selfwell@example.com
+    </view>
+  </view>
+</view>

@@ -1,0 +1,63 @@
+<!--
+  PR-5 · notification-settings 子页（V2 19-notifications.html）
+  ─────────────────────────────────────────────────────────────────
+  布局：6 行开关 + 时间输入 + 底部保存按钮
+-->
+<view class="ns-page">
+  <view wx:if="{{loading}}" class="ns-loading">
+    <text>加载中…</text>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="ns-error">
+    <text>{{errorMessage}}</text>
+    <view class="ns-retry-btn" bindtap="onRetry">重新加载</view>
+  </view>
+
+  <block wx:else>
+    <view class="ns-banner">
+      <text class="ns-banner-text">选择你希望接收的提醒类型</text>
+    </view>
+
+    <view class="ns-list">
+      <view
+        wx:for="{{prefs}}"
+        wx:key="prefKey"
+        class="ns-row"
+        data-test="ns-row-{{item.prefKey}}"
+      >
+        <view class="ns-row-main">
+          <view class="ns-row-label">{{item.prefLabel}}</view>
+          <view class="ns-row-hint">{{item.prefHint}}</view>
+        </view>
+        <view class="ns-row-controls">
+          <input
+            wx:if="{{item.enabled}}"
+            class="ns-time-input"
+            type="time"
+            value="{{item.time}}"
+            data-key="{{item.prefKey}}"
+            bindinput="onChangeTime"
+            data-test="ns-time-{{item.prefKey}}"
+          />
+          <switch
+            class="ns-switch"
+            checked="{{item.enabled}}"
+            data-key="{{item.prefKey}}"
+            bindchange="onToggleEnabled"
+            color="#A8C5B5"
+            data-test="ns-switch-{{item.prefKey}}"
+          />
+        </view>
+      </view>
+    </view>
+
+    <button
+      class="ns-save-btn {{submitting ? 'ns-save-btn-disabled' : ''}}"
+      bindtap="onSubmit"
+      disabled="{{submitting}}"
+      data-test="ns-save-btn"
+    >
+      {{submitting ? '保存中…' : '保存设置'}}
+    </button>
+  </block>
+</view>

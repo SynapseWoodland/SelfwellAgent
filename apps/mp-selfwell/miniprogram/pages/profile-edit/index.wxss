@@ -105,3 +105,145 @@
 .profile-submit-btn-disabled {
   opacity: 0.6;
 }
+
+/* ── PR-5 · read mode 视图样式 ── */
+
+.pe-read-card {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.pe-read-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #F0F2F5;
+}
+
+.pe-read-row:last-child {
+  border-bottom: none;
+}
+
+.pe-read-label {
+  font-size: 26rpx;
+  color: #718096;
+}
+
+.pe-read-value {
+  font-size: 28rpx;
+  color: #2D3436;
+  font-weight: 500;
+  text-align: right;
+  max-width: 60%;
+}
+
+.pe-read-section-title {
+  font-size: 30rpx;
+  color: #2D3436;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+
+.pe-read-tag-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16rpx;
+}
+
+.pe-read-tag-row:last-child {
+  margin-bottom: 0;
+}
+
+.pe-read-tag-cat {
+  width: 80rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #718096;
+  padding-top: 12rpx;
+}
+
+.pe-read-tag-chips {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.pe-chip {
+  padding: 12rpx 24rpx;
+  border: 2rpx solid #E2E8F0;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  color: #4A5568;
+  background-color: #FAFBFC;
+}
+
+.pe-chip-selected {
+  background-color: #A8C5B5;
+  border-color: #A8C5B5;
+  color: #FFFFFF;
+}
+
+.pe-read-loading,
+.pe-read-empty {
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 24rpx;
+  color: #A0AEC0;
+}
+
+.pe-read-error {
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 24rpx;
+  color: #E53E3E;
+}
+
+.pe-read-archive-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0;
+}
+
+.pe-read-archive-num {
+  font-size: 56rpx;
+  color: #2D3436;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.pe-read-archive-stage {
+  font-size: 26rpx;
+  color: #5A8270;
+}
+
+.pe-read-stat-row {
+  display: flex;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid #F0F2F5;
+}
+
+.pe-read-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pe-read-stat-num {
+  font-size: 40rpx;
+  color: #2D3436;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.pe-read-stat-label {
+  font-size: 22rpx;
+  color: #718096;
+}

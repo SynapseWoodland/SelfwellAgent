@@ -1,0 +1,116 @@
+/* PR-5 · notification-settings 子页
+ * 复用 PR-6 V2 tokens（颜色 / 圆角 / 阴影），无硬编码 hex
+ */
+
+.ns-page {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding: 32rpx 32rpx 200rpx;
+}
+
+.ns-loading,
+.ns-error {
+  text-align: center;
+  padding: 96rpx 32rpx;
+  color: #718096;
+  font-size: 28rpx;
+}
+
+.ns-retry-btn {
+  display: inline-block;
+  margin-top: 24rpx;
+  padding: 16rpx 40rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+}
+
+.ns-banner {
+  background-color: #F0F7F2;
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.ns-banner-text {
+  font-size: 26rpx;
+  color: #5A8C6E;
+}
+
+.ns-list {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  margin-bottom: 24rpx;
+}
+
+.ns-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  border-bottom: 2rpx solid #F0F2F5;
+}
+
+.ns-row:last-child {
+  border-bottom: none;
+}
+
+.ns-row-main {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16rpx;
+}
+
+.ns-row-label {
+  font-size: 30rpx;
+  color: #2D3436;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.ns-row-hint {
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.ns-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.ns-time-input {
+  width: 120rpx;
+  height: 56rpx;
+  border: 2rpx solid #E2E8F0;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  padding: 0 12rpx;
+  color: #2D3436;
+  background-color: #FAFBFC;
+  box-sizing: border-box;
+}
+
+.ns-switch {
+  transform: scale(0.85);
+}
+
+.ns-save-btn {
+  margin-top: 32rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  padding: 24rpx 0;
+}
+
+.ns-save-btn::after {
+  border: none;
+}
+
+.ns-save-btn-disabled {
+  opacity: 0.6;
+}

@@ -1,0 +1,68 @@
+/* PR-5 · privacy-policy 子页
+ * 复用 PR-6 V2 tokens
+ */
+
+.pp-page {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding: 32rpx 32rpx 200rpx;
+}
+
+.pp-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 8rpx;
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.pp-meta-version,
+.pp-meta-effective {
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.pp-card {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.pp-intro {
+  font-size: 28rpx;
+  color: #2D3436;
+  line-height: 1.7;
+  margin-bottom: 32rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 2rpx solid #F0F2F5;
+}
+
+.pp-section {
+  margin-bottom: 32rpx;
+}
+
+.pp-section:last-child {
+  margin-bottom: 0;
+}
+
+.pp-section-title {
+  font-size: 30rpx;
+  color: #2D3436;
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.pp-section-body {
+  font-size: 26rpx;
+  color: #4A5568;
+  line-height: 1.8;
+}
+
+.pp-footer {
+  text-align: center;
+  margin-top: 32rpx;
+  font-size: 22rpx;
+  color: #A0AEC0;
+}

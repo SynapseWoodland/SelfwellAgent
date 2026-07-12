@@ -1,0 +1,55 @@
+<!--
+  PR-5 · contact 子页（V2 22-contact.html）
+  ─────────────────────────────────────────────────────────────────
+  邮箱 / 微信 / 工作时段 + FAQ 折叠
+-->
+<view class="ct-page">
+  <view class="ct-card">
+    <view class="ct-channel" data-test="ct-email">
+      <view class="ct-channel-icon ct-channel-icon-email">@</view>
+      <view class="ct-channel-main">
+        <view class="ct-channel-label">联系邮箱</view>
+        <view class="ct-channel-value">{{email}}</view>
+      </view>
+      <view class="ct-channel-btn" bindtap="onCopyEmail">复制</view>
+    </view>
+
+    <view class="ct-channel" data-test="ct-wechat">
+      <view class="ct-channel-icon ct-channel-icon-wechat">微</view>
+      <view class="ct-channel-main">
+        <view class="ct-channel-label">客服微信</view>
+        <view class="ct-channel-value">{{wechatId}}</view>
+        <view class="ct-channel-hint">工作时间 {{workingHours}}</view>
+      </view>
+      <view class="ct-channel-btn" bindtap="onCopyWechat">复制</view>
+    </view>
+  </view>
+
+  <view class="ct-qrcode-card">
+    <view class="ct-qrcode-title">扫码加客服</view>
+    <view class="ct-qrcode-placeholder" data-test="ct-qrcode">
+      <text>二维码占位</text>
+    </view>
+    <view class="ct-qrcode-hint">（assets/images/qrcode-placeholder.png，运营位上线后替换）</view>
+  </view>
+
+  <view class="ct-faq-title">常见问题</view>
+  <view class="ct-faq-list">
+    <block wx:for="{{faqs}}" wx:key="q">
+      <view
+        class="ct-faq-row"
+        data-index="{{index}}"
+        bindtap="onTapFaq"
+        data-test="ct-faq-{{index}}"
+      >
+        <view class="ct-faq-q">
+          <text class="ct-faq-q-icon">?</text>
+          <text class="ct-faq-q-text">{{item.q}}</text>
+        </view>
+        <view wx:if="{{expandedIndex === index}}" class="ct-faq-a">
+          {{item.a}}
+        </view>
+      </view>
+    </block>
+  </view>
+</view>
