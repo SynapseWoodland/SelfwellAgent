@@ -17,21 +17,21 @@
   background-color: #FAFBFC;
 }
 
-/* ────────── 顶部导航 ────────── */
+/* ────────── 顶部导航（V2 polish：mint 主色背景 + 白字 + safe-area） ────────── */
 .assistant-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12rpx 24rpx;
   padding-top: calc(12rpx + env(safe-area-inset-top));
-  background-color: #FAFBFC;
-  border-bottom: 2rpx solid #F0F2F5;
+  background-color: #A8C5B5;
+  border-bottom: 2rpx solid #5A8270;
   flex-shrink: 0;
 }
 
 .assistant-nav-back {
   font-size: 40rpx;
-  color: #2D3436;
+  color: #FFFFFF;
   padding: 0 16rpx;
   line-height: 1;
 }
@@ -39,7 +39,7 @@
 .assistant-nav-title {
   font-size: 32rpx;
   font-weight: 500;
-  color: #2D3436;
+  color: #FFFFFF;
 }
 
 .assistant-nav-actions {
@@ -50,15 +50,15 @@
 
 .assistant-nav-btn {
   font-size: 24rpx;
-  color: #4A5568;
+  color: #FFFFFF;
   padding: 8rpx 16rpx;
   border-radius: 24rpx;
-  background-color: #F0F2F5;
+  background-color: rgba(255, 255, 255, 0.18);
 }
 
 .assistant-nav-more {
   font-size: 36rpx;
-  color: #4A5568;
+  color: #FFFFFF;
   padding: 0 8rpx;
 }
 
@@ -198,7 +198,7 @@
   padding: 0 8rpx;
 }
 
-/* ────────── Chips 4 项 ────────── */
+/* ────────── Chips 4 项（V2 polish：圆角胶囊 + 主色描边 active） ────────── */
 .chips-bar {
   position: absolute;
   left: 0;
@@ -214,9 +214,10 @@
 }
 
 .chip {
-  background-color: #F0F2F5;
+  background-color: #FFFFFF;
   color: #4A5568;
-  border-radius: 32rpx;
+  border: 2rpx solid #E2E8F0;
+  border-radius: 36rpx;
   padding: 12rpx 24rpx;
   font-size: 24rpx;
 }
@@ -224,6 +225,7 @@
 .chip-active {
   background-color: #A8C5B5;
   color: #FFFFFF;
+  border-color: #A8C5B5;
 }
 
 /* ────────── 输入区 ────────── */
@@ -251,12 +253,13 @@
 
 .assistant-input {
   flex: 1;
-  height: 80rpx;
+  height: 72rpx;
   padding: 0 24rpx;
-  background-color: #F5E6D3;
-  border-radius: 40rpx;
+  background-color: #F5F7FA;
+  border-radius: 36rpx;
   font-size: 28rpx;
   color: #2D3436;
+  border: 2rpx solid #F0F2F5;
 }
 
 .assistant-input::placeholder {
@@ -264,15 +267,16 @@
 }
 
 .assistant-send {
-  height: 80rpx;
+  height: 72rpx;
   padding: 0 32rpx;
   background-color: #A8C5B5;
   color: #FFFFFF;
-  border-radius: 40rpx;
+  border-radius: 36rpx;
   display: flex;
   align-items: center;
   font-size: 28rpx;
   font-weight: 500;
+  box-shadow: 0 4rpx 12rpx rgba(168, 197, 181, 0.35);
 }
 
 /* =================================================================

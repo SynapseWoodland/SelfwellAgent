@@ -1,26 +1,41 @@
 <!--
-  PR-A4 Option A：智能分析 = 对话气泡内嵌卡片
-  真源：docs/design/figma-pixso-spec/pages/04a-smart-analyze-dialog.html
-  布局：nav-bar → chat-area (turns + entry cards) → chips-bar → input-area
+  PR-3 commit-2 · assistant-home V2 UI 重制（保留 _stream_smart_analyze 5 阶段消费）
+  ──────────────────────────────────────────────────────────────────────
+  真源：plans/v2-IA-pr-internal.md §PR-3 commit-2
+  真源：docs/design/figma-pixso-spec/pages/15a-butler-home-tab1.html
+  真源：plans/v2-unified-parent.md §3.3「_stream_smart_analyze 5 阶段事件序列」契约
+  ──────────────────────────────────────────────────────────────────────
+  关键约束：
+  1) 不退：consumeAssistantStream 5 阶段 progress/report/end/start/error 消费逻辑（PR-A4+PR-2 落地）
+  2) 不退：presignAndUploadOneForAssistant 调用 + image_keys/body_parts schema
+  3) 仅重制：入口卡 / chips / 输入栏 / nav-bar 视觉（V2 token：mint + cream + lavender）
+  4) 兼容：现有 vitest `assistant-home-smart-body.test.ts`（jest 在 miniprogram/tests/）+ PR-A4 静态契约测试不退
+
+  V2 升版要点：
+  - nav-bar 背景：mint 主色（PR-6 token --color-primary-mint）
+  - nav-bar 文字 + 头像：白 + 字号适配 V2
+  - entry cards：expanded 模式下 4 张卡横排，圆角 + 阴影 V2 polish
+  - chips：圆角胶囊 + 主色描边（active 态）
+  - input bar：底部固定，圆角 36rpx + 发送按钮 mint 主色
 -->
 <view class="assistant">
-  <!-- 顶部导航 -->
-  <view class="assistant-nav">
-    <view class="assistant-nav-back" bindtap="onNavBack">‹</view>
+  <!-- V2 顶部导航（mint 主色背景 + 白字 + safe-area） -->
+  <view class="assistant-nav" data-test="nav-bar">
+    <view class="assistant-nav-back" bindtap="onNavBack" data-test="nav-back">‹</view>
     <view class="assistant-nav-title">智能管家</view>
     <view class="assistant-nav-actions">
       <view class="assistant-nav-btn" data-test="history-btn" bindtap="onTapHistory">历史</view>
       <view class="assistant-nav-btn" data-test="settings-btn" bindtap="onTapSettings">设置</view>
-      <view class="assistant-nav-more" bindtap="onNavAction">⋯</view>
+      <view class="assistant-nav-more" bindtap="onNavAction" data-test="nav-more">⋯</view>
     </view>
   </view>
 
-  <!-- 顶部回忆气泡（Day 7/14/21 触发器；目前为空占位 hook） -->
+  <!-- 顶部回忆气泡（Day 7/14/21 触发器；PR-3 commit-2 暂时保留 hook 占位，未来视觉确认后激活） -->
   <view wx:if="{{false}}" class="assistant-recall-bubble" data-test="recall-bubble">
     <text class="assistant-recall-text">回忆气泡</text>
   </view>
 
-  <!-- 对话流 -->
+  <!-- 对话流（V2 polish：底部留白更宽，mint/cream 渐变头像） -->
   <scroll-view
     class="assistant-stream {{butlerCardsMode === 'collapsed' || butlerCardsMode === 'focused' ? 'is-collapsed' : ''}}"
     scroll-y
@@ -39,9 +54,8 @@
         text="{{item.text || ''}}"
         title="{{item.title || ''}}"
       >
-        <!-- upload_card slot -->
         <upload-card
-          wx:if="{{item.attachment.kind === 'upload_card'}}"
+          wx:if="{{item.attachment && item.attachment.kind === 'upload_card'}}"
           slot="upload-card"
           title="{{item.title || '上传照片生成你的画像'}}"
           slots="{{item.attachment.slots}}"
@@ -52,18 +66,16 @@
           bind:startTap="onSubmitUpload"
         />
 
-        <!-- progress_card slot -->
         <progress-card
-          wx:if="{{item.attachment.kind === 'progress_card'}}"
+          wx:if="{{item.attachment && item.attachment.kind === 'progress_card'}}"
           slot="progress-card"
           title="{{item.attachment.title || '正在为你生成画像'}}"
           percent="{{item.attachment.percent}}"
           steps="{{item.attachment.steps}}"
         />
 
-        <!-- report_card slot -->
         <report-card
-          wx:if="{{item.attachment.kind === 'report_card'}}"
+          wx:if="{{item.attachment && item.attachment.kind === 'report_card'}}"
           slot="report-card"
           avatar-text="{{item.attachment.avatarText}}"
           name="{{item.attachment.name}}"
@@ -74,11 +86,10 @@
       </persona-bubble>
     </view>
 
-    <!-- entry cards 隐藏后，留一点底部留白，避免最后一条气泡贴底 -->
     <view wx:if="{{entryHidden && !turns.length}}" class="assistant-stream-tail"></view>
   </scroll-view>
 
-  <!-- ✨ A2 入口卡块（新增组件，SPEC-A2 §4.1） -->
+  <!-- V2 入口卡块（与现有 butler-cards-block 组件契约不变） -->
   <butler-cards-block
     mode="{{butlerCardsMode}}"
     cards="{{entryCards}}"
@@ -88,7 +99,7 @@
     bind:popover-close="onPopoverClose"
   />
 
-  <!-- chips 4 项（PRD §3.5.1） -->
+  <!-- V2 chips 4 项（圆角胶囊 + 主色描边 active） -->
   <view class="chips-bar" data-test="chips-bar">
     <view
       wx:for="{{chips}}"
@@ -105,7 +116,7 @@
     </view>
   </view>
 
-  <!-- 输入区 -->
+  <!-- V2 输入栏（圆角 36rpx + 发送按钮 mint 主色） -->
   <view class="assistant-inputbar" data-test="input-area">
     <view class="assistant-mic" data-test="mic-icon" bindtap="onTapMic">🎤</view>
     <input
@@ -119,6 +130,6 @@
       bindconfirm="onSend"
     />
     <view class="assistant-camera" data-test="camera-icon" bindtap="onTapCamera">📷</view>
-    <view class="assistant-send" bindtap="onSend">发送</view>
+    <view class="assistant-send" bindtap="onSend" data-test="send-btn">发送</view>
   </view>
 </view>
