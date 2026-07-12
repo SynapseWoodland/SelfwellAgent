@@ -1,41 +1,8 @@
 <!--
-  profile 页 V5.2.1-PR5.1
-  - 与 IA §4.6 P06 对齐：header + 进度环 + 设置列表，**不再内嵌 6 字段表单**
-  - 6 字段表单已搬到 pages/profile-edit 子页
-  - onTapSetting(profile) → wx.navigateTo('/pages/profile-edit/index')
-
-  关键约束（frontend-standards §WXSS class 命名）：
-  - 业务字段值不拼接 class 名
+  PR-3 commit-1 · profile 旧页 redirect stub（已不实际渲染）
+  onLoad 立刻 wx.reLaunch 跳 /pages/profile-new/index，所以本视图永远不会被看到
+  但微信小程序要求 pages 列表中的每个路径都必须有完整四件套（ts/wxml/wxss/json）
 -->
-<view class="profile">
-  <view class="profile-header">
-    <view class="profile-avatar">自</view>
-    <view class="profile-nickname">{{nickname}}</view>
-    <view class="profile-streak">已坚持 {{streak}} 天</view>
-  </view>
-
-  <view class="profile-progress">
-    <progress-ring percent="{{percent}}" size="{{160}}" label="{{streak}}" sub-label="天" />
-    <view class="profile-progress-hint" bindtap="onGotoShare">领取抱抱卡 ›</view>
-  </view>
-
-  <!-- 设置列表（IA §4.6 P06 规范）：用户档案点跳子页 -->
-  <view class="profile-list">
-    <view
-      wx:for="{{settings}}"
-      wx:key="id"
-      class="profile-row"
-      bindtap="onTapSetting"
-      data-id="{{item.id}}"
-    >
-      <text class="profile-row-label">{{item.label}}</text>
-      <view class="profile-row-right">
-        <text
-          wx:if="{{item.filledLabel}}"
-          class="profile-row-summary"
-        >档案 {{item.filledLabel}}</text>
-        <text class="profile-row-arrow">›</text>
-      </view>
-    </view>
-  </view>
+<view class="profile-stub">
+  <view class="profile-stub-text">正在跳转…</view>
 </view>

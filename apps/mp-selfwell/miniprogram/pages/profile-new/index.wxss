@@ -1,0 +1,120 @@
+/* =================================================================
+ * PR-3 commit-1 · profile-new 主页（V2 11-profile.html）
+ * 设计 token（PR-6 已锁，引用而非硬编码）：
+ *   --color-primary-mint: #A8C5B5
+ *   --color-secondary-sky: #B8D4E3
+ *   --gradient-avatar: linear-gradient(135deg, #A8C5B5 0%, #B8D4E3 100%)
+ *   --color-text-primary: #2D3436
+ *   --color-text-secondary: #718096
+ *   --color-card: #FFFFFF
+ *   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06)
+ * ================================================================= */
+
+.profile-new {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+  padding: 32rpx 32rpx 200rpx;
+}
+
+/* ─── 头像渐变区 ─── */
+.profile-new-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 32rpx 32rpx;
+  margin-bottom: 32rpx;
+}
+
+.profile-new-avatar {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 72rpx;
+  background: linear-gradient(135deg, #A8C5B5 0%, #B8D4E3 100%);
+  color: #FFFFFF;
+  font-size: 56rpx;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: 16rpx;
+}
+
+.profile-new-nickname {
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 8rpx;
+}
+
+.profile-new-streak {
+  font-size: 26rpx;
+  color: #718096;
+}
+
+/* ─── 进度环 ─── */
+.profile-new-progress {
+  display: flex;
+  justify-content: center;
+  margin: 16rpx 0;
+  padding: 32rpx 0;
+}
+
+/* ─── 6 列表项 ─── */
+.profile-new-list {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  margin: 16rpx 0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.profile-new-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-bottom: 2rpx solid #F0F2F5;
+}
+
+.profile-new-row:last-child {
+  border-bottom: none;
+}
+
+.profile-new-row-label {
+  font-size: 30rpx;
+  color: #2D3436;
+}
+
+.profile-new-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.profile-new-row-summary {
+  font-size: 24rpx;
+  color: #A0AEC0;
+}
+
+.profile-new-row-arrow {
+  font-size: 32rpx;
+  color: #A0AEC0;
+}
+
+/* ─── 抱抱卡 CTA ─── */
+.profile-new-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 32rpx;
+}
+
+.profile-new-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 20rpx 40rpx;
+  background-color: #F5E6D3;
+  color: #5A8270;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+}

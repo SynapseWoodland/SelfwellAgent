@@ -3,6 +3,7 @@
     "pages/splash/index",
     "pages/login/index",
     "pages/home/index",
+    "pages/profile-new/index",
     "pages/diagnosis-upload/index",
     "pages/diagnosis-loading/index",
     "pages/diagnosis-report/index",
@@ -34,16 +35,16 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/home/index",
-        "text": "首页",
-        "iconPath": "assets/tabbar/home.png",
-        "selectedIconPath": "assets/tabbar/home-active.png"
-      },
-      {
         "pagePath": "pages/assistant-home/index",
         "text": "智能管家",
         "iconPath": "assets/tabbar/butler.png",
         "selectedIconPath": "assets/tabbar/butler-active.png"
+      },
+      {
+        "pagePath": "pages/home/index",
+        "text": "今天",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
         "pagePath": "pages/community/index",
@@ -52,7 +53,7 @@
         "selectedIconPath": "assets/tabbar/plaza-active.png"
       },
       {
-        "pagePath": "pages/profile/index",
+        "pagePath": "pages/profile-new/index",
         "text": "我的",
         "iconPath": "assets/tabbar/profile.png",
         "selectedIconPath": "assets/tabbar/profile-active.png"

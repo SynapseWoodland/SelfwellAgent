@@ -1,29 +1,55 @@
 /**
  * IA-REF: docs/design/ia-and-wireframe.md §4.2 P02 首页（今日打卡）
- * FIGMA  : docs/design/figma-pixso-spec/pages/03-home.html
+ * FIGMA  : docs/design/figma-pixso-spec/pages/15b-today-tab2.html
  * API    :
  *   - openapi.yaml tag=users    operationId=getCurrentUser  GET  /users/me
  *   - openapi.yaml tag=checkins operationId=getCheckinCalendar GET /checkins/today
  *   - openapi.yaml tag=plans    operationId=getTodayPlan    GET  /plans/today
  *
+ * PR-3 commit-1 · pages/home 升版为「今天」Tab（V2 15b-today-tab2.html）：
+ *  - 进度环 90px（PR-6 token --progress-ring-size）
+ *  - 21-day strip（21 天方案 day-strip）
+ *  - hug-section（抱抱卡入口）
+ *  - time-section（我的时光入口）
+ *  - drawer（管理页抽屉，drawer-card 8 个）
+ *
  * 真实接入：并发拉 users/me + checkins/today + plans/today，统一 setData；
  * 支持下拉刷新；token 失效跳回 login（§17.14）。
  *
- * SF1 强化：
+ * SF1 强化（保留）：
  *  - `_inFlight` 标志位防 onShow + onPullDownRefresh + onLoad 重叠重复 bootstrap
- *  - 三接口任一失败不阻塞其他（Sprint M1 后端 MOCK 友好）
+ *  - 三接口任一失败不阻塞其他
  *  - 401 走单独的 fast-path，其余 ApiException 保留提示但不 reset jwt
  *  - streak 数显示前 clamp 到 [0, 9999]
+ *
+ * PR-3 commit-1 新增：
+ *  - getDrawCards() / openDrawer() / closeDrawer() 抽到 index.smart-body.ts
+ *  - 抽屉管理页（drawer）8 个管理入口（与 PR-5 子页对齐）
  */
 import { get, post, ApiException } from '../../utils/request';
 import { STORAGE_KEYS } from '../../utils/config';
 import type { UserMe, TodayPlan, CheckinToday, CreateCheckinResp } from '../../types/api';
+import { getDrawCards } from './index.smart-body';
 
 interface TodayTaskView {
   id: string;
   title: string;
   subtitle: string;
   done: boolean;
+}
+
+/** 21 天方案 day-strip 单格状态。PR-3 commit-1 新增。 */
+interface DayStripCell {
+  index: number;
+  state: 'done' | 'today' | 'future';
+}
+
+interface DrawerCard {
+  id: string;
+  title: string;
+  subtitle: string;
+  iconText: string;
+  pagePath: string;
 }
 
 interface HomeData {
@@ -36,6 +62,12 @@ interface HomeData {
   loading: boolean;
   total: number;
   done: number;
+  /** PR-3 commit-1 · 21-day strip（21 天方案 day-strip）。 */
+  dayStrip: DayStripCell[];
+  /** PR-3 commit-1 · 抽屉管理页可见性。 */
+  drawerOpen: boolean;
+  /** PR-3 commit-1 · 抽屉 8 个管理卡片。 */
+  drawerCards: DrawerCard[];
 }
 
 interface HomeCustomState {
@@ -53,6 +85,12 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
     loading: true,
     total: 0,
     done: 0,
+    dayStrip: Array.from({ length: 21 }, (_, i) => ({
+      index: i + 1,
+      state: i < 1 ? 'today' : 'future',
+    })),
+    drawerOpen: false,
+    drawerCards: getDrawCards(),
   },
 
   _inFlight: false,
@@ -127,6 +165,16 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
                 ? `晚上好，${nickname}`
                 : `夜深了，${nickname}`;
 
+      // PR-3 commit-1 · 21-day strip：当前第几天走 done / today / future 三态。
+      // 接口未直接给 day_index，按 streak 长度推断（streak=已坚持天数 = 当前第 N 天）。
+      const currentDay = Math.min(21, Math.max(1, streak || 1));
+      const dayStrip: DayStripCell[] = Array.from({ length: 21 }, (_, i) => {
+        const idx = i + 1;
+        if (idx < currentDay) return { index: idx, state: 'done' };
+        if (idx === currentDay) return { index: idx, state: 'today' };
+        return { index: idx, state: 'future' };
+      });
+
       this.setData({
         greeting,
         nickname,
@@ -135,6 +183,7 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
         done,
         percent,
         taskCards,
+        dayStrip,
         loading: false,
       });
     } catch (e) {
@@ -167,11 +216,9 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
       done: completed,
       percent: total ? Math.round((completed / total) * 100) : 0,
     });
-    // 持久化打卡（POST /checkins），done=true 时记录，done=false 时按今天已勾选重新提交
     const today = new Date().toISOString().slice(0, 10);
     const doneIds = list.filter((t) => t.done).map((t) => t.id);
     post<CreateCheckinResp>('/checkins', { date: today, task_ids: doneIds }).catch((err) => {
-      // 失败时回滚本地状态（只回滚这一个任务的 done 状态）
       console.warn('[home] checkin sync fail', err);
       const rollback = this.data.taskCards.map((t) =>
         t.id === id ? { ...t, done: !done } : t,
@@ -207,5 +254,39 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
   // 现保留 onGotoPlanTabs 作为后续 PR 的过渡接口。
   onGotoPlanTabs() {
     wx.navigateTo({ url: '/pages/plan-tabs/index' });
+  },
+
+  /** PR-3 commit-1 · 抱抱卡入口。 */
+  onGotoShare() {
+    wx.navigateTo({ url: '/pages/share-hug-card/index' });
+  },
+
+  /** PR-3 commit-1 · 我的时光入口（PR-5 record-album 子页落地后承接）。 */
+  onGotoTimeAlbum() {
+    wx.navigateTo({ url: '/pages/record-album/index' });
+  },
+
+  /** PR-3 commit-1 · 打开管理抽屉（drawer-card 8 项）。 */
+  onOpenDrawer() {
+    this.setData({ drawerOpen: true });
+  },
+
+  /** PR-3 commit-1 · 关闭管理抽屉。 */
+  onCloseDrawer() {
+    this.setData({ drawerOpen: false });
+  },
+
+  /**
+   * PR-3 commit-1 · 抽屉卡片点击：跳对应子页。
+   * 子页不在 tabBar 内，必须用 wx.navigateTo。
+   * 抽屉背景点击也走 close 逻辑（外层 catchtap）。
+   */
+  onTapDrawerCard(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id?: string }).id;
+    if (!id) return;
+    const card = this.data.drawerCards.find((c) => c.id === id);
+    if (!card) return;
+    this.setData({ drawerOpen: false });
+    wx.navigateTo({ url: card.pagePath });
   },
 });

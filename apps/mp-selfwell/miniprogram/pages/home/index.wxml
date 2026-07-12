@@ -1,26 +1,54 @@
 <!--
-  IA-REF: docs/design/ia-and-wireframe.md §4.2 P02 首页（今日打卡）
-  FIGMA  : docs/design/figma-pixso-spec/pages/03-home.html
+  PR-3 commit-1 · pages/home 升版为「今天」Tab（V2 15b-today-tab2.html）
+  ──────────────────────────────────────────────────────────────────────
+  真源：plans/v2-IA-pr-internal.md §PR-3 commit-1
+  真源：docs/design/figma-pixso-spec/pages/15b-today-tab2.html
   API    : GET /users/me (openapi.yaml#UsersApi.getCurrentUser)
            GET /checkins/today (openapi.yaml#CheckinsApi.getCheckinCalendar)
            GET /plans/today (openapi.yaml#PlansApi.getTodayPlan)
   PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
+
+  升版要点：
+  - 进度环 90px（PR-6 token --progress-ring-size · 兼容 V1 size=240）
+  - 21 天方案 day-strip（21 格，done/today/future 三态）
+  - hug-section（抱抱卡入口 → /pages/share-hug-card/index）
+  - time-section（我的时光入口 → /pages/record-album/index）
+  - 抽屉管理页（drawer-card 8 个，drawer 容器 + 蒙层 + catchtap 关闭）
+
+  关键约束（frontend-standards §WXSS class 命名）：
+  - 业务字段值不拼接 class 名；如 dayStrip cell 状态用 [data-state='done|today|future']
 -->
 <view class="home">
+  <!-- 顶部问候条：保留现有 greeting + streak -->
   <view class="home-greeting">
     <view class="home-greeting-title">{{nickname ? nickname + '，' : ''}}{{greeting}}</view>
     <view class="home-greeting-sub">已走过 <text class="streak">{{streak}}</text> 天</view>
   </view>
 
+  <!-- 进度环 90px（V2 设计稿 15b-today-tab2.html） -->
   <view class="home-progress">
     <progress-ring
       percent="{{percent}}"
-      size="{{240}}"
+      size="{{90}}"
       label="{{percent}}%"
       sub-label="今日完成"
     />
   </view>
 
+  <!-- 21-day strip（21 天方案 day-strip） -->
+  <view class="home-daystrip" data-test="daystrip">
+    <view
+      wx:for="{{dayStrip}}"
+      wx:key="index"
+      class="home-daystrip-cell"
+      data-state="{{item.state}}"
+      data-index="{{item.index}}"
+    >
+      <view class="home-daystrip-cell-inner">{{item.index}}</view>
+    </view>
+  </view>
+
+  <!-- 今日小动作（保留现有 task-cards，与原 home 行为一致） -->
   <view class="home-card">
     <view class="home-card-title">
       <text>今日小动作</text>
@@ -38,8 +66,58 @@
     />
   </view>
 
+  <!-- hug-section：抱抱卡入口 -->
+  <view class="home-section" bindtap="onGotoShare">
+    <view class="home-section-icon">♡</view>
+    <view class="home-section-text">
+      <view class="home-section-title">领取今日抱抱卡</view>
+      <view class="home-section-sub">给坚持的自己一个拥抱</view>
+    </view>
+    <view class="home-section-arrow">›</view>
+  </view>
+
+  <!-- time-section：我的时光入口 -->
+  <view class="home-section" bindtap="onGotoTimeAlbum">
+    <view class="home-section-icon">◷</view>
+    <view class="home-section-text">
+      <view class="home-section-title">我的时光</view>
+      <view class="home-section-sub">看看你走过的痕迹</view>
+    </view>
+    <view class="home-section-arrow">›</view>
+  </view>
+
+  <!-- 主操作条（保留） -->
   <view class="home-cta">
     <button class="home-btn home-btn--primary" bindtap="onGotoCheckin">去打卡</button>
     <button class="home-btn home-btn--ghost" bindtap="onGotoAssistant">找管家聊聊</button>
+  </view>
+
+  <!-- 抽屉触发按钮（右下角浮动） -->
+  <view class="home-drawer-trigger" bindtap="onOpenDrawer" data-test="drawer-trigger">
+    <text>≡</text>
+  </view>
+
+  <!-- 抽屉管理页（drawer-card 8 个） -->
+  <view wx:if="{{drawerOpen}}" class="home-drawer-mask" bindtap="onCloseDrawer" data-test="drawer-mask">
+    <view class="home-drawer" catchtap="">
+      <view class="home-drawer-header">
+        <text class="home-drawer-title">管理</text>
+        <view class="home-drawer-close" bindtap="onCloseDrawer" data-test="drawer-close">×</view>
+      </view>
+      <view class="home-drawer-grid">
+        <view
+          wx:for="{{drawerCards}}"
+          wx:key="id"
+          class="home-drawer-card"
+          data-id="{{item.id}}"
+          bindtap="onTapDrawerCard"
+          data-test="drawer-card-{{item.id}}"
+        >
+          <view class="home-drawer-card-icon">{{item.iconText}}</view>
+          <view class="home-drawer-card-title">{{item.title}}</view>
+          <view class="home-drawer-card-subtitle">{{item.subtitle}}</view>
+        </view>
+      </view>
+    </view>
   </view>
 </view>

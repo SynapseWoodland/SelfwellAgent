@@ -1,14 +1,38 @@
+/* =================================================================
+ * PR-3 commit-1 · pages/home 升版为「今天」Tab（V2 15b-today-tab2.html）
+ * 设计 token（PR-6 app.wxss 已锁定，PR-3 直接引用）：
+ *   --color-primary-mint: #A8C5B5 (主色：薄荷绿)
+ *   --color-primary-mint-dark: #5A8270
+ *   --color-secondary-cream: #F5E6D3
+ *   --color-secondary-lavender: #D4C5E2
+ *   --color-secondary-peach: #F0D9C4
+ *   --color-accent-warm: #9C7AB8
+ *   --color-accent-earth: #A0724F
+ *   --color-bg-page: #FAFBFC
+ *   --color-card: #FFFFFF
+ *   --color-border: #F0F2F5
+ *   --color-text-primary: #2D3436
+ *   --color-text-secondary: #718096
+ *   --color-text-weak: #A0AEC0
+ *   --radius-md: 12px / 24rpx
+ *   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06)
+ *   --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.08)
+ *
+ *  关键约束（frontend-standards §WXSS class 命名）：
+ *  - 业务字段值不拼接 class 名；如 dayStrip cell 用 [data-state='done|today|future']
+ * ================================================================= */
+
 .home {
   min-height: 100vh;
   background-color: #FAFBFC;
-  padding: 32rpx 32rpx 160rpx;
+  padding: 32rpx 32rpx 200rpx;
 }
 
+/* ─── 顶部问候条 ─── */
 .home-greeting {
-  padding: 16rpx 0 32rpx;
+  padding: 32rpx;
   background: linear-gradient(180deg, #F0D9C4 0%, #FAFBFC 100%);
   border-radius: 24rpx;
-  padding: 32rpx;
   margin-bottom: 16rpx;
 }
 
@@ -29,8 +53,9 @@
   font-weight: 500;
 }
 
+/* ─── 进度环 90px ─── */
 .home-progress {
-  margin: -16rpx 32rpx 16rpx;
+  margin: 16rpx 0;
   background-color: #FFFFFF;
   border-radius: 24rpx;
   padding: 32rpx;
@@ -38,8 +63,57 @@
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
+/* ─── 21-day strip（21 天方案 day-strip） ─── */
+.home-daystrip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6rpx;
+  margin: 16rpx 0;
+  padding: 16rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+
+.home-daystrip-cell {
+  flex: 1 0 auto;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  background-color: #F0F2F5;
+  color: #A0AEC0;
+}
+
+/* 三态配色：done/today/future */
+.home-daystrip-cell[data-state='done'] {
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+}
+
+.home-daystrip-cell[data-state='today'] {
+  background-color: #5A8270;
+  color: #FFFFFF;
+  box-shadow: 0 0 0 4rpx rgba(168, 197, 181, 0.25);
+}
+
+.home-daystrip-cell[data-state='future'] {
+  background-color: #F0F2F5;
+  color: #A0AEC0;
+}
+
+.home-daystrip-cell-inner {
+  font-size: 18rpx;
+  line-height: 1;
+}
+
+/* ─── 今日小动作（保留现有 task-cards） ─── */
 .home-card {
-  margin: 16rpx 32rpx;
+  margin: 16rpx 0;
   background-color: #FFFFFF;
   border-radius: 24rpx;
   padding: 24rpx;
@@ -68,6 +142,54 @@
   font-weight: 400;
 }
 
+/* ─── hug-section / time-section（共享样式） ─── */
+.home-section {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 16rpx 0;
+  padding: 24rpx;
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.home-section-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  background-color: #F5E6D3;
+  color: #5A8270;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.home-section-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-section-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.home-section-sub {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: #718096;
+}
+
+.home-section-arrow {
+  font-size: 36rpx;
+  color: #A0AEC0;
+}
+
+/* ─── 主操作条（保留现有） ─── */
 .home-cta {
   position: fixed;
   left: 32rpx;
@@ -94,4 +216,111 @@
   background-color: #FFFFFF;
   color: #4A5568;
   border: 2rpx solid #E2E8F0;
+}
+
+/* ─── 抽屉触发按钮（右下角浮动） ─── */
+.home-drawer-trigger {
+  position: fixed;
+  right: 32rpx;
+  bottom: 96rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  font-size: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+/* ─── 抽屉管理页（drawer-card 8 个） ─── */
+.home-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.home-drawer {
+  width: 100%;
+  max-height: 80vh;
+  background-color: #FFFFFF;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 32rpx;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.home-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.home-drawer-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.home-drawer-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+  background-color: #F0F2F5;
+  color: #718096;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-drawer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+
+.home-drawer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 8rpx;
+  background-color: #FAFBFC;
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.home-drawer-card-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  background-color: #F5E6D3;
+  color: #5A8270;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8rpx;
+}
+
+.home-drawer-card-title {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #2D3436;
+}
+
+.home-drawer-card-subtitle {
+  font-size: 20rpx;
+  color: #A0AEC0;
+  margin-top: 4rpx;
 }
