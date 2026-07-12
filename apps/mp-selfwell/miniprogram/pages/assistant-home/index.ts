@@ -206,7 +206,7 @@ Page({
     /** chips 4 项（PRD §3.5.1） */
     chips: [
       { id: 'smart_analyze', text: '🔍 智能分析', active: false },
-      { id: 'today', text: '📅 今日 · 第 1 天', active: false },
+      { id: 'today', text: '📅 今日 · 第 1 天', active: false, dayIndex: 1 },
       { id: 'chat', text: '💬 聊聊今天', active: false },
       { id: 'compare', text: '📊 查看对比', active: false },
     ],
@@ -406,25 +406,23 @@ Page({
 
     // 2) B 类快问 / 默认走 sendMessage
     const isQuick = QUICK_REPLY.some((r) => r.test(text));
+    // PR-3 commit-3 · chat 模式改 SSE（vision-pipeline Sprint 2）：
+    // - 追加 answer 气泡（state=answer，text='' 等打字机拼接）
+    // - 调 _stream_chat SSE：start → token_delta ×N → end
+    // - smart_analyze 模式（有 image_keys）走原 runSmartAnalyze → 5 阶段消费（不退）
+    // - medical_guarded / A 类路由已在前面 return，不进 chat 路径
     try {
-      const resp = await post<{
-        reply: string;
-        route?: { module: string; params?: Record<string, string> };
-        medicalGuarded?: boolean;
-      }>(`/assistant/sessions/${this.data.sessionId}/messages`, {
-        text,
-        is_quick: isQuick,
-      });
       const answer: ChatTurn = {
         id: 'a_' + Date.now(),
         state: 'answer',
-        text: resp?.reply || pickRandomAck().text,
+        text: '',
       };
       this.setData({
         turns: [...this.data.turns, answer],
-        personaState: 'greeting',
+        personaState: 'answer',
         lastTurnId: answer.id,
       });
+      await this.runChatStream({ text, isQuick });
     } catch (err) {
       // 限流错误（429）：toast + 不追加 ack
       if (err instanceof ApiException && err.httpStatus === 429) {
@@ -439,7 +437,11 @@ Page({
         text: fallback.text,
       };
       this.setData({
-        turns: [...this.data.turns, answer],
+        turns: this.data.turns.map((t, i) =>
+          i === this.data.turns.length - 1 && t.state === 'answer' && !t.text
+            ? answer
+            : t,
+        ),
         personaState: 'greeting',
         lastTurnId: answer.id,
       });
@@ -886,6 +888,54 @@ Page({
     this.setData({ smartAnalyzeRunning: false });
   },
 
+  /**
+   * PR-3 commit-3 · chat 模式 SSE 流（vision-pipeline Sprint 2 · _stream_chat）：
+   *  - 与 runSmartAnalyze 同 SSE 框架，但 body 不带 image_keys/body_parts
+   *  - 后端走 _stream_chat（assistant_service.py:916），事件序列：start → token_delta ×N → end
+   *  - token_delta 走 applyTokenDelta 拼接；end 由 consumeAssistantStream 已有逻辑覆盖
+   *  - 取消 / 错误策略与 runSmartAnalyze 一致：AbortController + AbortError 静默退出
+   */
+  async runChatStream(opts: { text: string; isQuick: boolean }): Promise<void> {
+    const sid = this.data.sessionId;
+    if (!sid || sid.startsWith('dev_session_')) {
+      await this.ensureSession();
+      const sid2 = this.data.sessionId;
+      if (!sid2 || sid2.startsWith('dev_session_')) {
+        throw new Error('no_session');
+      }
+    }
+    const finalSid = this.data.sessionId;
+    const ac = new AbortController();
+    (this.data as { _sseAbortController: AbortController | null })._sseAbortController = ac;
+    const baseURL = API_BASE_URL[CURRENT_ENV];
+    const url = `${baseURL}/assistant/sessions/${encodeURIComponent(finalSid)}/messages`;
+    const consumer: SseConsumer = consumeSse(url, {
+      method: 'POST',
+      // chat 模式：无图 → 后端走 _stream_chat（PR-3 commit-3 关键契约）
+      body: { text: opts.text, is_quick: opts.isQuick },
+      header: {
+        Accept: 'text/event-stream',
+        Authorization: `Bearer ${wx.getStorageSync('jwt') || ''}`,
+      },
+      onTerminal: () => {
+        // done / error 触发；smartAnalyzeRunning 不动（chat 不依赖）
+      },
+    });
+    (this.data as { _sseConsumer: SseConsumer | null })._sseConsumer = consumer;
+
+    const abortBridge = () => {
+      try { consumer.cancel(); } catch { /* ignore */ }
+      (this.data as { _sseAbortController: AbortController | null })._sseAbortController = null;
+    };
+    if (ac.signal.aborted) {
+      abortBridge();
+    } else {
+      ac.signal.addEventListener('abort', abortBridge, { once: true });
+    }
+    // 复用同一个 consumeAssistantStream；token_delta 分支自动生效
+    await this.consumeAssistantStream(consumer);
+  },
+
   async consumeAssistantStream(consumer: SseConsumer): Promise<void> {
     try {
       for await (const rawEvt of consumer.events) {
@@ -917,6 +967,12 @@ Page({
           // start 事件只是「连接已建」，不动 UI；当前 case 留作未来 hook
           continue;
         }
+        if (name === 'token_delta') {
+          // PR-3 commit-3 · chat 打字机（Sprint 2）：chunked token 流，逐字拼接到 answer 气泡。
+          // smart_analyze 模式（有 image_keys）不会触发此分支；只有 chat 模式走 _stream_chat。
+          this.applyTokenDelta(evt.data);
+          continue;
+        }
         if (name === 'done' || name === 'stage') {
           // 与 diagnosis 域事件名兼容（如后端未来切到 stage/done）；当前不消费
           continue;
@@ -935,6 +991,26 @@ Page({
       consumer.cancel();
       (this.data as { _sseConsumer: SseConsumer | null })._sseConsumer = null;
     }
+  },
+
+  /**
+   * PR-3 commit-3 · chat 打字机（vision-pipeline Sprint 2）：
+   * - 把 token 增量（payload.token）拼接到最后一个 answer 气泡的 text
+   * - 仅在 state === 'answer' 时生效；其他 state（如 analyzing / report）忽略
+   * - smart_analyze 模式不会触发此分支（后端 _stream_smart_analyze 不发 token_delta）
+   * - 防御：token 必须是 string 且非空，避免无效 setData 抖动
+   */
+  applyTokenDelta(payload: { token?: string }): void {
+    const token = typeof payload?.token === 'string' ? payload.token : '';
+    if (!token) return;
+    const last = this.data.turns[this.data.turns.length - 1];
+    if (!last || last.state !== 'answer') return;
+    const nextText = (last.text || '') + token;
+    this.setData({
+      turns: this.data.turns.map((t, i) =>
+        i === this.data.turns.length - 1 ? { ...t, text: nextText } : t,
+      ),
+    });
   },
 
   applyAssistantProgress(payload: { step?: number; percent?: number; label?: string }): void {
