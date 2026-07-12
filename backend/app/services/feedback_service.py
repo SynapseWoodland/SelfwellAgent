@@ -221,11 +221,15 @@ async def create_feedback(
         feedback_type=data["feedback_type"],
         body_part=data["body_part"],
     )
+    # PR-2 V2 增量：响应新增 ack_text / ai_session_id / feedback_id
+    # （PR-3 心情日记 + PR-5 联系客服复用；与 SPEC-A0-MASTER-IA §4 决策表一致）
     return {
         "feedback_id": str(fb.id),
         "feedback_type": data["feedback_type"],
         "body_part": data["body_part"],
         "ack": ack,
+        "ack_text": ack,
+        "ai_session_id": None,
         "created_at": now_ts.isoformat(),
     }
 

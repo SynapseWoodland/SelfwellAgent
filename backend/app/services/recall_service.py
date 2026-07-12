@@ -35,6 +35,8 @@ VALID_TRIGGERS: frozenset[str] = frozenset(
     {"auto_day7", "auto_day14", "auto_day21", "user_manual"}
 )
 DAILY_LIMIT = 1
+# PR-2 V2 增量：days_offset 默认 7（PR-4 M8 主动回忆对话流）
+DEFAULT_DAYS_OFFSET = 7
 
 # 4 分组 100+ 词（精简版，真源 docs/data/recall-forbidden-words.yaml）。
 #
@@ -210,9 +212,28 @@ async def generate_recall(
     user_id: str,
     trigger: str = "user_manual",
     plan_id: str | None = None,
+    days_offset: int | None = None,
 ) -> dict[str, Any]:
-    """生成主动回忆（Day 7/14/21 触发或手动）。"""
+    """生成主动回忆（Day 7/14/21 触发或手动）。
+
+    PR-2 V2 增量：新增 ``days_offset`` 参数（PR-4 M8 主动回忆对话流）。
+    - days_offset 为 None 时按 trigger 自动推断（auto_day7=7 / auto_day14=14 / auto_day21=21）
+    - days_offset > 0 时使用给定值（向前兼容，默认 7）
+    - days_offset 必须在 [1, 365] 范围内；越界抛 UserInputError
+    """
     trigger = _validate_trigger(trigger)
+
+    # PR-2 V2 增量：days_offset 默认值 + 范围校验
+    if days_offset is None:
+        days_offset = {"auto_day7": 7, "auto_day14": 14, "auto_day21": 21}.get(
+            trigger, DEFAULT_DAYS_OFFSET
+        )
+    if not isinstance(days_offset, int) or days_offset < 1 or days_offset > 365:
+        raise UserInputError(
+            f"days_offset 非法：{days_offset}（必须 ∈ [1, 365]）",
+            code=E_RECALL_EMPTY,
+            field="days_offset",
+        )
 
     # 1. 每日 ≤ 1 次
     threshold = datetime.now(UTC) - timedelta(hours=24)
@@ -291,6 +312,8 @@ async def generate_recall(
         "safety_passed": safety_passed,
         "referenced_feedbacks": refs,
         "created_at": now_ts.isoformat(),
+        # PR-2 V2 增量：days_offset 回传给前端（PR-4 M8 主动回忆对话流用）
+        "days_offset": days_offset,
     }
 
 
@@ -355,6 +378,7 @@ async def get_recall_by_day(
 
 __all__ = [
     "DAILY_LIMIT",
+    "DEFAULT_DAYS_OFFSET",
     "FORBIDDEN_WORDS",
     "SAFE_FALLBACK_ENCOURAGE",
     "SAFE_FALLBACK_SUMMARY",

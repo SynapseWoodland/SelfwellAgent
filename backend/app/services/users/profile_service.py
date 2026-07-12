@@ -22,8 +22,9 @@ _AGE_RANGES: frozenset[str] = frozenset({"18-22", "23-28", "29-35", "36-45", "45
 _INTENSITIES: frozenset[str] = frozenset({"轻柔", "适中", "进阶"})
 # preferred_time 枚举（SPEC-M1 §3.1 中文值）
 _PREFERRED_TIMES: frozenset[str] = frozenset({"早", "中", "晚", "不固定"})
-# sitting_hours 档位
-_SITTING_HOURS: frozenset[str] = frozenset({"<4h", "4-8h", "8-12h", "12h+"})
+# sitting_hours 范围 0-24（小时）
+_SITTING_HOURS_MIN = 0
+_SITTING_HOURS_MAX = 24
 # focus_parts 6 部位（与 docs/data/body-parts.yaml 一致）
 _FOCUS_PARTS: frozenset[str] = frozenset(
     {"face", "head", "shoulder_neck", "waist", "leg", "overall_look"}
@@ -110,13 +111,20 @@ def validate_profile(payload: dict[str, Any]) -> dict[str, Any]:
         result["preferred_time"] = preferred_time
 
     sitting_hours = _ensure_str(payload.get("sitting_hours"), "sitting_hours")
-    if sitting_hours is not None and sitting_hours not in _SITTING_HOURS:
-        raise ProfileEnumError(
-            "sitting_hours 枚举非法",
-            field="sitting_hours",
-            allowed=sorted(_SITTING_HOURS),
-        )
-    if sitting_hours is not None:
+    if sitting_hours is not None and sitting_hours != "":
+        if not sitting_hours.isdigit():
+            raise ProfileEnumError(
+                "sitting_hours 必须是 0-24 的整数",
+                field="sitting_hours",
+                allowed=[str(i) for i in range(_SITTING_HOURS_MIN, _SITTING_HOURS_MAX + 1)],
+            )
+        value = int(sitting_hours)
+        if value < _SITTING_HOURS_MIN or value > _SITTING_HOURS_MAX:
+            raise ProfileEnumError(
+                "sitting_hours 超出范围",
+                field="sitting_hours",
+                allowed=[str(i) for i in range(_SITTING_HOURS_MIN, _SITTING_HOURS_MAX + 1)],
+            )
         result["sitting_hours"] = sitting_hours
 
     if not result:
@@ -179,6 +187,7 @@ def _serialize_user(user: User) -> dict[str, Any]:
     """User ORM -> 响应 dict。
 
     字段名对齐 ``docs/api/openapi.yaml`` V1.1 + 前端 ``UserMe`` 类型。
+    PR-2（V2 IA）增量：响应顶层加 ``badges_summary`` + ``streak_days``（PR-3 today/profile-new 用）。
     """
     cache = user.report_cache if isinstance(user.report_cache, dict) else {}
     return {
@@ -202,6 +211,14 @@ def _serialize_user(user: User) -> dict[str, Any]:
         "registered_at": user.created_at.isoformat() if user.created_at else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None,
+        # PR-2 V2 增量：badges_summary / streak_days（PR-3 today/profile-new 用）
+        # 字段值需异步加载时由 router 层注入；此层只放同步可达的占位，避免循环 import。
+        "badges_summary": {
+            "total_unlocked": 0,
+            "total_codes": 6,
+            "latest_unlocked": None,
+        },
+        "streak_days": int(cache.get("streak_days", 0)),
     }
 
 

@@ -191,6 +191,16 @@ E_SHARE_TEMPLATE_INVALID = "E_SHARE_TEMPLATE_INVALID"
 E_SHARE_RENDER_FAILED = "E_SHARE_RENDER_FAILED"
 E_SHARE_PLAN_NOT_FOUND = "E_SHARE_PLAN_NOT_FOUND"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 14xxx V2 IA 错误（PR-2 9 接口 · IA V2.2 §2A.3）
+# ─────────────────────────────────────────────────────────────────────────────
+E_BADGE_NOT_FOUND = "E_BADGE_NOT_FOUND"
+E_ALBUM_WEEK_FORMAT = "E_ALBUM_WEEK_FORMAT"
+E_NOTIF_PREF_INVALID = "E_NOTIF_PREF_INVALID"
+E_DELETION_ALREADY_PENDING = "E_DELETION_ALREADY_PENDING"
+E_DELETION_NOT_FOUND = "E_DELETION_NOT_FOUND"
+E_DATA_EXPORT_LIMIT = "E_DATA_EXPORT_LIMIT"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # §类别枚举（v4.1-prep 子任务 4 · envelope 分级)

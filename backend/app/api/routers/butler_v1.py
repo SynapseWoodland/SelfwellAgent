@@ -36,6 +36,7 @@ async def generate_recall_endpoint(
                 user_id=user_id,
                 trigger=payload.get("trigger", "user_manual"),
                 plan_id=payload.get("plan_id"),
+                days_offset=payload.get("days_offset"),
             ),
         }
     except (RecallError, RecallDailyLimitError) as exc:

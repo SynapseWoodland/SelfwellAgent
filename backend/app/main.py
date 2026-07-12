@@ -36,6 +36,7 @@ from app.api.routers.share_v1 import share_router
 from app.api.routers.system import router as system_router
 from app.api.routers.uploads_v1 import router as uploads_v1_router
 from app.api.routers.users_v1 import router as users_v1_router
+from app.api.routers.v2 import v2_router
 from app.conf.app_config import app_config
 from app.core.job_state import InMemoryJobStateStore
 from app.core.log import logger, setup_logging
@@ -157,6 +158,8 @@ app.include_router(community_router, prefix="/api/v1")
 app.include_router(butler_router, prefix="/api/v1")
 app.include_router(share_router, prefix="/api/v1")
 app.include_router(uploads_v1_router, prefix="/api/v1")
+# PR-2 V2 IA：9 接口 + 1 辅助 endpoint 挂在 /api/v1/v2/
+app.include_router(v2_router, prefix="/api/v1")
 
 
 __all__ = ["app", "lifespan"]

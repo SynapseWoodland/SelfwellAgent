@@ -72,6 +72,19 @@ async def get_me(
             status_code=exc.http_status,
             detail={"code": exc.code, "message_zh": exc.render_zh()},
         ) from exc
+    # PR-2 V2 增量：注入 badges_summary（PR-3 today/profile-new 用）
+    # 失败兜底为占位值，不影响主流程
+    try:
+        from app.services.v2.badge_service import get_badges_summary
+
+        badges = await get_badges_summary(session, user_id=user_id)
+        data["badges_summary"] = badges
+    except Exception:  # noqa: BLE001 — 注入失败不阻塞主流程
+        data["badges_summary"] = {
+            "total_unlocked": 0,
+            "total_codes": 6,
+            "latest_unlocked": None,
+        }
     return UserProfileResponse(data=data)
 
 

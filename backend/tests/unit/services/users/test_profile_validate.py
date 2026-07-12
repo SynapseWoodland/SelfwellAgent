@@ -46,6 +46,21 @@ def test_validate_profile_sitting_hours_invalid() -> None:
         validate_profile({"sitting_hours": "20h+"})
 
 
+def test_validate_profile_sitting_hours_range_low() -> None:
+    with pytest.raises(ProfileEnumError):
+        validate_profile({"sitting_hours": "-1"})
+
+
+def test_validate_profile_sitting_hours_range_high() -> None:
+    with pytest.raises(ProfileEnumError):
+        validate_profile({"sitting_hours": "25"})
+
+
+def test_validate_profile_sitting_hours_boundary() -> None:
+    assert validate_profile({"sitting_hours": "0"}) == {"sitting_hours": "0"}
+    assert validate_profile({"sitting_hours": "24"}) == {"sitting_hours": "24"}
+
+
 def test_validate_profile_empty() -> None:
     with pytest.raises(UserInputError):
         validate_profile({})
@@ -58,7 +73,7 @@ def test_validate_profile_full() -> None:
             "focus_parts": ["face"],
             "intensity": "适中",
             "preferred_time": "晚",
-            "sitting_hours": "4-8h",
+            "sitting_hours": "8",
         }
     )
     assert len(result) == 5

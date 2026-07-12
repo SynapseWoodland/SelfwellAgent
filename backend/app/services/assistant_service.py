@@ -771,10 +771,17 @@ async def _stream_smart_analyze(
                     _invoke_llm_structured(photos, profile, text),
                     timeout=vision_timeout,
                 )
-                directions = result["directions"]
-                tags = result["tags"]
-                summary = result["summary"]
-                llm_model = result["model"]
+                # V5.2.1-PR4 F4：happy path 不带 is_fallback；保留完整字段供后续 end event 透传
+                payload = {
+                    "directions": result["directions"],
+                    "tags": result["tags"],
+                    "summary": result["summary"],
+                    "model": result["model"],
+                }
+                directions = payload["directions"]
+                tags = payload["tags"]
+                summary = payload["summary"]
+                llm_model = payload["model"]
                 is_mock = False
             except asyncio.TimeoutError:
                 # V4.1 Step 1.2：vision LLM 超时 → rule-engine fallback
