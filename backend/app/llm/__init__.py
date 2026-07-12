@@ -13,7 +13,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import Field, BaseModel
 from typing import Any, Optional, Type
 
-from volcenginesdkarkruntime import Ark
+from volcenginesdkarkruntime._client import Ark
 from app.conf.app_config import app_config
 from app.core.log import logger
 
