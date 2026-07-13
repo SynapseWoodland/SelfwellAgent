@@ -11,7 +11,7 @@
  * PR-5 扩展 · 5 跳转入口
  * ─────────────────────────────────────────────────────────────────
  * - 用户档案：?mode=read（默认 read，只读视图；走 pages/profile-edit）
- * - 我的时光：/pages/album/index（PR-5 新建；接管 PR-3 旧的 record-album）
+ * - 我的时光：/pages/record-album/index（PR-5 新建；接管 PR-3 旧的 record-album）
  * - 通知设置：/pages/notification-settings/index（PR-5 新建）
  * - 隐私政策：/pages/privacy-policy/index（PR-5 新建）
  * - 联系客服：/pages/contact/index（PR-5 新建）
@@ -69,7 +69,7 @@ Page<ProfileNewData>({
       profileFilledLabel: label,
       settings: [
         { id: 'profile', label: '用户档案', rightLabel: `档案 ${label}`, pagePath: '/pages/profile-edit/index?mode=read' },
-        { id: 'time', label: '我的时光', pagePath: '/pages/album/index' },
+        { id: 'time', label: '我的时光', pagePath: '/pages/record-album/index' },
         { id: 'notification', label: '通知设置', pagePath: '/pages/notification-settings/index' },
         { id: 'privacy', label: '隐私政策', pagePath: '/pages/privacy-policy/index' },
         { id: 'support', label: '联系客服', pagePath: '/pages/contact/index' },
@@ -108,7 +108,7 @@ Page<ProfileNewData>({
   },
 
   onTapArchiveAlbum() {
-    wx.navigateTo({ url: '/pages/album/index' });
+    wx.navigateTo({ url: '/pages/record-album/index' });
   },
 
   onTapNotifications() {
