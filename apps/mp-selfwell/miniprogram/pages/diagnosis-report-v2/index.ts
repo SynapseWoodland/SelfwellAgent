@@ -2,9 +2,6 @@ import { API_BASE_URL, CURRENT_ENV } from '../../utils/config';
 import { post } from '../../utils/request';
 import { consumeSse, type SseConsumer, type SseEvent } from '../../utils/sse-http';
 
-declare const wx: any;
-declare function Page(config: any): void;
-
 type MiniEvent = { currentTarget: { dataset: Record<string, unknown> } };
 
 interface Direction {

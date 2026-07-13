@@ -1,8 +1,5 @@
 import { get } from '../../utils/request';
 
-declare const wx: any;
-declare function Page(config: any): void;
-
 interface PreviewDay {
   day: number;
   title: string;

@@ -7,9 +7,6 @@ import {
 import { post } from '../../utils/request';
 import { countFilledFields, readUserProfile } from '../../utils/profile-storage';
 
-declare const wx: any;
-declare function Page(config: any): void;
-
 type MiniEvent = { currentTarget: { dataset: Record<string, unknown> } };
 
 interface UploadSlot {
