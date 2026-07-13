@@ -1,0 +1,76 @@
+<view class="page-shell">
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">智能分析</view>
+    <view class="nav-space"></view>
+  </view>
+
+  <scroll-view class="page-scroll" scroll-y>
+    <view class="hero">
+      <view class="hero-kicker">档案准备度</view>
+      <view class="hero-title">上传 3 张照片</view>
+      <view class="hero-sub">基于 {{profileFilledCount}}/6 项档案 + {{photoFilledCount}} 张照片</view>
+      <view class="hero-note">所有照片仅你可见，7 天后自动清除</view>
+    </view>
+
+    <view class="upload-grid">
+      <view
+        wx:for="{{slots}}"
+        wx:key="label"
+        class="upload-card {{item.filled ? 'filled' : ''}}"
+        data-index="{{index}}"
+        bindtap="onTapSlot"
+      >
+        <image wx:if="{{item.filled}}" class="slot-image" src="{{item.filledUrl}}" mode="aspectFill" />
+        <view wx:if="{{item.filled}}" class="slot-badge">✓ 已上传</view>
+        <view wx:else class="upload-icon">+</view>
+        <view class="slot-label">{{item.label}}</view>
+        <view wx:if="{{item.filled}}" class="replace-label">点击换图</view>
+      </view>
+    </view>
+
+    <view class="tip-card">
+      <view class="tip-icon">i</view>
+      <view class="tip-copy">
+        <view class="tip-title">小提示</view>
+        <view>建议在自然光下拍摄，不戴帽子、不化浓妆。照片只用于生活化养护参考。</view>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <view class="form-label">关注部位（多选）</view>
+      <view class="options-row">
+        <view
+          wx:for="{{body_parts}}"
+          wx:key="value"
+          class="option-chip {{item.selected ? 'selected' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="onToggleBodyPart"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <view class="form-label">年龄段（单选）</view>
+      <view class="options-row">
+        <view
+          wx:for="{{age_ranges}}"
+          wx:key="value"
+          class="option-chip age-chip {{item.selected ? 'selected' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="onSelectAge"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="upload-progress" wx:if="{{uploading}}">
+      <view class="progress-head"><text>正在安全上传</text><text>{{uploadProgress}}%</text></view>
+      <view class="progress-track"><view class="progress-fill" style="width: {{uploadProgress}}%;"></view></view>
+    </view>
+
+    <button class="primary-button" loading="{{uploading}}" disabled="{{uploading}}" bindtap="onStartAnalyze">
+      {{uploading ? '正在上传…' : '开始智能分析'}}
+    </button>
+    <view class="bottom-space"></view>
+  </scroll-view>
+</view>

@@ -1,0 +1,37 @@
+<view class="loading-page">
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">智能分析</view>
+    <view class="nav-space"></view>
+  </view>
+
+  <view class="loading-content">
+    <view class="progress-ring">
+      <image class="progress-svg" src="{{progressSvg}}" mode="aspectFit" />
+      <view class="progress-inner">
+        <view class="progress-value">{{progress}}%</view>
+        <view class="progress-caption">分析中</view>
+      </view>
+    </view>
+
+    <view class="loading-title">正在读懂你的状态</view>
+    <view class="loading-sub">约需 8-15 秒，请稍等一下</view>
+
+    <view class="steps-card">
+      <view wx:for="{{steps}}" wx:key="key" class="step-row" data-state="{{item.state}}">
+        <view class="step-dot">
+          <text wx:if="{{item.state === 'done'}}">✓</text>
+          <text wx:elif="{{item.state === 'active'}}">•</text>
+          <text wx:else>{{index + 1}}</text>
+        </view>
+        <view class="step-label">{{item.label}}</view>
+        <view class="step-status">
+          {{item.state === 'done' ? '已完成' : item.state === 'active' ? '进行中' : '待处理'}}
+        </view>
+      </view>
+    </view>
+
+    <view class="tip-card">小贴士：分析仅作为生活化养护参考，所有方向因人而异</view>
+    <view wx:if="{{errorText}}" class="error-text">{{errorText}}</view>
+  </view>
+</view>

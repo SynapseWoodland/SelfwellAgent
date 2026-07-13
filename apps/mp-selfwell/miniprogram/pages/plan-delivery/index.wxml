@@ -1,0 +1,51 @@
+<view class="delivery-page">
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">21 天养护方案</view>
+    <view class="nav-space"></view>
+  </view>
+
+  <scroll-view class="delivery-scroll" scroll-y>
+    <view class="deliver-hero" bindtap="onGoToday">
+      <view class="deliver-icon">🎉</view>
+      <view class="deliver-title">准备好了</view>
+      <view class="deliver-sub">你的 21 天方案已就绪</view>
+    </view>
+
+    <view class="summary-card-m" bindtap="onGoToday">
+      <view class="summary-icon-m">▦</view>
+      <view class="summary-info-m">
+        <view class="summary-title-m">21 天养护方案已生成</view>
+        <view class="summary-sub-m">3 个阶段 · 45 个视频任务 · 基于 12 个标签</view>
+      </view>
+      <view class="summary-arrow">›</view>
+    </view>
+
+    <view class="preview-section-m">
+      <view class="preview-title-m">{{expanded ? '完整 21 天方案' : '前 7 天预览'}}</view>
+      <view class="preview-card-m">
+        <view wx:for="{{visibleDays}}" wx:key="day" class="day-row-m" data-status="{{item.status}}">
+          <view class="day-num-m">{{item.day}}</view>
+          <view class="day-info-m">
+            <view class="day-task-m">{{item.title}}</view>
+            <view class="day-meta-m">{{item.meta}}</view>
+          </view>
+          <view class="day-arrow-m">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="more-days" bindtap="onToggleAllDays">
+      {{expanded ? '收起，仅看前 7 天' : '查看全部 21 天'}}
+    </view>
+
+    <view class="legend-m">
+      <view wx:for="{{legends}}" wx:key="key" class="legend-item-m" data-status="{{item.key}}">
+        <view class="legend-dot-m"></view>{{item.label}}
+      </view>
+    </view>
+
+    <view class="delivery-note">第 1 天从明天开始 · 你也可以现在开始第 1 项<br />每 7 天会收到一张温柔的回顾卡</view>
+    <view class="bottom-space"></view>
+  </scroll-view>
+</view>

@@ -1,0 +1,80 @@
+<view class="report-page">
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">智能分析 · 诊断报告</view>
+    <view class="nav-space"></view>
+  </view>
+
+  <scroll-view class="report-scroll" scroll-y>
+    <view class="hero">
+      <view class="hero-icon">🌿</view>
+      <view class="hero-title">诊断已就绪</view>
+      <view class="hero-sub">基于 {{photoCount}} 张照片 + {{profileCount}} 项档案</view>
+      <view class="hero-note">不是医学判断，是养护方向参考</view>
+    </view>
+
+    <view class="section directions-card">
+      <view class="section-title">4 条养护方向</view>
+      <view wx:for="{{directions}}" wx:key="title" class="direction-row">
+        <view class="direction-dot"></view>
+        <view class="direction-content">
+          <view class="direction-name">{{item.title}}</view>
+          <view class="direction-desc">{{item.description}}</view>
+          <view class="video-chip" data-title="{{item.title}}" bindtap="onOpenVideo">📺 {{item.video}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section tags-section">
+      <view class="section-title">12 个标签 · 已匹配视频库</view>
+      <view class="tags-list">
+        <view wx:for="{{tags}}" wx:key="label" class="tag {{item.strong ? 'strong' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="section actions-card" bindtap="onToggleActions">
+      <view class="actions-head">
+        <view>
+          <view class="actions-title">今天可以先做的 3 件小事</view>
+          <view class="actions-hint">不强制 · {{expandedActions ? '点击收起' : '点击展开'}}</view>
+        </view>
+        <view class="actions-arrow">{{expandedActions ? '⌃' : '⌄'}}</view>
+      </view>
+      <view wx:if="{{!expandedActions}}" class="actions-collapsed">
+        收下巴训练 · 肩颈放松 · 面部按摩
+      </view>
+      <view wx:else class="actions-expanded">
+        <view wx:for="{{actions}}" wx:key="title" class="action-item">
+          <view class="action-icon">{{item.icon}}</view>
+          <view class="action-info">
+            <view class="action-name">{{item.title}}</view>
+            <view class="action-meta">{{item.meta}}</view>
+          </view>
+          <view class="action-chevron">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="plan-title-card">
+      <view class="plan-title">基于这些标签，21 天方案是这样的</view>
+      <view class="plan-sub">3 个阶段 · 视频库 ≥ 50 条 · 阶段时长递增</view>
+    </view>
+
+    <view wx:for="{{phases}}" wx:key="key" class="phase-card {{item.key}}">
+      <view class="phase-icon">{{item.icon}}</view>
+      <view class="phase-info">
+        <view class="phase-name">{{item.name}}</view>
+        <view class="phase-desc">{{item.description}}</view>
+        <view class="phase-meta">{{item.meta}}</view>
+      </view>
+    </view>
+    <view class="content-space"></view>
+  </scroll-view>
+
+  <view class="bottom-cta">
+    <button class="primary-button" loading="{{generating}}" disabled="{{generating}}" bindtap="onGeneratePlan">
+      {{generating ? '正在生成…' : '生成我的 21 天方案'}}
+    </button>
+    <button class="secondary-button" bindtap="onSkipPlan">先不生成了</button>
+  </view>
+</view>
