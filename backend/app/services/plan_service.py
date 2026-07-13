@@ -308,6 +308,81 @@ async def get_current_plan(session: AsyncSession, *, user_id: str) -> dict[str, 
     return await get_plan(session, user_id=user_id, plan_id=str(plan.id))
 
 
+async def get_plan_preview(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    plan_id: str,
+    days: int = 21,
+) -> dict[str, Any]:
+    """21 天方案预览,字段对齐前端 plan-delivery 契约。
+
+    与 ``get_plan`` 不同:这里把 ``days.items[].tasks[]`` 扁平化成预览项,
+    每项含前端期望的 ``day / day_index / title / task / duration_minutes / source / status``。
+
+    Args:
+        days: 预览返回前 N 天(默认 21,即全量);取值 1-21。
+
+    Raises:
+        PlanNotFoundError: plan 不存在或被删。
+
+    Returns:
+        ``{plan_id, days: [{day, day_index, title, task, duration_minutes, source, status}, ...]}``
+    """
+    if not 1 <= days <= PLAN_LENGTH_DAYS:
+        days = PLAN_LENGTH_DAYS
+
+    base = await get_plan(session, user_id=user_id, plan_id=plan_id)
+    raw_items = base.get("days", [])
+
+    preview_days: list[dict[str, Any]] = []
+    for index in range(min(days, len(raw_items) if raw_items else days)):
+        item = raw_items[index] if index < len(raw_items) else {}
+        tasks = item.get("tasks", []) if isinstance(item, dict) else []
+        first_task = tasks[0] if isinstance(tasks, list) and tasks else {}
+        day_no = item.get("day", index + 1) if isinstance(item, dict) else index + 1
+        title = (
+            first_task.get("title")
+            if isinstance(first_task, dict) and first_task.get("title")
+            else f"第 {day_no} 天 · 核心养护"
+        )
+        task_label = (
+            first_task.get("task")
+            or first_task.get("video_id")
+            or f"task-d{day_no}"
+        )
+        preview_days.append(
+            {
+                "day": day_no,
+                "day_index": day_no,
+                "title": title,
+                "task": task_label,
+                "duration_minutes": (
+                    first_task.get("duration_minutes", 12)
+                    if isinstance(first_task, dict)
+                    else 12
+                ),
+                "source": (
+                    first_task.get("source", "video_pool")
+                    if isinstance(first_task, dict)
+                    else "video_pool"
+                ),
+                "status": (
+                    first_task.get("status", "pending")
+                    if isinstance(first_task, dict)
+                    else "pending"
+                ),
+            }
+        )
+    return {
+        "plan_id": base["plan_id"],
+        "report_id": base.get("report_id"),
+        "status": base.get("status"),
+        "total_days": len(preview_days),
+        "days": preview_days,
+    }
+
+
 async def get_today_plan_tasks(
     session: AsyncSession, *, user_id: str, day_index: int | None = None
 ) -> dict[str, Any]:

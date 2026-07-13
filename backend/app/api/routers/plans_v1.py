@@ -19,6 +19,7 @@ from app.services.plan_service import (
     generate_plan,
     get_current_plan,
     get_plan,
+    get_plan_preview,
     get_today_plan_tasks,
     match_videos_for_tags,
 )
@@ -150,6 +151,35 @@ async def get_plan_endpoint(
             detail={"code": exc.code, "message_zh": exc.render_zh()},
         ) from exc
     return PlanResponse(data=result)
+
+
+@plans_router.get("/{plan_id}/preview", summary="方案 21 天预览（plan-delivery 用）")
+async def get_plan_preview_endpoint(
+    plan_id: str,
+    days: int = Query(
+        default=21,
+        ge=1,
+        le=PLAN_LENGTH_DAYS,
+        description="预览返回天数（默认 21 = 全量；取 1-21）",
+    ),
+    user_id: str = Depends(current_user_id),
+    session: AsyncSession = Depends(db_session),
+) -> dict:
+    """21 天方案预览,字段对齐前端 plan-delivery/index.ts:loadPreview 契约。
+
+    PR-Contract-Fix C-3:此前端调 ``GET /plans/{id}/preview?days=21`` 不存在,
+    只能走 fallback 静态模板;本次新增真端点。
+    """
+    try:
+        result = await get_plan_preview(
+            session, user_id=user_id, plan_id=plan_id, days=days,
+        )
+    except PlanNotFoundError as exc:
+        raise HTTPException(
+            status_code=exc.http_status,
+            detail={"code": exc.code, "message_zh": exc.render_zh()},
+        ) from exc
+    return {"code": 0, "data": result}
 
 
 @videos_router.get("/match", summary="按 tags 匹配视频")

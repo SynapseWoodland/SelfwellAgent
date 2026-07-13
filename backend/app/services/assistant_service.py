@@ -361,10 +361,85 @@ async def create_session(
     session.add(ai_session)
     await session.flush()
     logger.info("assistant_session_created", session_id=str(ai_session.id), user_id=user_id)
-    return {
+
+    result: dict[str, Any] = {
         "session_id": str(ai_session.id),
         "persona_state": ai_session.persona_state_start,
         "entry_card": ec,
+    }
+
+    # PR-Contract-Fix C-1:smart_analyze 入口时同步创建 Report + Job,
+    # 让前端 diagnosis-loading-v2 能拿到真实 SSE stream_url,
+    # 并让后续 onGeneratePlan 拿到 report_id。
+    #
+    # 注意:不能用 ``pi == "smart_analyze"`` —— primary_intent 白名单不含 smart_analyze,
+    # 会被 normalize 成 "unknown"。改用 ``ec``(entry_card) 作为判断,
+    # 它和 DDL chk_ai_session_entry 强一致(包含 smart_analyze)。
+    if ec == "smart_analyze":
+        smart_effects = await _create_smart_analyze_side_effects(
+            session, user_id=user_id, ai_session_id=ai_session.id,
+        )
+        result.update(smart_effects)
+
+    return result
+
+
+async def _create_smart_analyze_side_effects(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    ai_session_id: Any,
+) -> dict[str, Any]:
+    """smart_analyze 入口副作用:建 Report 行(queued) + JobState job。
+
+    Returns:
+        {report_id, job_id, stream_url} 三元组。
+
+    设计要点:
+    - 与 diagnosis_v1._handle_async_create 行为一致,但**不**立即 fire-and-forget
+      任务;实际分析 pipeline 由 assistant.send_message_stream(smart_analyze mode)
+      在后续用户发图消息时触发。这里只占位 report + job_id。
+    - 复用 ``JobStateStore`` singleton 注入,与 diagnosis_v1 共享同一 store。
+    """
+    from datetime import UTC, datetime
+    from decimal import Decimal
+    from uuid import UUID, uuid4
+
+    from app.core.job_state import get_job_state_store
+    from app.db.models.report import Report
+
+    try:
+        user_uuid = UUID(str(user_id))
+    except (ValueError, TypeError):
+        user_uuid = uuid4()
+
+    report_id = uuid4()
+    now_ts = datetime.now(UTC)
+    report_row = Report(
+        id=report_id,
+        user_id=user_uuid,
+        photos={"items": []},
+        directions={"items": []},
+        tags={"items": []},
+        summary=None,
+        llm_cost=Decimal("0.0000"),
+        status="queued",
+        created_at=now_ts,
+        created_by=str(user_id),
+        created_time=now_ts,
+        last_updated_time=now_ts,
+        last_updated_by=str(user_id),
+    )
+    session.add(report_row)
+    await session.flush()
+
+    job_state = get_job_state_store()
+    job_id = job_state.create_job(report_id=str(report_id), user_id=str(user_id))
+
+    return {
+        "report_id": str(report_id),
+        "job_id": job_id,
+        "stream_url": f"/diagnosis/jobs/{job_id}/stream",
     }
 
 
