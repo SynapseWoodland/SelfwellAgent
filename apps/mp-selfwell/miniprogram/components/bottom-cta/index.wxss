@@ -1,0 +1,48 @@
+/* PR-V2-A · bottom-cta WXSS */
+/* AC-4: 三种按钮样式定义 */
+.bottom-cta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24rpx 32rpx;
+  background: var(--bg-card);
+}
+
+/* AC-4: is-sticky 状态（position: fixed） */
+.is-sticky {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.cta-wrapper {
+  display: flex;
+  gap: 16rpx;
+}
+
+/* AC-4: primary / outline 三种按钮样式 */
+.cta-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  border-radius: 999px;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+/* AC-5: 颜色 token 化 */
+.cta-primary {
+  background: var(--color-primary-mint);
+  color: var(--ink-900);
+}
+
+.cta-outline {
+  background: transparent;
+  border: 2rpx solid var(--color-primary-mint);
+  color: var(--color-primary-mint);
+}

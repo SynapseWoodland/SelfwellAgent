@@ -1,0 +1,19 @@
+<!-- PR-V2-A · bottom-cta WXML stub -->
+<!-- AC-3: sticky=true 时渲染固定定位样式；primary/secondary 按钮条件显示 -->
+<view
+  class="bottom-cta {{sticky ? 'is-sticky' : ''}}"
+  style="position: {{sticky ? 'fixed' : 'absolute'}}"
+>
+  <view class="cta-wrapper">
+    <view
+      wx:if="{{primary}}"
+      class="cta-btn cta-primary"
+      bindtap="onPrimaryTap"
+    >{{primary}}</view>
+    <view
+      wx:if="{{secondary}}"
+      class="cta-btn cta-outline"
+      bindtap="onSecondaryTap"
+    >{{secondary}}</view>
+  </view>
+</view>

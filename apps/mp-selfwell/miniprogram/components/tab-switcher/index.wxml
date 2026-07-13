@@ -1,0 +1,14 @@
+<!-- PR-V2-A · tab-switcher WXML stub -->
+<!-- AC-3: wx:for 渲染 N 个 tab，active tab 加 is-active class -->
+<view class="tab-switcher">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="*this"
+    class="tab-switch {{index === active ? 'is-active' : ''}}"
+    bindtap="onTap"
+    data-index="{{index}}"
+    data-label="{{item}}"
+  >
+    {{item}}
+  </view>
+</view>

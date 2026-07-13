@@ -1,0 +1,55 @@
+/* PR-V2-A · day-strip-5state WXSS */
+/* AC-6: 颜色全部用 design token，无硬编码 hex（已禁若干具体色码，详见 SPEC-M3） */
+.day-strip {
+  display: flex;
+  gap: 8rpx;
+  padding: 16rpx 0;
+}
+
+.day-strip-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-circle);
+  font-size: var(--font-size-body-sm);
+  color: var(--ink-500);
+}
+
+.day-number {
+  font-size: inherit;
+}
+
+/* AC-3: 5 个状态样式（属性选择器） */
+.day-strip-item[data-state="completed"] {
+  background: var(--color-accent-warm);
+  color: var(--bg-card);
+}
+
+.day-strip-item[data-state="today"] {
+  background: var(--color-primary-mint);
+  color: var(--ink-900);
+}
+
+.day-strip-item[data-state="missed"] {
+  background: var(--ink-100);
+  color: var(--ink-500);
+}
+
+.day-strip-item[data-state="future"] {
+  background: var(--bg-card);
+  color: var(--ink-300);
+  border: 2rpx solid var(--ink-100);
+}
+
+.day-strip-item[data-state="feedback"] {
+  background: var(--color-secondary-peach);
+  color: var(--ink-900);
+}
+
+/* AC-4: activeIndex 高亮态 */
+.is-active {
+  border: 4rpx solid var(--color-accent-warm);
+  box-shadow: 0 0 0 2rpx var(--bg-card);
+}

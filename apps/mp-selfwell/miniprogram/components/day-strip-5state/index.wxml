@@ -1,0 +1,14 @@
+<!-- PR-V2-A · day-strip-5state WXML stub -->
+<!-- AC-2: data-state 属性绑定状态；AC-3: 5 状态 css class 用模板拼接 state-{{item.state}} -->
+<view class="day-strip">
+  <view
+    wx:for="{{days}}"
+    wx:key="index"
+    class="day-strip-item state-{{item.state}} {{activeIndex === index ? 'is-active' : ''}}"
+    data-state="{{item.state}}"
+    data-index="{{index}}"
+    bindtap="onSelect"
+  >
+    <text class="day-number">{{item.dayNumber}}</text>
+  </view>
+</view>

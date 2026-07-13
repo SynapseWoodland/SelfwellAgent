@@ -1,0 +1,10 @@
+<!-- PR-V2-A · action-card WXML stub -->
+<!-- AC-3: bindtap 触发 tap 事件；icon/name/meta 渲染 -->
+<view class="action-item {{bgClass}}" bindtap="onTap">
+  <view class="action-icon">{{icon}}</view>
+  <view class="action-content">
+    <view class="action-name">{{name}}</view>
+    <view class="action-meta">{{meta}}</view>
+  </view>
+  <view class="action-arrow">›</view>
+</view>

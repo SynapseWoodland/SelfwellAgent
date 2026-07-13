@@ -1,0 +1,24 @@
+<!-- PR-V2-A · drawer-overlay WXML stub -->
+<!-- AC-3: visible=true 时渲染 mask + drawer 两个 view -->
+<!-- AC-4: close 按钮触发 close 事件 -->
+<view wx:if="{{visible}}" class="drawer-wrapper">
+  <!-- 遮罩 -->
+  <view
+    class="drawer-mask {{visible ? 'show' : ''}}"
+    bindtap="onMaskTap"
+  ></view>
+  <!-- 抽屉主体 -->
+  <view class="drawer {{visible ? 'show' : ''}}">
+    <!-- 抽屉头部 -->
+    <view class="drawer-header">
+      <text class="drawer-title">{{title}}</text>
+      <view class="drawer-close" bindtap="onCloseTap">×</view>
+    </view>
+    <!-- 抽屉内容 -->
+    <view class="drawer-body">
+      <slot></slot>
+    </view>
+    <!-- peekTab 可选底部导航 -->
+    <view wx:if="{{peekTab}}" class="drawer-peek-tab"></view>
+  </view>
+</view>

@@ -1,0 +1,24 @@
+/* PR-V2-A · tab-switcher WXSS */
+.tab-switcher {
+  display: flex;
+  gap: 16rpx;
+}
+
+.tab-switch {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+  font-size: 28rpx;
+  color: var(--ink-700);
+  background-color: transparent;
+}
+
+/* AC-5: active 态使用 token 化背景 + 阴影 */
+.is-active {
+  background: var(--bg-card);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  color: var(--ink-900);
+}

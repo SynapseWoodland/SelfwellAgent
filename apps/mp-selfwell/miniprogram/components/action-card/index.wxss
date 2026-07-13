@@ -1,0 +1,49 @@
+/* PR-V2-A · action-card WXSS */
+/* AC-5: 颜色全部用 design token，无硬编码 hex */
+/* AC-4: 至少 3 种 bgClass（mint/cream/peach） */
+.action-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  gap: 16rpx;
+}
+
+.action-icon {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.action-content {
+  flex: 1;
+}
+
+.action-name {
+  font-size: var(--font-size-body-lg);
+  color: var(--ink-900);
+  margin-bottom: 4rpx;
+}
+
+.action-meta {
+  font-size: var(--font-size-caption);
+  color: var(--ink-500);
+}
+
+.action-arrow {
+  font-size: 32rpx;
+  color: var(--ink-300);
+}
+
+/* AC-4 bgClass variants */
+.bg-mint {
+  background: var(--color-primary-mint);
+}
+
+.bg-cream {
+  background: var(--color-secondary-cream);
+}
+
+.bg-peach {
+  background: var(--color-secondary-peach);
+}
