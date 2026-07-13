@@ -21,7 +21,7 @@
  *  - 联系客服  → /pages/contact/index（PR-5）
  *  - 关于自愈  → /pages/about/index（PR-5）
  *  - 反馈日记  → /pages/feedback-diary/index（已存在）
- *  - 21 天方案  → /pages/plan-tabs/index（已存在）
+ *  - 21 天方案  → /pages/plan-delivery/index（v2）
  */
 export interface DrawerCard {
   id: string;
@@ -91,7 +91,7 @@ export function getDrawCards(): DrawerCard[] {
       title: '21 天方案',
       subtitle: '查看我的日历',
       iconText: '☷',
-      pagePath: '/pages/plan-tabs/index',
+      pagePath: '/pages/plan-delivery/index',
     },
   ];
 }

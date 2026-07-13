@@ -12,3 +12,24 @@ project.private.config.json
 .DS_Store
 .idea/
 .vscode/
+
+# 编译产物（tsc / IDE 编译；真机调试产物由 IDE 自动重建，不入版本控制）
+miniprogram/**/*.js
+miniprogram/**/*.js.map
+
+# 真机调试截图（IDE 截图工具自动产出，不入版本控制）
+screenshots/
+
+# 临时调试输出（probe / log / TSC 报告 / ruff 报告 / mypy 报告）
+*.tmp
+*.log
+tsc-*.txt
+tsc-*.json
+ruff-*.txt
+mypy-*.txt
+pytest-*.txt
+log-*.txt
+*-out.txt
+*-out2.txt
+*-out3.txt
+curl-*.txt

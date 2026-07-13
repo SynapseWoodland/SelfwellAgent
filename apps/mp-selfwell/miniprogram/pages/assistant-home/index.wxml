@@ -1,22 +1,13 @@
 <!--
-  PR-3 commit-2 · assistant-home V2 UI 重制（保留 _stream_smart_analyze 5 阶段消费）
+  PR-8 v2 · assistant-home V2 UI（PR-A4 chat 流已下线，仅保留 AI 自由对话兜底）
   ──────────────────────────────────────────────────────────────────────
-  真源：plans/v2-IA-pr-internal.md §PR-3 commit-2
+  真源：plans/v2-IA-pr-internal.md
   真源：docs/design/figma-pixso-spec/pages/15a-butler-home-tab1.html
-  真源：plans/v2-unified-parent.md §3.3「_stream_smart_analyze 5 阶段事件序列」契约
   ──────────────────────────────────────────────────────────────────────
-  关键约束：
-  1) 不退：consumeAssistantStream 5 阶段 progress/report/end/start/error 消费逻辑（PR-A4+PR-2 落地）
-  2) 不退：presignAndUploadOneForAssistant 调用 + image_keys/body_parts schema
-  3) 仅重制：入口卡 / chips / 输入栏 / nav-bar 视觉（V2 token：mint + cream + lavender）
-  4) 兼容：现有 vitest `assistant-home-smart-body.test.ts`（jest 在 miniprogram/tests/）+ PR-A4 静态契约测试不退
-
-  V2 升版要点：
-  - nav-bar 背景：mint 主色（PR-6 token --color-primary-mint）
-  - nav-bar 文字 + 头像：白 + 字号适配 V2
-  - entry cards：expanded 模式下 4 张卡横排，圆角 + 阴影 V2 polish
-  - chips：圆角胶囊 + 主色描边（active 态）
-  - input bar：底部固定，圆角 36rpx + 发送按钮 mint 主色
+  v2 关键变更（PR-A4 → v2）：
+  1) 删 upload-card / progress-card / report-card 内嵌气泡渲染
+  2) 智能分析入口卡 / chip 直接 wx.navigateTo /pages/diagnosis-upload-v2/index
+  3) 保留 chat SSE 流（token_delta 打字机）+ persona-bubble 通用渲染
 -->
 <view class="assistant">
   <!-- V2 顶部导航（mint 主色背景 + 白字 + safe-area） -->
@@ -30,12 +21,13 @@
     </view>
   </view>
 
-  <!-- 顶部回忆气泡（Day 7/14/21 触发器；PR-3 commit-2 暂时保留 hook 占位，未来视觉确认后激活） -->
+  <!-- 顶部回忆气泡（Day 7/14/21 触发器；暂时保留 hook 占位，未来视觉确认后激活） -->
   <view wx:if="{{false}}" class="assistant-recall-bubble" data-test="recall-bubble">
     <text class="assistant-recall-text">回忆气泡</text>
   </view>
 
-  <!-- 对话流（V2 polish：底部留白更宽，mint/cream 渐变头像） -->
+  <!-- 对话流（V2 polish：底部留白更宽，mint/cream 渐变头像）
+       v2：persona-bubble 只接收 text + title；不再有 upload_card / progress_card / report_card 内嵌附件 -->
   <scroll-view
     class="assistant-stream {{butlerCardsMode === 'collapsed' || butlerCardsMode === 'focused' ? 'is-collapsed' : ''}}"
     scroll-y
@@ -53,37 +45,7 @@
         state="{{item.state}}"
         text="{{item.text || ''}}"
         title="{{item.title || ''}}"
-      >
-        <upload-card
-          wx:if="{{item.attachment && item.attachment.kind === 'upload_card'}}"
-          slot="upload-card"
-          title="{{item.title || '上传照片生成你的画像'}}"
-          slots="{{item.attachment.slots}}"
-          age-ranges="{{item.attachment.ageRanges}}"
-          submit-text="上传，开始分析"
-          bind:slotTap="onUploadSlotTap"
-          bind:ageChipTap="onSelectAge"
-          bind:startTap="onSubmitUpload"
-        />
-
-        <progress-card
-          wx:if="{{item.attachment && item.attachment.kind === 'progress_card'}}"
-          slot="progress-card"
-          title="{{item.attachment.title || '正在为你生成画像'}}"
-          percent="{{item.attachment.percent}}"
-          steps="{{item.attachment.steps}}"
-        />
-
-        <report-card
-          wx:if="{{item.attachment && item.attachment.kind === 'report_card'}}"
-          slot="report-card"
-          avatar-text="{{item.attachment.avatarText}}"
-          name="{{item.attachment.name}}"
-          directions="{{item.attachment.directions}}"
-          cta-text="开始 21 天"
-          bind:ctaTap="onStartPlan"
-        />
-      </persona-bubble>
+      />
     </view>
 
     <view wx:if="{{entryHidden && !turns.length}}" class="assistant-stream-tail"></view>

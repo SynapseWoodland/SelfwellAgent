@@ -4,10 +4,6 @@
     "pages/login/index",
     "pages/home/index",
     "pages/profile-new/index",
-    "pages/diagnosis-upload/index",
-    "pages/diagnosis-loading/index",
-    "pages/diagnosis-report/index",
-    "pages/plan/index",
     "pages/checkin/index",
     "pages/assistant-home/index",
     "pages/feedback-diary/index",
@@ -22,9 +18,10 @@
     "pages/contact/index",
     "pages/album/index",
     "pages/share-hug-card/index",
-    "pages/smart-analyze-loading/index",
-    "pages/smart-analyze-report/index",
-    "pages/plan-tabs/index"
+    "pages/diagnosis-upload-v2/index",
+    "pages/diagnosis-loading-v2/index",
+    "pages/diagnosis-report-v2/index",
+    "pages/plan-delivery/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

@@ -245,15 +245,15 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
   },
 
   onGotoPlan() {
-    wx.navigateTo({ url: '/pages/plan/index' });
+    wx.navigateTo({ url: '/pages/plan-delivery/index' });
   },
 
   // TODO: PR-A4-后续
   // 当前 home 页没有"查看全部 21 天"按钮（仅 "去打卡" / "找管家聊聊"）；
-  // plan-tabs/index 设计作为 21 天方案查看入口，等视觉确认后补 bindtap；
+  // plan-delivery/index 设计作为 21 天方案查看入口，等视觉确认后补 bindtap；
   // 现保留 onGotoPlanTabs 作为后续 PR 的过渡接口。
   onGotoPlanTabs() {
-    wx.navigateTo({ url: '/pages/plan-tabs/index' });
+    wx.navigateTo({ url: '/pages/plan-delivery/index' });
   },
 
   /** PR-3 commit-1 · 抱抱卡入口。 */

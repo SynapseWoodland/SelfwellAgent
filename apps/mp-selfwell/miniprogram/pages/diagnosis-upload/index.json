@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "智能分析 · 上传",
-  "usingComponents": {
-    "image-uploader": "/components/image-uploader/index"
-  }
-}
