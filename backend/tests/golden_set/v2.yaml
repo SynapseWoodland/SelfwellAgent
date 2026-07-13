@@ -1,0 +1,69 @@
+schema_version: v2.0.0-pr8
+project: selfwell-agent
+baseline_version: v2-pr8-2026-07-12
+created_at: "2026-07-12"
+metadata:
+  total_cases: 3
+  id_pattern: GS-V2-NN
+  modes: [pr]
+  range: GS-V2-26..GS-V2-28
+cases:
+  - id: GS-V2-26
+    tier: 2
+    category: V2 智能分析末端 / 4 方向详情版渲染
+    query: 渲染诊断报告的四条养护方向详情和视频入口
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/assistant/sessions/{session_id}/messages
+    expected:
+      route: diagnosis_report_v2_directions
+      confidence_min: 1.0
+      source_assertions:
+        - path: apps/mp-selfwell/miniprogram/pages/diagnosis-report-v2/index.ts
+          contains: ["DEFAULT_DIRECTIONS", "侧颈前伸改善", "久坐肩颈放松", "面部浮肿舒缓", "发质基础护理", "B站"]
+        - path: apps/mp-selfwell/miniprogram/pages/diagnosis-report-v2/index.wxml
+          contains: ["4 条养护方向", "direction-desc", "video-chip"]
+    real_data_anchors:
+      - apps/mp-selfwell/miniprogram/pages/diagnosis-report-v2/index.ts::DEFAULT_DIRECTIONS
+      - apps/mp-selfwell/tests/diagnosis-report-v2.test.ts
+      - backend/app/api/routers/assistant_v1.py::send_message_endpoint
+
+  - id: GS-V2-27
+    tier: 2
+    category: V2 智能分析末端 / 21 天交付 preview
+    query: 生成并展示二十一天方案的前七天预览和完整列表
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/plans/{plan_id}/preview?days=21
+    expected:
+      route: plan_delivery_preview_21_days
+      confidence_min: 1.0
+      source_assertions:
+        - path: apps/mp-selfwell/miniprogram/pages/plan-delivery/index.ts
+          contains: ["/preview?days=21", "Array.from({ length: 21 }", "days.slice(0, 7)", "buildFallbackDays"]
+        - path: apps/mp-selfwell/miniprogram/pages/plan-delivery/index.wxml
+          contains: ["前 7 天预览", "查看全部 21 天", "day-row-m", "legend-item-m"]
+    real_data_anchors:
+      - apps/mp-selfwell/miniprogram/pages/plan-delivery/index.ts::loadPreview
+      - apps/mp-selfwell/miniprogram/pages/plan-delivery/index.ts::buildFallbackDays
+      - apps/mp-selfwell/tests/plan-delivery.test.ts
+
+  - id: GS-V2-28
+    tier: 2
+    category: V2 智能分析末端 / plan delivery id 持久化
+    query: 生成方案后持久化交付标识并带入方案交付页
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/plans
+    expected:
+      route: plan_delivery_id_persistence
+      confidence_min: 1.0
+      source_assertions:
+        - path: apps/mp-selfwell/miniprogram/pages/diagnosis-report-v2/index.ts
+          contains: ["post<PlanCreateResponse>('/plans'", "wx.setStorageSync('plan.delivery.id', planId)", "/pages/plan-delivery/index?plan_id="]
+        - path: apps/mp-selfwell/miniprogram/pages/plan-delivery/index.ts
+          contains: ["wx.getStorageSync('plan.delivery.id')", "planId"]
+    real_data_anchors:
+      - apps/mp-selfwell/miniprogram/pages/diagnosis-report-v2/index.ts::onGeneratePlan
+      - apps/mp-selfwell/miniprogram/pages/plan-delivery/index.ts::onLoad
+      - apps/mp-selfwell/tests/diagnosis-report-v2.test.ts

@@ -1,0 +1,206 @@
+schema_version: v2.0.0-pr7
+project: selfwell-agent
+baseline_version: v2-pr7-2026-07-12
+created_at: "2026-07-12"
+metadata:
+  total_cases: 10
+  id_pattern: GS-V2-NN
+  modes: [pr]
+  pinned_case: GS-V2-10
+cases:
+  - id: GS-V2-01
+    tier: 2
+    category: V2 集成 / assistant 5 阶段 SSE
+    query: 上传照片后按 5 阶段返回智能分析结果
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/assistant/sessions/{session_id}/messages
+    expected:
+      route: assistant_smart_analyze_sse
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/services/assistant_service.py
+          contains: ['_sse_pack("start"', '_sse_pack("progress"', '_sse_pack("report"', '_sse_pack("end"', '_emit_progress(5, 100, "已就绪")']
+        - path: backend/app/api/routers/assistant_v1.py
+          contains: ['response_class=StreamingResponse', 'media_type="text/event-stream"']
+    real_data_anchors:
+      - backend/app/services/assistant_service.py::send_message_stream
+      - backend/app/api/routers/assistant_v1.py::send_message_endpoint
+      - apps/mp-selfwell/tests/assistant-home-progress-report.test.ts
+
+  - id: GS-V2-02
+    tier: 2
+    category: V2 集成 / recall-flow days_offset
+    query: 回看 14 天前的自己
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/butler/recall
+    expected:
+      route: recall_days_offset
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/api/routers/butler_v1.py
+          contains: ['days_offset: int = Field(default=7, ge=1, le=365)', 'days_offset=payload.days_offset']
+        - path: apps/mp-selfwell/miniprogram/pages/recall-flow/index.ts
+          contains: ['days_offset']
+    real_data_anchors:
+      - backend/app/api/routers/butler_v1.py::RecallGenerateRequest
+      - backend/tests/unit/services/test_recall_days_offset_default.py
+      - apps/mp-selfwell/tests/recall-flow.test.ts
+
+  - id: GS-V2-03
+    tier: 2
+    category: V2 集成 / profile-edit 双模
+    query: 在档案概览与编辑模式之间切换
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/me/archive/summary
+    expected:
+      route: profile_edit_dual_mode
+      confidence_min: 1.0
+      source_assertions:
+        - path: apps/mp-selfwell/miniprogram/pages/profile-edit/index.ts
+          contains: ["type ProfileEditMode = 'edit' | 'read'", "'/me/archive/summary'", "'/pages/profile-edit/index?mode=edit'"]
+        - path: apps/mp-selfwell/miniprogram/pages/profile-edit/index.wxml
+          contains: ["mode === 'read'", 'pe-read-archive-block', 'onSubmitProfile']
+    real_data_anchors:
+      - apps/mp-selfwell/miniprogram/pages/profile-edit/index.ts::ProfileEditMode
+      - apps/mp-selfwell/tests/profile-edit-dual-mode.test.ts
+      - backend/app/api/routers/v2.py::get_archive_summary_endpoint
+
+  - id: GS-V2-04
+    tier: 2
+    category: V2 集成 / album week chip
+    query: 按 ISO 周切换我的时光相册
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/me/album/photos
+    expected:
+      route: album_week_chip
+      confidence_min: 1.0
+      source_assertions:
+        - path: apps/mp-selfwell/miniprogram/pages/album/index.ts
+          contains: ['buildRecentWeeks(8)', 'selectedWeek', '/me/album/photos?week=']
+        - path: backend/app/services/v2/album_service.py
+          contains: ['WEEK_PATTERN', 'date.fromisocalendar']
+    real_data_anchors:
+      - apps/mp-selfwell/miniprogram/pages/album/index.ts::WeekChip
+      - apps/mp-selfwell/tests/album.test.ts
+      - backend/app/services/v2/album_service.py::_parse_week
+
+  - id: GS-V2-05
+    tier: 2
+    category: V2 集成 / archive summary
+    query: 查看 21 天自我档案摘要
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/me/archive/summary
+    expected:
+      route: archive_summary
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/services/v2/archive_service.py
+          contains: ['"current_day"', '"total_days"', '"stage"', '"streak_days"', '"archive_generated_at"']
+        - path: backend/app/api/routers/v2.py
+          contains: ['@v2_router.get("/me/archive/summary"', 'get_archive_summary']
+    real_data_anchors:
+      - backend/app/services/v2/archive_service.py::get_archive_summary
+      - backend/app/api/routers/v2.py::get_archive_summary_endpoint
+      - apps/mp-selfwell/tests/profile-edit-dual-mode.test.ts
+
+  - id: GS-V2-06
+    tier: 2
+    category: V2 集成 / notification GET-PUT 闭环
+    query: 读取并更新通知偏好后再次读取
+    previous_query: null
+    is_followup: false
+    endpoint: PUT /api/v1/me/notification-settings
+    expected:
+      route: notification_get_put_loop
+      confidence_min: 1.0
+      required_operations:
+        - GET /api/v1/me/notification-settings
+        - PUT /api/v1/me/notification-settings
+      source_assertions:
+        - path: backend/app/services/v2/notification_service.py
+          contains: ['DEFAULT_PREF_VALUES', 'list_notification_prefs', 'update_notification_prefs', '"updated_keys"']
+        - path: backend/app/api/routers/v2.py
+          contains: ['@v2_router.get("/me/notification-settings"', '@v2_router.put("/me/notification-settings"']
+    real_data_anchors:
+      - backend/app/services/v2/notification_service.py::DEFAULT_PREF_VALUES
+      - backend/app/api/routers/v2.py::put_notification_settings_endpoint
+      - backend/tests/unit/services/v2/test_v2_services.py::TestNotificationService
+
+  - id: GS-V2-07
+    tier: 2
+    category: V2 集成 / hug-card day7
+    query: 渲染第 7 天抱抱卡模板
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/share/hug-card/{day}/template
+    expected:
+      route: hug_card_day7
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/services/share_service.py
+          contains: ['VALID_DAYS: frozenset[int] = frozenset({7, 14, 21})', '7: {', '"Week 1"']
+    real_data_anchors:
+      - backend/app/services/share_service.py::TEMPLATES[7]
+      - backend/app/api/routers/share_v1.py::hug_card_template_endpoint
+
+  - id: GS-V2-08
+    tier: 2
+    category: V2 集成 / hug-card day14
+    query: 渲染第 14 天抱抱卡模板
+    previous_query: null
+    is_followup: false
+    endpoint: GET /api/v1/share/hug-card/{day}/template
+    expected:
+      route: hug_card_day14
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/services/share_service.py
+          contains: ['14: {', '"Week 2"', '"第二周加油"']
+    real_data_anchors:
+      - backend/app/services/share_service.py::TEMPLATES[14]
+      - backend/app/api/routers/share_v1.py::hug_card_template_endpoint
+
+  - id: GS-V2-09
+    tier: 2
+    category: V2 集成 / hug-card day21
+    query: 渲染第 21 天抱抱卡模板
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/share/hug-card
+    expected:
+      route: hug_card_day21
+      confidence_min: 1.0
+      source_assertions:
+        - path: backend/app/services/share_service.py
+          contains: ['21: {', '"21 Days"', 'POSTER_WIDTH = 750', 'POSTER_HEIGHT = 1000']
+    real_data_anchors:
+      - backend/app/services/share_service.py::TEMPLATES[21]
+      - backend/app/services/share_service.py::generate_hug_card
+      - backend/app/api/routers/share_v1.py::hug_card_endpoint
+
+  - id: GS-V2-10
+    tier: 2
+    category: V2 PINNED / AIMessage.context_photos schema
+    query: 锁定跨 PR 的 context_photos JSONB 必填字段
+    previous_query: null
+    is_followup: false
+    endpoint: POST /api/v1/assistant/sessions/{session_id}/messages
+    pinned: true
+    expected:
+      route: ai_message_context_photos_schema
+      confidence_min: 1.0
+      required_fields: [directions, tags, summary, injected_at]
+      source_assertions:
+        - path: backend/app/contracts/ai_message.py
+          contains: ['model_config = ConfigDict(extra="forbid", frozen=True)', 'directions: list[ContextPhotoDirection]', 'tags: list[str]', 'summary: str', 'injected_at: datetime']
+        - path: backend/tests/unit/test_ai_message_context_photos_schema.py
+          contains: ['test_ai_message_context_photos_requires_exact_top_level_schema', 'test_ai_message_context_photos_rejects_missing_fields', 'test_ai_message_context_photos_rejects_extra_fields']
+    real_data_anchors:
+      - backend/app/contracts/ai_message.py::AIMessageContextPhotos
+      - backend/tests/unit/test_ai_message_context_photos_schema.py
+      - plans/v2-unified-parent.md::§4.1

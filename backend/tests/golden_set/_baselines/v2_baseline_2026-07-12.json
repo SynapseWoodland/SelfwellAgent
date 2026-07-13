@@ -1,0 +1,141 @@
+{
+  "failed": 0,
+  "golden_set": "backend/tests/golden_set/golden_set_v2.yaml",
+  "golden_set_sha256": "1604843b9e0c94c8c1283a40c25ab8ba1ce6b18d7914bc974407b4475c758a42",
+  "mode": "pr",
+  "openapi_operation_count": 45,
+  "passed": 10,
+  "results": [
+    {
+      "assertions": 7,
+      "case_id": "GS-V2-01",
+      "endpoint": "POST /api/v1/assistant/sessions/{session_id}/messages",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/assistant_service.py::send_message_stream",
+        "backend/app/api/routers/assistant_v1.py::send_message_endpoint",
+        "apps/mp-selfwell/tests/assistant-home-progress-report.test.ts"
+      ],
+      "route": "assistant_smart_analyze_sse",
+      "status": "pass"
+    },
+    {
+      "assertions": 3,
+      "case_id": "GS-V2-02",
+      "endpoint": "POST /api/v1/butler/recall",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/api/routers/butler_v1.py::RecallGenerateRequest",
+        "backend/tests/unit/services/test_recall_days_offset_default.py",
+        "apps/mp-selfwell/tests/recall-flow.test.ts"
+      ],
+      "route": "recall_days_offset",
+      "status": "pass"
+    },
+    {
+      "assertions": 6,
+      "case_id": "GS-V2-03",
+      "endpoint": "GET /api/v1/me/archive/summary",
+      "error": null,
+      "real_data_anchors": [
+        "apps/mp-selfwell/miniprogram/pages/profile-edit/index.ts::ProfileEditMode",
+        "apps/mp-selfwell/tests/profile-edit-dual-mode.test.ts",
+        "backend/app/api/routers/v2.py::get_archive_summary_endpoint"
+      ],
+      "route": "profile_edit_dual_mode",
+      "status": "pass"
+    },
+    {
+      "assertions": 5,
+      "case_id": "GS-V2-04",
+      "endpoint": "GET /api/v1/me/album/photos",
+      "error": null,
+      "real_data_anchors": [
+        "apps/mp-selfwell/miniprogram/pages/album/index.ts::WeekChip",
+        "apps/mp-selfwell/tests/album.test.ts",
+        "backend/app/services/v2/album_service.py::_parse_week"
+      ],
+      "route": "album_week_chip",
+      "status": "pass"
+    },
+    {
+      "assertions": 7,
+      "case_id": "GS-V2-05",
+      "endpoint": "GET /api/v1/me/archive/summary",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/v2/archive_service.py::get_archive_summary",
+        "backend/app/api/routers/v2.py::get_archive_summary_endpoint",
+        "apps/mp-selfwell/tests/profile-edit-dual-mode.test.ts"
+      ],
+      "route": "archive_summary",
+      "status": "pass"
+    },
+    {
+      "assertions": 6,
+      "case_id": "GS-V2-06",
+      "endpoint": "PUT /api/v1/me/notification-settings",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/v2/notification_service.py::DEFAULT_PREF_VALUES",
+        "backend/app/api/routers/v2.py::put_notification_settings_endpoint",
+        "backend/tests/unit/services/v2/test_v2_services.py::TestNotificationService"
+      ],
+      "route": "notification_get_put_loop",
+      "status": "pass"
+    },
+    {
+      "assertions": 3,
+      "case_id": "GS-V2-07",
+      "endpoint": "GET /api/v1/share/hug-card/{day}/template",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/share_service.py::TEMPLATES[7]",
+        "backend/app/api/routers/share_v1.py::hug_card_template_endpoint"
+      ],
+      "route": "hug_card_day7",
+      "status": "pass"
+    },
+    {
+      "assertions": 3,
+      "case_id": "GS-V2-08",
+      "endpoint": "GET /api/v1/share/hug-card/{day}/template",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/share_service.py::TEMPLATES[14]",
+        "backend/app/api/routers/share_v1.py::hug_card_template_endpoint"
+      ],
+      "route": "hug_card_day14",
+      "status": "pass"
+    },
+    {
+      "assertions": 4,
+      "case_id": "GS-V2-09",
+      "endpoint": "POST /api/v1/share/hug-card",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/services/share_service.py::TEMPLATES[21]",
+        "backend/app/services/share_service.py::generate_hug_card",
+        "backend/app/api/routers/share_v1.py::hug_card_endpoint"
+      ],
+      "route": "hug_card_day21",
+      "status": "pass"
+    },
+    {
+      "assertions": 8,
+      "case_id": "GS-V2-10",
+      "endpoint": "POST /api/v1/assistant/sessions/{session_id}/messages",
+      "error": null,
+      "real_data_anchors": [
+        "backend/app/contracts/ai_message.py::AIMessageContextPhotos",
+        "backend/tests/unit/test_ai_message_context_photos_schema.py",
+        "plans/v2-unified-parent.md::§4.1"
+      ],
+      "route": "ai_message_context_photos_schema",
+      "status": "pass"
+    }
+  ],
+  "schema_version": "v2-pr7-baseline-1",
+  "tolerance": 0,
+  "total": 10
+}
