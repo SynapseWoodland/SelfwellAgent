@@ -30,9 +30,9 @@ const SPEC_PAGES = [
   {
     name: '06-diagnose-report',
     figma: '06-butler-analyze-report.html',
-    mp: '/miniprogram/pages/diagnosis-report/index',
+    mp: '/miniprogram/pages/diagnosis-report-v2/index',
   },
-  { name: '07-plan', figma: '07-plan.html', mp: '/miniprogram/pages/plan/index' },
+  { name: '07-plan', figma: '07-plan.html', mp: '/miniprogram/pages/plan-delivery/index' },
   {
     name: '12-hug-card-day7',
     figma: '12-hug-card-day7.html',

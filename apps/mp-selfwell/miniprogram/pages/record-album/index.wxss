@@ -1,0 +1,13 @@
+/* PR-A4 清理 · record-album 兜底桩 */
+.ra-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-page);
+}
+
+.ra-placeholder {
+  font-size: var(--font-size-body);
+  color: var(--ink-500);
+}
