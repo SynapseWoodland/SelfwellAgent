@@ -1,4 +1,4 @@
-# Bug Fix Report: RequestValidationError 400 无堆栈日志
+# Bug Fix Report: 异常响应（400/409）无日志
 
 - **日期**: 2026-07-14
 - **修复人**: AI Agent
@@ -107,8 +107,69 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
 
 ---
 
-## 六、测试验证
+## 六、409 / HTTPException 二次修复（2026-07-14 17:00）
+
+### 6.1 问题
+
+路由层 catch `CheckinError` 后 re-raise 为纯 `HTTPException`：
+
+```python
+# checkin_v1.py
+except CheckinError as exc:
+    raise HTTPException(exc.http_status, {"code": exc.code, "message_zh": exc.render_zh()})
+```
+
+`HTTPException` 落入 FastAPI 内置处理器，**完全无日志**：
+
+```
+2026-07-14 17:23:15.489 | INFO | ... "POST /api/v1/checkins HTTP/1.1" 409
+```
+
+### 6.2 修复
+
+在 `main.py` 新增 `HTTPException` 处理器：
+
+```python
+@app.exception_handler(HTTPException)
+async def _http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    detail = exc.detail
+    if isinstance(detail, dict):
+        code = detail.get("code", "E_GENERAL_HTTP_EXCEPTION")
+        message_zh = detail.get("message_zh", "请求处理失败")
+        details = {k: v for k, v in detail.items() if k not in ("code", "message_zh")}
+    else:
+        code = "E_GENERAL_HTTP_EXCEPTION"
+        message_zh = str(detail)
+        details = None
+
+    status = exc.status_code
+    log_fn = logger.error if status >= 500 else logger.warning
+    log_fn("http_exception", path=str(request.url.path), status_code=status, code=code, ...)
+    return JSONResponse(status_code=status, content={...})
+```
+
+**设计原则**：
+- `4xx` → `logger.warning`（客户端问题）
+- `5xx` → `logger.error`（服务端问题）
+- 透出 router 传入的 `{"code", "message_zh"}` 字典结构
+
+### 6.3 修复后日志效果
+
+```
+2026-07-14 17:30:00.000 | WARNING | request_id - abc123 | backend.app.main:_http_exception_handler - http_exception | path=/api/v1/checkins | status_code=409 | code=E_CHECKIN_DUPLICATE
+```
+
+---
+
+## 七、测试验证
+
+### 7.1 400 验证（RequestValidationError）
 
 1. 发送参数校验失败的请求（如 `day > 21`）到任意接口
 2. 检查终端日志是否出现 `request_validation_error` + `errors` 字段
 3. 检查响应体是否包含 `E_GENERAL_VALIDATION_ERROR` 错误码
+
+### 7.2 409 验证（HTTPException）
+
+1. 重复打卡触发 409
+2. 检查终端日志是否出现 `http_exception` + `status_code=409` + `code` 字段
