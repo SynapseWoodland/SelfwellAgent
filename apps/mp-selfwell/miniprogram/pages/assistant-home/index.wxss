@@ -1,65 +1,50 @@
 /* =================================================================
-   PR-A4 Option A：智能分析 = 对话气泡内嵌卡片（设计稿 04a）
-   设计 token：
-     页面底色：#FAFBFC
-     薄荷绿 (mint)：#A8C5B5 / #9DB5A0
-     奶油 (cream)：#F5E6D3
-     桃色 (peach)：#F0D9C4
-     薰衣草 (lavender)：#D4C5E2
-     灰底：#F0F2F5 / #E2E8F0 / #F5F7FA
-     主文字：#2D3436 / 副文字：#718096 / #4A5568
+   assistant-home/index.wxss
+   PR-V2-C · 对齐 15a-butler-home-tab1.html 原型
+   保留 SSE chat 流 + 15a 视觉结构
 ================================================================= */
 
-.assistant {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: #FAFBFC;
-}
-
-/* ────────── 顶部导航（V2 polish：mint 主色背景 + 白字 + safe-area） ────────── */
+/* Nav Bar（15a原型：白底 + 黑字 + 抽屉按钮） */
 .assistant-nav {
+  height: 44px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12rpx 24rpx;
-  padding-top: calc(12rpx + env(safe-area-inset-top));
-  background-color: #A8C5B5;
-  border-bottom: 2rpx solid #5A8270;
-  flex-shrink: 0;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F0F2F5;
 }
-
 .assistant-nav-back {
-  font-size: 40rpx;
-  color: #FFFFFF;
-  padding: 0 16rpx;
-  line-height: 1;
+  font-size: 28px;
+  color: #2D3436;
+  width: 32px;
 }
-
 .assistant-nav-title {
-  font-size: 32rpx;
+  font-size: 17px;
   font-weight: 500;
-  color: #FFFFFF;
+  color: #2D3436;
 }
-
-.assistant-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.assistant-nav-btn {
-  font-size: 24rpx;
-  color: #FFFFFF;
-  padding: 8rpx 16rpx;
-  border-radius: 24rpx;
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
 .assistant-nav-more {
-  font-size: 36rpx;
-  color: #FFFFFF;
-  padding: 0 8rpx;
+  font-size: 22px;
+  color: #2D3436;
+  padding: 4px 8px;
+}
+
+/* Page wrapper */
+.assistant {
+  min-height: 100vh;
+  background: #FAFBFC;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 对话流（flex:1 填满剩余空间 + height:0 配合 flex 约束） */
+.assistant-stream {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  overflow-y: auto;
+  padding: 12px 0 0;
 }
 
 /* ────────── 回忆气泡（hook） ────────── */
@@ -75,25 +60,6 @@
   font-size: 24rpx;
   color: #2D3436;
 }
-
-/* ────────── 对话流 ────────── */
-.assistant-stream {
-  flex: 1;
-  overflow-y: auto;
-  /* 底部留出（从下往上）：
-   *   - input-bar        ~112rpx
-   *   - chips-bar        ~110rpx  (bottom: 120rpx)
-   *   - 间隔 1            ~10rpx
-   *   - butler-cards-block expanded ~156rpx（fixed 浮在 chips-bar 之上方, z-index:12）
-   *   - 间隔 2            ~16rpx
-   *   - 视觉安全余量       ~56rpx
-   *   合计 ≈ 460rpx
-   * SPEC-A2 §4.2 + 图 2/3 回归 bug：入口卡 expanded 态 fixed 浮在 chips-bar 上方，
-   * scroll-view padding-bottom 必须 ≥ 460rpx，否则最后一条气泡尾部会与入口卡视觉重叠。 */
-  padding: 16rpx 0 460rpx;
-  box-sizing: border-box;
-}
-
 /* SPEC-A2 §5.4：collapsed/focused 时让气泡右沿避开 floating icon */
 .assistant-stream.is-collapsed {
   padding-right: 96rpx;
@@ -108,140 +74,85 @@
   height: 40rpx;
 }
 
-/* ────────── 3 入口卡（持久化） ────────── */
-.assistant-entries {
-  margin: 16rpx 24rpx;
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.entry-card {
+/* 入口卡片（15a原型） */
+.entry-cards {
+  padding: 0 16px;
   display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 16rpx;
-  border-radius: 16rpx;
-  margin-bottom: 8rpx;
-  transition: background-color 0.2s;
+  flex-direction: column;
+  gap: 12px;
 }
-
-.entry-card:last-child {
-  margin-bottom: 0;
+.entry-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
-
-.entry-card:active {
-  background-color: #F5F7FA;
-}
-
-.entry-card.highlight,
-.entry-card.is-highlight,
-.entry-card.is_star,
-.entry-card.starred {
-  outline: 2rpx solid #A8C5B5;
-  outline-offset: -2rpx;
-}
-
+.entry-card:active { transform: scale(0.98); }
 .entry-icon {
-  flex-shrink: 0;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32rpx;
-  color: #2D3436;
+  font-size: 20px;
+  flex-shrink: 0;
 }
-
-.entry-content {
-  flex: 1;
-  min-width: 0;
-}
-
+.entry-content { flex: 1; }
 .entry-title {
-  font-size: 28rpx;
+  font-size: 16px;
   font-weight: 500;
   color: #2D3436;
-  margin-bottom: 4rpx;
+  margin-bottom: 4px;
 }
-
 .entry-sub {
-  font-size: 24rpx;
+  font-size: 13px;
   color: #718096;
+  line-height: 1.5;
 }
-
-.entry-state-sub {
-  font-size: 22rpx;
-  color: #4A5568;
-  margin-top: 4rpx;
+.entry-action { flex-shrink: 0; }
+.btn-start {
+  background: #A8C5B5;
+  color: #fff;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
 }
+.entry-arrow { color: #A0AEC0; font-size: 20px; padding-top: 4px; }
 
-.entry-highlight-token {
-  display: none;
-}
-
-.entry-btn {
-  flex-shrink: 0;
-  padding: 8rpx 20rpx;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  border-radius: 24rpx;
-  font-size: 22rpx;
-}
-
-.entry-chevron {
-  flex-shrink: 0;
-  color: #A0AEC0;
-  font-size: 32rpx;
-  padding: 0 8rpx;
-}
-
-/* ────────── Chips 4 项（V2 polish：圆角胶囊 + 主色描边 active） ────────── */
+/* Chips（15a原型：浅灰胶囊） */
 .chips-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 120rpx;
-  padding: 16rpx 24rpx;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
-  background-color: #FAFBFC;
-  border-top: 2rpx solid #F0F2F5;
-  z-index: 10;
+  gap: 8px;
+  background: #FAFBFC;
+  border-top: 1px solid #F0F2F5;
 }
 
 .chip {
-  background-color: #FFFFFF;
+  background: #F0F2F5;
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
   color: #4A5568;
-  border: 2rpx solid #E2E8F0;
-  border-radius: 36rpx;
-  padding: 12rpx 24rpx;
-  font-size: 24rpx;
 }
 
-.chip-active {
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  border-color: #A8C5B5;
-}
-
-/* ────────── 输入区 ────────── */
+/* 输入区（15a原型：cream背景） */
 .assistant-inputbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16rpx 24rpx;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  padding: 8px 16px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  background: #FAFBFC;
+  border-top: 1px solid #E2E8F0;
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  background-color: #FAFBFC;
-  border-top: 2rpx solid #E2E8F0;
-  z-index: 11;
+  gap: 10px;
 }
 
 .assistant-mic,
@@ -253,30 +164,29 @@
 
 .assistant-input {
   flex: 1;
-  height: 72rpx;
-  padding: 0 24rpx;
-  background-color: #F5F7FA;
-  border-radius: 36rpx;
-  font-size: 28rpx;
-  color: #2D3436;
-  border: 2rpx solid #F0F2F5;
+  height: 44px;
+  background: #F5E6D3;
+  border-radius: 12px;
+  border: none;
+  padding: 0 16px;
+  font-size: 14px;
+  color: #4A5568;
 }
 
-.assistant-input::placeholder {
-  color: #A0AEC0;
-}
+.assistant-input::placeholder { color: #A0AEC0; }
 
 .assistant-send {
-  height: 72rpx;
-  padding: 0 32rpx;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  border-radius: 36rpx;
+  width: 44px;
+  height: 44px;
+  background: #A8C5B5;
+  border-radius: 50%;
+  border: none;
   display: flex;
   align-items: center;
-  font-size: 28rpx;
-  font-weight: 500;
-  box-shadow: 0 4rpx 12rpx rgba(168, 197, 181, 0.35);
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  box-shadow: none;
 }
 
 /* =================================================================
@@ -623,3 +533,198 @@
   border: none;
   box-shadow: 0 8rpx 24rpx rgba(168, 197, 181, 0.4);
 }
+
+/* ═══════════════════════════════════════════
+   15a-butler-home-tab1.html 补充样式
+═══════════════════════════════════════════ */
+
+/* Day Banner（15a原型） */
+.day-banner {
+  margin: 12px 16px 0;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #F5E6D3 0%, #FFE5D0 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #6B5544;
+}
+.day-pill {
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #A0724F;
+  font-weight: 500;
+}
+.day-text { color: #6B5544; }
+
+/* 入口卡片（15a原型） */
+.entry-cards {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.entry-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+.entry-card:active { transform: scale(0.98); }
+.entry-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.entry-content { flex: 1; }
+.entry-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2D3436;
+  margin-bottom: 4px;
+}
+.entry-sub {
+  font-size: 13px;
+  color: #718096;
+  line-height: 1.5;
+}
+.entry-action { flex-shrink: 0; }
+.btn-start {
+  background: #A8C5B5;
+  color: #fff;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+}
+.entry-arrow { color: #A0AEC0; font-size: 20px; padding-top: 4px; }
+
+/* Chips（15a原型：浅灰胶囊） */
+.chips-bar {
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #FAFBFC;
+  border-top: 1px solid #F0F2F5;
+}
+.chip {
+  background: #F0F2F5;
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #4A5568;
+  cursor: pointer;
+}
+
+/* 输入区（15a原型：cream背景） */
+.assistant-inputbar {
+  padding: 8px 16px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  background: #FAFBFC;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.assistant-input {
+  flex: 1;
+  height: 44px;
+  background: #F5E6D3;
+  border-radius: 12px;
+  border: none;
+  padding: 0 16px;
+  font-size: 14px;
+  color: #4A5568;
+}
+.assistant-input::placeholder { color: #A0AEC0; }
+.assistant-send {
+  width: 44px;
+  height: 44px;
+  background: #A8C5B5;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+/* 底部 TabBar 占位 */
+.tabbar-placeholder {
+  height: 83px;
+  background: #fff;
+  border-top: 1px solid #E2E8F0;
+}
+
+/* 抽屉内样式 */
+.drawer-progress {
+  background: #F7F8FA;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.drawer-progress-title {
+  font-size: 12px;
+  color: #718096;
+  margin-bottom: 4px;
+}
+.drawer-progress-day {
+  font-size: 22px;
+  font-weight: 500;
+  color: #2D3436;
+}
+.drawer-progress-sub {
+  font-size: 12px;
+  color: #A8C5B5;
+  margin-top: 4px;
+}
+.drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.drawer-card {
+  background: #F7F8FA;
+  border-radius: 12px;
+  padding: 14px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.drawer-card:active { transform: scale(0.97); }
+.drawer-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.drawer-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2D3436;
+}
+.drawer-card-sub { font-size: 11px; color: #A0AEC0; }

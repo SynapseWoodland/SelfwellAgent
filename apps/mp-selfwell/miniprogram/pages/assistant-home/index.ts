@@ -146,10 +146,62 @@ Page({
       { id: 'compare', text: '📊 查看对比', active: false },
     ],
     lastTurnId: 't0',
+    /** 抽屉状态 */
+    drawerVisible: false,
+    /** 当前天数（15a原型 day-banner） */
+    currentDay: 0,
+    dayEncourageText: '',
   },
 
   onLoad() {
     this.ensureSession();
+    this._loadCurrentDay();
+  },
+
+  /** 加载当前天数（day-banner） */
+  async _loadCurrentDay() {
+    try {
+      const me = await import('../../utils/request').then(m => m.get<{ current_streak_days?: number }>('/users/me'));
+      const day = me?.current_streak_days ?? 0;
+      const encourageText = day === 0
+        ? '今天是新开始 🌿'
+        : day < 7
+        ? '已坚持 1 周，慢慢来'
+        : day < 14
+        ? '走到一半了，慢慢来'
+        : '已坚持两周多，继续加油';
+      this.setData({ currentDay: day, dayEncourageText: encourageText });
+    } catch { /* 兜底不展示 banner */ }
+  },
+
+  /** 抽屉开关 */
+  onOpenDrawer() { this.setData({ drawerVisible: true }); },
+  onCloseDrawer() { this.setData({ drawerVisible: false }); },
+
+  /** 抽屉内导航 */
+  onDrawerNav(e: WechatMiniprogram.TapEvent) {
+    const page = String((e.currentTarget.dataset as { page?: string }).page ?? '');
+    this.setData({ drawerVisible: false });
+    if (!page) return;
+    const routes: Record<string, string> = {
+      home: '/pages/home/index',
+      'diagnosis-upload-v2': '/pages/diagnosis-upload-v2/index',
+      'feedback-diary': '/pages/feedback-diary/index',
+      album: '/pages/album/index',
+      'notification-settings': '/pages/notification-settings/index',
+    };
+    const url = routes[page];
+    if (url) wx.switchTab({ url }).catch(() => wx.navigateTo({ url }));
+  },
+
+  /** 心情 chips 快速反馈 */
+  onTapChip(e: WechatMiniprogram.TapEvent) {
+    const text = String((e.currentTarget.dataset as { text?: string }).text ?? '');
+    if (!text) return;
+    wx.showToast({ title: `已记录：${text}`, icon: 'none' });
+    // 也发送到 chat 流
+    this.setData({ inputText: text });
+    void this.onSend();
   },
 
   onUnload() {
@@ -405,22 +457,18 @@ Page({
   /** 点击 chips（4 项：智能分析 / 今日 / 聊聊今天 / 查看对比）
    *  v2 行为：smart_analyze 跳独立页面，其它 chip 仅更新 active 态 + toast 占位。
    */
-  onTapChip(e: WechatMiniprogram.BaseEvent) {
-    const id = (e.currentTarget.dataset as { id: string }).id;
-    // 切换 chips 激活态：被点的 chip 高亮，其余清空（PRD §3.5.1 单选）
+  onTapChip(e: WechatMiniprogram.TapEvent) {
+    const id = String((e.currentTarget.dataset as { id?: string }).id ?? '');
     const chips = this.data.chips.map((c) => ({ ...c, active: c.id === id }));
     this.setData({ chips });
     if (id === 'smart_analyze') {
       wx.navigateTo({ url: SMART_ANALYZE_V2_URL });
-      return;
-    }
-    // 其它 chips 暂时仅更新激活态 + toast 占位（保留旧 chip 行为）
-    if (id === 'today') {
+    } else if (id === 'today') {
       wx.showToast({ title: '今天先做 1 件小事', icon: 'none' });
     } else if (id === 'chat') {
       wx.showToast({ title: '跟我说说你今天吧', icon: 'none' });
     } else if (id === 'compare') {
-      wx.showToast({ title: '看看你走过的痕迹', icon: 'none' });
+      wx.navigateTo({ url: '/pages/recall-compare/index' });
     }
   },
 

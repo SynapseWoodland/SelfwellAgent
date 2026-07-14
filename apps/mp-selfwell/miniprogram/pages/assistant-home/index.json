@@ -2,6 +2,7 @@
   "navigationBarTitleText": "智能管家",
   "usingComponents": {
     "persona-bubble": "/components/persona-bubble/index",
-    "butler-cards-block": "/components/butler-cards-block/index"
+    "butler-cards-block": "/components/butler-cards-block/index",
+    "drawer-overlay": "/components/drawer-overlay/index"
   }
 }

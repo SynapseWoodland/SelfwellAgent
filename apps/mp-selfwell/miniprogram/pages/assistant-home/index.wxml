@@ -1,35 +1,48 @@
 <!--
-  PR-8 v2 · assistant-home V2 UI（PR-A4 chat 流已下线，仅保留 AI 自由对话兜底）
-  ──────────────────────────────────────────────────────────────────────
-  真源：plans/v2-IA-pr-internal.md
-  真源：docs/design/figma-pixso-spec/pages/15a-butler-home-tab1.html
-  ──────────────────────────────────────────────────────────────────────
-  v2 关键变更（PR-A4 → v2）：
-  1) 删 upload-card / progress-card / report-card 内嵌气泡渲染
-  2) 智能分析入口卡 / chip 直接 wx.navigateTo /pages/diagnosis-upload-v2/index
-  3) 保留 chat SSE 流（token_delta 打字机）+ persona-bubble 通用渲染
+  assistant-home/index.wxml
+  PR-V2-C · 对齐 15a-butler-home-tab1.html 原型
+  保留 SSE chat 流 + 对齐 15a 视觉结构（day-banner/entry-cards/chips/input-area/drawer）
 -->
-<view class="assistant">
-  <!-- V2 顶部导航（mint 主色背景 + 白字 + safe-area） -->
-  <view class="assistant-nav" data-test="nav-bar">
-    <view class="assistant-nav-back" bindtap="onNavBack" data-test="nav-back">‹</view>
-    <view class="assistant-nav-title">智能管家</view>
-    <view class="assistant-nav-actions">
-      <view class="assistant-nav-btn" data-test="history-btn" bindtap="onTapHistory">历史</view>
-      <view class="assistant-nav-btn" data-test="settings-btn" bindtap="onTapSettings">设置</view>
-      <view class="assistant-nav-more" bindtap="onNavAction" data-test="nav-more">⋯</view>
+<!-- 抽屉放在最外层，独立于 flex 容器 -->
+<drawer-overlay visible="{{drawerVisible}}" title="管理页" bind:close="onCloseDrawer">
+  <!-- 抽屉头部进度块 -->
+  <view class="drawer-progress">
+    <view class="drawer-progress-title">当前进度</view>
+    <view class="drawer-progress-day">第 {{currentDay}} 天 / 21</view>
+    <view class="drawer-progress-sub">已坚持 {{currentDay}} 天 · 慢慢来</view>
+  </view>
+  <!-- 抽屉卡片 grid（仅放入口卡之外的功能入口） -->
+  <view class="drawer-grid">
+    <view class="drawer-card" bindtap="onDrawerNav" data-page="home">
+      <view class="drawer-card-icon" style="background:#E0F0E5;">◐</view>
+      <view class="drawer-card-title">今日任务</view>
+      <view class="drawer-card-sub">进度环 · 3 项动作</view>
+    </view>
+    <view class="drawer-card" bindtap="onDrawerNav" data-page="album">
+      <view class="drawer-card-icon" style="background:#F5E6D3;">◷</view>
+      <view class="drawer-card-title">我的时光</view>
+      <view class="drawer-card-sub">21 天时间轴</view>
+    </view>
+    <view class="drawer-card" bindtap="onDrawerNav" data-page="notification-settings">
+      <view class="drawer-card-icon" style="background:#F0F2F5;">⚙</view>
+      <view class="drawer-card-title">通知设置</view>
+      <view class="drawer-card-sub">每日早 8:00 提醒</view>
     </view>
   </view>
+</drawer-overlay>
 
-  <!-- 顶部回忆气泡（Day 7/14/21 触发器；暂时保留 hook 占位，未来视觉确认后激活） -->
-  <view wx:if="{{false}}" class="assistant-recall-bubble" data-test="recall-bubble">
-    <text class="assistant-recall-text">回忆气泡</text>
+<!-- 页面主体：flex 纵向排列，底部聊天框始终固定 -->
+<view class="assistant">
+  <!-- Nav Bar（15a原型：白底 + 黑字 + 抽屉按钮） -->
+  <view class="assistant-nav">
+    <view class="assistant-nav-back" bindtap="onNavBack">‹</view>
+    <view class="assistant-nav-title">智能管家</view>
+    <view class="assistant-nav-more" bindtap="onOpenDrawer">⋯</view>
   </view>
 
-  <!-- 对话流（V2 polish：底部留白更宽，mint/cream 渐变头像）
-       v2：persona-bubble 只接收 text + title；不再有 upload_card / progress_card / report_card 内嵌附件 -->
+  <!-- 对话流（SSE chat 气泡） -->
   <scroll-view
-    class="assistant-stream {{butlerCardsMode === 'collapsed' || butlerCardsMode === 'focused' ? 'is-collapsed' : ''}}"
+    class="assistant-stream"
     scroll-y
     scroll-into-view="{{lastTurnId}}"
     enhanced
@@ -47,51 +60,69 @@
         title="{{item.title || ''}}"
       />
     </view>
-
-    <view wx:if="{{entryHidden && !turns.length}}" class="assistant-stream-tail"></view>
   </scroll-view>
 
-  <!-- V2 入口卡块（与现有 butler-cards-block 组件契约不变） -->
-  <butler-cards-block
-    mode="{{butlerCardsMode}}"
-    cards="{{entryCards}}"
-    popover-open="{{popoverOpen}}"
-    bind:cards-tap="onTapEntry"
-    bind:floating-tap="onTapFloatingIcon"
-    bind:popover-close="onPopoverClose"
-  />
+  <!-- Day N Banner（15a原型：第N天banner） -->
+  <view class="day-banner" wx:if="{{currentDay > 0}}">
+    <view class="day-pill">第 {{currentDay}} 天</view>
+    <view class="day-text">{{dayEncourageText}}</view>
+  </view>
 
-  <!-- V2 chips 4 项（圆角胶囊 + 主色描边 active） -->
-  <view class="chips-bar" data-test="chips-bar">
-    <view
-      wx:for="{{chips}}"
-      wx:key="id"
-      class="chip {{item.active ? 'chip-active' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="onTapChip"
-    >
-      <block wx:if="{{item.id === 'smart_analyze'}}">🔍 智能分析</block>
-      <block wx:elif="{{item.id === 'today'}}">📅 今日 · 第 {{item.dayIndex || 1}} 天</block>
-      <block wx:elif="{{item.id === 'chat'}}">💬 聊聊今天</block>
-      <block wx:elif="{{item.id === 'compare'}}">📊 查看对比</block>
-      <block wx:else>{{item.text}}</block>
+  <!-- 入口卡片（15a原型） -->
+  <view class="entry-cards" wx:if="{{!entryHidden}}">
+    <!-- 智能分析 -->
+    <view class="entry-card" bindtap="onTapEntry" data-id="smart_analyze">
+      <view class="entry-icon" style="background:#F5E6D3;">◎</view>
+      <view class="entry-content">
+        <view class="entry-title">智能分析</view>
+        <view class="entry-sub">上传 3 张照片，生成你的养护参考</view>
+      </view>
+      <view class="entry-action">
+        <button class="btn-start">开始</button>
+      </view>
+    </view>
+    <!-- 心情日记 -->
+    <view class="entry-card" bindtap="onTapEntry" data-id="mood_diary">
+      <view class="entry-icon" style="background:#F0D9C4;">✎</view>
+      <view class="entry-content">
+        <view class="entry-title">心情日记</view>
+        <view class="entry-sub">想留下点什么吗？没有格式</view>
+      </view>
+      <view class="entry-action">
+        <view class="entry-arrow">›</view>
+      </view>
+    </view>
+    <!-- 问问过去的自己 -->
+    <view class="entry-card" bindtap="onTapEntry" data-id="recall_self">
+      <view class="entry-icon" style="background:#D4C5E2;">◷</view>
+      <view class="entry-content">
+        <view class="entry-title">问问过去的自己</view>
+        <view class="entry-sub">好奇 7 天前的你吗？</view>
+      </view>
+      <view class="entry-action">
+        <view class="entry-arrow">›</view>
+      </view>
     </view>
   </view>
 
-  <!-- V2 输入栏（圆角 36rpx + 发送按钮 mint 主色） -->
-  <view class="assistant-inputbar" data-test="input-area">
-    <view class="assistant-mic" data-test="mic-icon" bindtap="onTapMic">🎤</view>
+  <!-- 快速 Chips（15a原型） -->
+  <view class="chips-bar">
+    <view class="chip" bindtap="onTapChip" data-text="今天好累">今天好累</view>
+    <view class="chip" bindtap="onTapChip" data-text="今天练完了">今天练完了</view>
+    <view class="chip" bindtap="onTapChip" data-text="肩颈有点紧">肩颈有点紧</view>
+    <view class="chip" bindtap="onTapChip" data-text="心情不错">心情不错</view>
+  </view>
+
+  <!-- 输入区（15a原型：cream背景） -->
+  <view class="assistant-inputbar">
     <input
       class="assistant-input"
       placeholder="直接跟我说就好"
       value="{{inputText}}"
       bindinput="onInput"
-      bindfocus="onInputFocus"
-      bindblur="onInputBlur"
-      confirm-type="send"
       bindconfirm="onSend"
+      confirm-type="send"
     />
-    <view class="assistant-camera" data-test="camera-icon" bindtap="onTapCamera">📷</view>
-    <view class="assistant-send" bindtap="onSend" data-test="send-btn">发送</view>
+    <view class="assistant-send" bindtap="onSend">发送</view>
   </view>
 </view>
