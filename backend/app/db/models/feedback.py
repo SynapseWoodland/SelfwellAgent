@@ -55,6 +55,9 @@ class Feedback(Base):
         nullable=True,
         index=True,
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     # audit
     created_by: Mapped[str | None] = mapped_column(VARCHAR(64), nullable=True)

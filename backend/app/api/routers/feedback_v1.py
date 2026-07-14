@@ -1,8 +1,15 @@
-"""M7 反馈路由（``/api/v1/feedback``）。"""
+"""M7 反馈路由（``/api/v1/feedback``）。
+
+V1.1.1：GET 端点支持 ``X-Caller-Id`` 白名单校验
+（``mood_diary_list / recall_retrieve / time_album_list``），
+对齐 ``docs/api/openapi.yaml``。
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +22,11 @@ from app.services.feedback_service import (
 )
 
 feedback_router = APIRouter(prefix="/feedback", tags=["feedback"])
+
+# GET /feedback 允许的 caller 白名单（与 openapi.yaml 一致）
+_ALLOWED_LIST_CALLERS: frozenset[str] = frozenset(
+    {"mood_diary_list", "recall_retrieve", "time_album_list"}
+)
 
 
 class FeedbackCreate(BaseModel):
@@ -41,9 +53,21 @@ async def create_feedback_endpoint(
 
 @feedback_router.get("")
 async def list_feedback_endpoint(
+    x_caller_id: Annotated[
+        str | None,
+        Header(alias="X-Caller-Id", description="调用方标识（白名单校验）"),
+    ] = None,
     user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
 ) -> dict:
+    if x_caller_id is None or x_caller_id not in _ALLOWED_LIST_CALLERS:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "E_GENERAL_FORBIDDEN",
+                "message_zh": "X-Caller-Id 不在白名单中",
+            },
+        )
     return {"code": 0, "data": await list_user_feedbacks(session, user_id=user_id)}
 
 

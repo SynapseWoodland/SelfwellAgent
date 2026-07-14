@@ -30,6 +30,7 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
     Counter,
+    Gauge,
     Histogram,
     generate_latest,
 )
@@ -115,7 +116,7 @@ LLM_COST_YUAN_TOTAL = Counter(
 SMART_ANALYZE_DONE_TOTAL = Counter(
     "selfwell_smart_analyze_done_total",
     "Total successful smart_analyze completions.",
-    ["is_mock"],
+    ["is_fallback"],
     registry=METRICS_REGISTRY,
 )
 SMART_ANALYZE_FAILED_TOTAL = Counter(
@@ -128,6 +129,40 @@ SMART_ANALYZE_DURATION_SECONDS = Histogram(
     "selfwell_smart_analyze_duration_seconds",
     "Smart analyze end-to-end duration (seconds).",
     buckets=(1.0, 5.0, 10.0, 30.0, 60.0),
+    registry=METRICS_REGISTRY,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# §七 Phase 4 批次 4 增量指标
+# 1) 5 阶段 SSE 阶段耗时（vision_progress_5_stage 路径）
+# 2) SSE 断连率（disconnected ratio；用于发现前端 EventSource 反复重连）
+# 3) 数据库连接池利用率（pool.checkedout / pool.size）
+# 4) LLM cost / latency 已在 §四，这里补 is_mock 标签兼容性 + intent 维度
+# ─────────────────────────────────────────────────────────────────────────
+SSE_STAGE_DURATION_SECONDS = Histogram(
+    "selfwell_sse_stage_duration_seconds",
+    "5-stage SSE pipeline per-stage duration (seconds).",
+    ["endpoint", "stage"],
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0),
+    registry=METRICS_REGISTRY,
+)
+SSE_DISCONNECTED_TOTAL = Counter(
+    "selfwell_sse_disconnected_total",
+    "Total SSE stream premature terminations (client disconnected before end event).",
+    ["endpoint", "reason"],
+    registry=METRICS_REGISTRY,
+)
+DB_POOL_IN_USE = Gauge(
+    "selfwell_db_pool_in_use",
+    "Number of database connections currently checked out from the pool.",
+    ["pool"],
+    registry=METRICS_REGISTRY,
+)
+DB_POOL_SIZE = Gauge(
+    "selfwell_db_pool_size",
+    "Configured database connection pool size.",
+    ["pool"],
     registry=METRICS_REGISTRY,
 )
 
@@ -156,6 +191,7 @@ def get_metrics() -> tuple[bytes, str]:
     Notes:
         显式 ``b"")`` 让 ``generate_latest`` 返回 ``bytes``；
         Prometheus 抓取端要求 Content-Type 含 ``escaping=allow_utf-8``。
+
     """
     body = generate_latest(METRICS_REGISTRY)
     return body, CONTENT_TYPE_LATEST
@@ -179,6 +215,11 @@ __all__ = [
     "SMART_ANALYZE_DONE_TOTAL",
     "SMART_ANALYZE_FAILED_TOTAL",
     "SMART_ANALYZE_DURATION_SECONDS",
+    # §七 Phase 4 批次 4
+    "SSE_STAGE_DURATION_SECONDS",
+    "SSE_DISCONNECTED_TOTAL",
+    "DB_POOL_IN_USE",
+    "DB_POOL_SIZE",
     # §六 渲染
     "get_metrics",
 ]

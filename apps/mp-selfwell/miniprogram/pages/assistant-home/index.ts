@@ -26,7 +26,7 @@ import '../../utils/abort-controller-polyfill';
 import { dlog } from '../../utils/dlog';
 import { post, ApiException } from '../../utils/request';
 import { consumeSse, type SseConsumer, type SseEvent } from '../../utils/sse-http';
-import { API_BASE_URL, CURRENT_ENV } from '../../utils/config';
+import { API_BASE_URL, CURRENT_ENV, getHomeTabUrl } from '../../utils/config';
 import { pickRandomAck } from '../../data/ack-pool';
 
 type PersonaState = 'greeting' | 'listening' | 'thinking' | 'answer' | 'medical_guarded';
@@ -568,12 +568,14 @@ Page({
   },
 
   /** nav-back 兜底链：优先 switchTab 回 home tab（tabBar 页面只能这么跳），
-   *  再退化为 reLaunch 跳 home。 */
+   *  再退化为 reLaunch 跳 home。home tab 路径走 `getHomeTabUrl()` 配置常量，
+   *  禁止硬编码 `/pages/home/index` —— FE-FIX-06 §P2 抽常量。 */
   fallbackToHomeTab() {
+    const homeUrl = getHomeTabUrl();
     wx.switchTab({
-      url: '/pages/home/index',
+      url: homeUrl,
       fail: () => {
-        wx.reLaunch({ url: '/pages/home/index' });
+        wx.reLaunch({ url: homeUrl });
       },
     });
   },

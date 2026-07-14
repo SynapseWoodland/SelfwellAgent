@@ -18,14 +18,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Callable
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import yaml
@@ -430,6 +430,9 @@ async def _invoke_llm_structured(
     # ── Chain：structured_llm 直接调用 messages ─────────────────────────────────
     structured_llm = multimodal_llm.with_structured_output(DiagnosisOutput)
 
+    # Phase 4 批次 4：LLM 调用次数 + 耗时 + 成本 一次性埋点
+    _llm_start = time.perf_counter()
+    _llm_outcome = "ok"
     try:
         result = await structured_llm.ainvoke(messages)
         model = getattr(multimodal_llm, "model", "multimodal")
@@ -452,6 +455,7 @@ async def _invoke_llm_structured(
         )
         payload = default_payload
         model = "rule-engine"
+        _llm_outcome = "exception"
 
     result_directions = _normalize_directions(payload.get("directions"))
     logger.info(
@@ -470,10 +474,39 @@ async def _invoke_llm_structured(
     try:
         from app.core.metrics import LLM_COST_YUAN_TOTAL
         LLM_COST_YUAN_TOTAL.labels(model=model, intent="vision_diagnose").inc(cost_float)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # 指标上报失败不应阻断主流程
         logger.warning(
             "llm_cost_metric_inc_failed",
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:200],
+        )
+
+    # Phase 4 批次 4：补 LLM_CALLS_TOTAL + LLM_LATENCY_SECONDS / VISION_LATENCY_SECONDS
+    # 这些指标之前定义了但没埋，批次 2 的 llm_cost=0 残留就是缺这块导致的。
+    try:
+        _elapsed = time.perf_counter() - _llm_start
+        from app.core.metrics import (
+            LLM_CALLS_TOTAL,
+            LLM_LATENCY_SECONDS,
+            VISION_LATENCY_SECONDS,
+        )
+
+        # is_mock = True 当 fallback 到 rule-engine；保留 label 兼容性
+        LLM_CALLS_TOTAL.labels(
+            model=model,
+            intent="vision_diagnose",
+            is_mock=str(model == "rule-engine").lower(),
+        ).inc()
+        if model == "rule-engine":
+            # rule-engine 走 fallback，不算真实 vision LLM 延迟
+            LLM_LATENCY_SECONDS.labels(model=model, intent="vision_diagnose").observe(_elapsed)
+        else:
+            VISION_LATENCY_SECONDS.labels(model=model, outcome=_llm_outcome).observe(_elapsed)
+            LLM_LATENCY_SECONDS.labels(model=model, intent="vision_diagnose").observe(_elapsed)
+    except Exception as exc:
+        logger.warning(
+            "llm_metric_observe_failed",
             error_type=type(exc).__name__,
             error_message=str(exc)[:200],
         )
@@ -534,15 +567,16 @@ def check_text_safety(text: str) -> dict[str, object]:
 def _rule_engine_fallback(profile: dict[str, Any], complaint: str | None) -> dict[str, Any]:
     """规则引擎兜底：缺料时不返假报告（V5.2.1-PR4 T22 + F4）.
 
-V5.2.1 §3.10 旧版返 directions[] 含形如 part 方向 N 的垃圾标题——前端识别不出
-"这是 fallback 不是 LLM 真实报告"，用户看到"脸 方向 1"这种长得像报告但不是报告的内容。
+    V5.2.1 §3.10 旧版返 directions[] 含形如 part 方向 N 的垃圾标题——前端识别不出
+    "这是 fallback 不是 LLM 真实报告"，用户看到"脸 方向 1"这种长得像报告但不是报告的内容。
 
-PR4 F4 改：directions/tags 留空 + is_fallback=true + fallback_reason="资料不足"，前端
-识别后不渲染 report card，转引导用户补料（参 docs/api/sse-events.md §5.5）。
+    PR4 F4 改：directions/tags 留空 + is_fallback=true + fallback_reason="资料不足"，前端
+    识别后不渲染 report card，转引导用户补料（参 docs/api/sse-events.md §5.5）。
 
-Returns:
+    Returns:
     dict 含 is_fallback=True、fallback_reason、空 directions/tags、引导 summary。
-"""
+
+    """
     return {
         "is_fallback": True,
         "fallback_reason": "资料不足",
@@ -759,7 +793,7 @@ class DiagnosisJobInputs:
     complaint: str | None
     user_id: str
     report_id: str
-    db_factory: Callable[[], AsyncSession]
+    db_factory: Callable[[], Awaitable[AsyncSession]]
     store: JobStateStore
 
 
@@ -998,7 +1032,8 @@ async def run_diagnosis_job(
     log = logger.bind(job_id=job_id, user_id=user_id, report_id=report_id)
     log.info("diagnosis_job_started")
     try:
-        async with inputs.db_factory() as db:
+        db = await inputs.db_factory()
+        async with db:
             # ── 读 user 档案（与同步 ``create_diagnosis`` 行为一致）─────────────
             try:
                 user_uuid = UUID(str(user_id))

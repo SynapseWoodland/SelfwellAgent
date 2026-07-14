@@ -78,13 +78,18 @@ async def test_generate_plan_insufficient_videos_uses_standard() -> None:
     result = await generate_plan(fake_session, user_id=user_id, report_id=report_id)
     assert result["length_days"] == PLAN_LENGTH_DAYS
     assert len(result["days"]) == 21
-    # 每个 day 的 tasks 数量符合阶段配比
+    # 每个 day 都转为 PlanPreviewDay 形态（不再暴露内部 tasks 数组）
     for d in result["days"][:7]:
-        assert len(d["tasks"]) == 1
+        assert d["day_index"] <= 7
+        assert d["duration_minutes"] >= 1
+        assert d["source"] == "video_pool"
+        assert d["status"] == "pending"
     for d in result["days"][7:14]:
-        assert len(d["tasks"]) == 2
+        assert 8 <= d["day_index"] <= 14
     for d in result["days"][14:21]:
-        assert len(d["tasks"]) == 3
+        assert 15 <= d["day_index"] <= 21
+    # day_index 应当连续 1..21
+    assert [d["day_index"] for d in result["days"]] == list(range(1, 22))
 
 
 @pytest.mark.asyncio

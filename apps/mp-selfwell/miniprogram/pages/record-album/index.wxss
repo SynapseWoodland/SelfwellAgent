@@ -1,4 +1,4 @@
-/* PR-A4 清理 · record-album 兜底桩 */
+/* FE-FIX-02 · record-album → album 重定向桩 */
 .ra-page {
   min-height: 100vh;
   display: flex;

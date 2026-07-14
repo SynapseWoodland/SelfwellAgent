@@ -141,10 +141,10 @@ async def test_send_message_stream_end_persists_assistant_msg_safety_passed_true
     assistant_msg = _find_ai_message_added(session, role="assistant")
     assert assistant_msg.role == "assistant"
     assert assistant_msg.safety_passed is True
-    assert assistant_msg.llm_model == "sse-mock-fallback"
+    # V1.1.1：chat 路径落库 llm_model 由 LLM 链路决定（text-llm 或 static-fallback）
+    assert assistant_msg.llm_model in {"text-llm", "static-fallback"}, assistant_msg.llm_model
     assert assistant_msg.session_id == ai_session.id
     assert assistant_msg.safety_violations is not None
-    assert "directions" in assistant_msg.safety_violations
     assert "persona_state" in assistant_msg.safety_violations
 
 
@@ -213,9 +213,7 @@ async def test_send_message_stream_end_reply_text_and_directions_written() -> No
     assistant_msg = _find_ai_message_added(session, role="assistant")
     assert assistant_msg.content == reply
     assert assistant_msg.token_count == len(reply)
-    directions = assistant_msg.safety_violations["directions"]
-    assert isinstance(directions, list) and len(directions) >= 3
-    assert directions[0]["num"] == 1
-    # title is the localized 3-char body part label; assert shape only
-    assert isinstance(directions[0]["title"], str) and len(directions[0]["title"]) > 0
-    assert directions[0]["level"] in ("\u8f7b\u5ea6", "\u4e2d\u5ea6", "\u91cd\u5ea6")
+    # V1.1.1：chat 路径只把 persona_state 写入 safety_violations；
+    # directions 现在属于 context_photos 分面（smart_analyze 路径）
+    sv = assistant_msg.safety_violations
+    assert isinstance(sv, dict) and "persona_state" in sv

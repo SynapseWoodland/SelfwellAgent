@@ -61,7 +61,7 @@ def test_healthz_returns_200(client: TestClient) -> None:
     assert "status" in body
     assert body["status"] in {"ok", "degraded"}
     assert "checks" in body
-    assert set(body["checks"].keys()) == {"db", "redis", "llm"}
+    assert set(body["checks"].keys()) == {"db", "redis", "minio", "llm"}
 
 
 def test_app_title_is_selfwell(client: TestClient) -> None:

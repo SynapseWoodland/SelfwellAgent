@@ -50,11 +50,31 @@ class PlanCreateRequest(BaseModel):
     report_id: str
 
 
+class PlanPreviewDay(BaseModel):
+    """方案预览每日条目（前端 plan-delivery/index.ts:loadPreview 契约）。
+
+    字段语义：
+    - ``day_index``: 第几天（1-21）
+    - ``duration_minutes``: 当日单个任务时长（分钟）
+    - ``task``: 任务标签（默认取首个任务的 video_id）
+    - ``title``: 当日展示标题（默认取首个任务标题或中文默认文案）
+    - ``source``: 任务来源（``video_pool`` / ``placeholder`` 等）
+    - ``status``: 任务状态（``pending`` / ``done`` / ``locked``）
+    """
+
+    day_index: int
+    duration_minutes: int
+    task: str | None = None
+    title: str
+    source: str
+    status: str
+
+
 class PlanData(BaseModel):
     plan_id: str
     report_id: str
     length_days: int
-    days: list[dict]
+    days: list[PlanPreviewDay]
     started_at: str | None = None
 
 

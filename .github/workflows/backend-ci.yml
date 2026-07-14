@@ -73,6 +73,25 @@ jobs:
           uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd || true
 
       # ──────────────────────────────────────────────
+      # OpenAPI 契约 lint（BE-FIX-09 · Phase 4 批次 4 接入）
+      # 1) check_openapi.py：纯 yaml.safe_load + 关键字段名校验（不依赖 prance）
+      # 2) prance（如果 pyproject 声明了则跑；当前未声明 → 跳过）
+      # ──────────────────────────────────────────────
+      - name: OpenAPI lint — check_openapi.py (BE-FIX-09)
+        run: |
+          python tools/check_openapi.py --json > /tmp/openapi_check.json
+          cat /tmp/openapi_check.json
+
+      - name: OpenAPI lint — prance (optional)
+        continue-on-error: true
+        run: |
+          if uv run python -c "import prance" 2>/dev/null; then
+            uv run prance validate docs/api/openapi.yaml --backend=openapi-spec-validator
+          else
+            echo "prance not installed; skipping (check_openapi.py above covers key field checks)"
+          fi
+
+      # ──────────────────────────────────────────────
       # Golden Set 拦截回归
       # ──────────────────────────────────────────────
       - name: Golden Set — input intercept

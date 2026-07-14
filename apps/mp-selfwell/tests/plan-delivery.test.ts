@@ -25,8 +25,10 @@ describe('plan-delivery contract', () => {
 
   it('builds all 21 day rows and previews the first seven', () => {
     const ts = read('index.ts');
-    expect(ts).toContain('Array.from({ length: 21 }');
-    expect(ts).toContain('days.slice(0, 7)');
+    // FE-FIX-07：21 天预览字段映射走 services/plan.ts mapPlanDays 纯函数；
+    // page 内不再使用 Array.from({length:21}) 直接 map，留给 service 层处理
+    expect(ts).toMatch(/mapPlanDays\(\s*preview\.days\s*,\s*fallbacks\s*\)/);
+    expect(ts).toMatch(/days\.slice\(\s*0\s*,\s*7\s*\)/);
     expect(read('index.wxml')).toContain('查看全部 21 天');
   });
 

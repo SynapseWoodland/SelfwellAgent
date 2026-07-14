@@ -81,6 +81,68 @@ export const STORAGE_KEYS = {
 } as const;
 
 /**
+ * TabBar 配置常量（FE-FIX-06）
+ * ────────────────────────────────────────
+ * 真源：app.json tabBar.list（PR-3 commit-1 锁定 4 项）
+ * 设计：页面内禁止硬编码 `/pages/...` 路径；统一通过 TAB_ROUTES 配置常量 + getTabUrl() 工厂读取。
+ *
+ * 用途：
+ *  - assistant-home 的 fallbackToHomeTab() 等需要「跳 tabBar 兜底链」的场景
+ *  - 未来 tabBar 重排（"今天" tab 路径变更）时，只改本常量即可
+ *
+ * 与 app.json tabBar 的关系：
+ *  - app.json 真源不变（小程序 IDE 读取）；此处 TS 层镜像，便于：
+ *    1. vitest 单测 + 静态分析校验
+ *    2. 跨 page 文件常量引用
+ *    3. 后续如增删 tabBar 项，自动 TS 编译报警
+ */
+export type TabId = 'butler' | 'today' | 'plaza' | 'profile';
+
+export interface TabRoute {
+  /** Tab 标识符（与小程序后台约定的语义键） */
+  id: TabId;
+  /** 微信小程序 pagePath（不含前导 `/`；与 wx.switchTab / app.json 兼容） */
+  pagePath: string;
+  /** 与 switchTab / navigateTo 拼接时使用的前导 `/` 路径 */
+  url: string;
+  /** Tab 标题（用于 _devLog / 调试） */
+  text: string;
+}
+
+export const TAB_ROUTES: Readonly<Record<TabId, TabRoute>> = {
+  butler: {
+    id: 'butler',
+    pagePath: 'pages/assistant-home/index',
+    url: '/pages/assistant-home/index',
+    text: '智能管家',
+  },
+  today: {
+    id: 'today',
+    pagePath: 'pages/home/index',
+    url: '/pages/home/index',
+    text: '今天',
+  },
+  plaza: {
+    id: 'plaza',
+    pagePath: 'pages/community/index',
+    url: '/pages/community/index',
+    text: '广场',
+  },
+  profile: {
+    id: 'profile',
+    pagePath: 'pages/profile-new/index',
+    url: '/pages/profile-new/index',
+    text: '我的',
+  },
+} as const;
+
+/** getHomeTabUrl() = 「今天」tab 的稳定路径（FE-FIX-06 抽出）。
+ *  - 若未来 tabBar 重排（如把"今天"tab 改名为"日记"），改 TAB_ROUTES.today.pagePath 即可，无需全局搜索替换。 */
+export function getHomeTabUrl(): string {
+  return TAB_ROUTES.today.url;
+}
+
+/**
  * Design Tokens（与 figma-pixso-spec/dist/tokens-flat.json 1:1）
  * 颜色 / 间距 / 圆角 / 字号。
  */

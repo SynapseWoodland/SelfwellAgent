@@ -187,6 +187,7 @@ async def create_feedback(
         .where(
             Feedback.created_by == str(user_id),
             Feedback.created_time >= threshold,
+            Feedback.deleted_at.is_(None),  # 单行修复：日限应过滤软删，否则重置后仍 429
         )
         .limit(MAX_DAILY_LIMIT + 1)
     )

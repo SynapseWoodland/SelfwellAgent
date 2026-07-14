@@ -1,11 +1,6 @@
 import { get } from '../../utils/request';
-
-interface PreviewDay {
-  day: number;
-  title: string;
-  meta: string;
-  status: 'completed' | 'active' | 'pending' | 'feedback';
-}
+import { mapPlanDays, type PreviewDay } from '../../services/plan';
+import { getHomeTabUrl } from '../../utils/config';
 
 interface PlanPreviewResponse {
   days?: Array<{
@@ -64,19 +59,9 @@ Page({
       `/plans/${encodeURIComponent(planId)}/preview?days=21`,
     ).catch(() => null);
     if (!Array.isArray(preview?.days) || preview.days.length === 0) return;
-    const fallback = buildFallbackDays();
-    const days = Array.from({ length: 21 }, (_, index) => {
-      const source = preview.days?.[index];
-      if (!source) return fallback[index];
-      const day = source.day ?? source.day_index ?? index + 1;
-      const duration = source.duration_minutes ? `${source.duration_minutes} 分钟` : fallback[index].meta;
-      return {
-        day,
-        title: source.title ?? source.task ?? fallback[index].title,
-        meta: source.source ? `${duration} · ${source.source}` : duration,
-        status: source.status ?? fallback[index].status,
-      };
-    });
+    // FE-FIX-07：21 天预览字段映射统一走 services/plan.ts 层（mapPlanDays 纯函数）
+    const fallbacks = buildFallbackDays();
+    const days = mapPlanDays(preview.days, fallbacks);
     this.setData({ days, visibleDays: this.data.expanded ? days : days.slice(0, 7) });
   },
 
@@ -89,8 +74,8 @@ Page({
   },
 
   onGoToday() {
-    // FR-PLAN-01：交付页完成后跳「今天 Tab」看任务。V2 IA 中 today Tab 即 home/index
-    // （app.json tabBar[1].pagePath = 'pages/home/index'）。旧 plan-tabs 已废弃。
-    wx.switchTab({ url: '/pages/home/index' });
+    // FR-PLAN-01：交付页完成后跳「今天 Tab」看任务。
+    // FE-FIX-06 抽常量：路径走 getHomeTabUrl()，禁止硬编码。
+    wx.switchTab({ url: getHomeTabUrl() });
   },
 });

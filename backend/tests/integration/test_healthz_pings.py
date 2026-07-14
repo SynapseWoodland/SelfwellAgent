@@ -1,84 +1,87 @@
-"""Integration test — /healthz 三段探针（db / redis / llm）返回 OK / DEGRADED / DOWN。
+"""Integration test — /healthz four-segment probes (db / redis / minio / llm).
 
-PR-1 AC-1 + §6 Schema：
-- OK: status=ok, 所有 checks ok → 200
-- DEGRADED: status=degraded, llm=degraded → 200
-- DOWN: status=down, db=down 或 redis=down → 503
+Phase 4 batch 4: structured response with latency_ms + status, plus minio probe.
 """
-
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# §一 Fixture：替换探针函数，模拟 DB / Redis / LLM 状态
-# ──────────────────────────────────────────────────────────────────────────────
+def _patch_all(db="ok", redis="ok", minio="ok", llm="ok", ms=1.0):
+    """Returns a context manager stack with all four probes patched."""
+    return ExitStack().__enter__()
+
+
+def _enter_patches(stack: ExitStack, db="ok", redis="ok", minio="ok", llm="ok", ms=1.0):
+    stack.enter_context(patch("app.api.routers.system._probe_db_timed", return_value=(db, ms)))
+    stack.enter_context(
+        patch("app.api.routers.system._probe_redis_timed", return_value=(redis, ms))
+    )
+    stack.enter_context(
+        patch("app.api.routers.system._probe_minio_timed", return_value=(minio, ms))
+    )
+    stack.enter_context(
+        patch("app.api.routers.system._probe_llm_timed", return_value=(llm, ms))
+    )
+
+
 @pytest.fixture
 def probes_ok() -> Iterator[None]:
-    """所有探针返回 ok。"""
-    with (
-        patch("app.api.routers.system._probe_db", return_value="ok"),
-        patch("app.api.routers.system._probe_redis", return_value="ok"),
-        patch("app.api.routers.system._probe_llm", return_value="ok"),
-    ):
+    stack = _patch_all()
+    _enter_patches(stack)
+    try:
         yield
+    finally:
+        stack.close()
 
 
 @pytest.fixture
 def probes_llm_degraded() -> Iterator[None]:
-    """LLM 探针 degraded，其它 ok。"""
-    with (
-        patch("app.api.routers.system._probe_db", return_value="ok"),
-        patch("app.api.routers.system._probe_redis", return_value="ok"),
-        patch("app.api.routers.system._probe_llm", return_value="degraded"),
-    ):
+    stack = _patch_all()
+    _enter_patches(stack, llm="degraded")
+    try:
         yield
+    finally:
+        stack.close()
 
 
 @pytest.fixture
 def probes_db_down() -> Iterator[None]:
-    """DB 探针 down，其它 ok。"""
-    with (
-        patch("app.api.routers.system._probe_db", return_value="down"),
-        patch("app.api.routers.system._probe_redis", return_value="ok"),
-        patch("app.api.routers.system._probe_llm", return_value="ok"),
-    ):
+    stack = _patch_all()
+    _enter_patches(stack, db="down")
+    try:
         yield
+    finally:
+        stack.close()
 
 
 @pytest.fixture
 def probes_redis_down() -> Iterator[None]:
-    """Redis 探针 down，其它 ok。"""
-    with (
-        patch("app.api.routers.system._probe_db", return_value="ok"),
-        patch("app.api.routers.system._probe_redis", return_value="down"),
-        patch("app.api.routers.system._probe_llm", return_value="ok"),
-    ):
+    stack = _patch_all()
+    _enter_patches(stack, redis="down")
+    try:
         yield
+    finally:
+        stack.close()
 
 
 @pytest.fixture
 def probes_all_down() -> Iterator[None]:
-    """全部 down。"""
-    with (
-        patch("app.api.routers.system._probe_db", return_value="down"),
-        patch("app.api.routers.system._probe_redis", return_value="down"),
-        patch("app.api.routers.system._probe_llm", return_value="down"),
-    ):
+    stack = _patch_all()
+    _enter_patches(stack, db="down", redis="down", minio="down", llm="down")
+    try:
         yield
+    finally:
+        stack.close()
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# §二 OK 场景
-# ──────────────────────────────────────────────────────────────────────────────
-def test_healthz_all_ok_returns_200(probes_ok: None) -> None:
-    """所有探针 ok → status=ok，HTTP 200。"""
+def test_healthz_all_ok_returns_200(probes_ok) -> None:
     from app.main import app
 
     with TestClient(app) as client:
@@ -87,14 +90,17 @@ def test_healthz_all_ok_returns_200(probes_ok: None) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["checks"] == {"db": "ok", "redis": "ok", "llm": "ok"}
+    # Phase 4 batch 4: structured response with latency_ms per segment
+    assert body["checks"]["db"]["status"] == "ok"
+    assert body["checks"]["redis"]["status"] == "ok"
+    assert body["checks"]["minio"]["status"] == "ok"
+    assert body["checks"]["llm"]["status"] == "ok"
+    assert "latency_ms" in body["checks"]["db"]
+    assert "version" in body
+    assert "env" in body
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# §三 DEGRADED 场景
-# ──────────────────────────────────────────────────────────────────────────────
-def test_healthz_llm_degraded_returns_200(probes_llm_degraded: None) -> None:
-    """LLM 探针 degraded → status=degraded，HTTP 200（不阻断服务）。"""
+def test_healthz_llm_degraded_returns_200(probes_llm_degraded) -> None:
     from app.main import app
 
     with TestClient(app) as client:
@@ -103,16 +109,12 @@ def test_healthz_llm_degraded_returns_200(probes_llm_degraded: None) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "degraded"
-    assert body["checks"]["llm"] == "degraded"
-    assert body["checks"]["db"] == "ok"
-    assert body["checks"]["redis"] == "ok"
+    assert body["checks"]["llm"]["status"] == "degraded"
+    assert body["checks"]["db"]["status"] == "ok"
+    assert body["checks"]["redis"]["status"] == "ok"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# §四 DOWN 场景
-# ──────────────────────────────────────────────────────────────────────────────
-def test_healthz_db_down_returns_503(probes_db_down: None) -> None:
-    """DB 探针 down → status=down，HTTP 503。"""
+def test_healthz_db_down_returns_503(probes_db_down) -> None:
     from app.main import app
 
     with TestClient(app) as client:
@@ -121,11 +123,10 @@ def test_healthz_db_down_returns_503(probes_db_down: None) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "down"
-    assert body["checks"]["db"] == "down"
+    assert body["checks"]["db"]["status"] == "down"
 
 
-def test_healthz_redis_down_returns_503(probes_redis_down: None) -> None:
-    """Redis 探针 down → status=down，HTTP 503。"""
+def test_healthz_redis_down_returns_503(probes_redis_down) -> None:
     from app.main import app
 
     with TestClient(app) as client:
@@ -134,11 +135,10 @@ def test_healthz_redis_down_returns_503(probes_redis_down: None) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "down"
-    assert body["checks"]["redis"] == "down"
+    assert body["checks"]["redis"]["status"] == "down"
 
 
-def test_healthz_all_down_returns_503(probes_all_down: None) -> None:
-    """全部 down → status=down，HTTP 503。"""
+def test_healthz_all_down_returns_503(probes_all_down) -> None:
     from app.main import app
 
     with TestClient(app) as client:
@@ -150,10 +150,10 @@ def test_healthz_all_down_returns_503(probes_all_down: None) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# §五 探针函数本身的行为契约
+# Section: probe functions themselves (raw value contracts)
 # ──────────────────────────────────────────────────────────────────────────────
 def test_probe_db_returns_string() -> None:
-    """_probe_db 返回值必须是 'ok' | 'down'。"""
+    """_probe_db returns one of 'ok' | 'down'."""
     from app.api.routers.system import _probe_db
 
     result = asyncio.run(_probe_db())
@@ -161,7 +161,6 @@ def test_probe_db_returns_string() -> None:
 
 
 def test_probe_redis_returns_string() -> None:
-    """_probe_redis 返回值必须是 'ok' | 'down'。"""
     from app.api.routers.system import _probe_redis
 
     result = asyncio.run(_probe_redis())
@@ -169,7 +168,6 @@ def test_probe_redis_returns_string() -> None:
 
 
 def test_probe_llm_returns_string() -> None:
-    """_probe_llm 返回值必须是 'ok' | 'degraded' | 'down'。"""
     from app.api.routers.system import _probe_llm
 
     result = asyncio.run(_probe_llm())

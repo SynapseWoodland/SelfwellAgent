@@ -146,9 +146,11 @@ def test_view_all_returns_weeks(
 def test_view_today_unchanged_legacy_response(
     client_with_user: TestClient,
 ) -> None:
-    """``?view=today`` 显式传值 → 与原契约 100% 兼容（顶层字段集不变）。
+    """``?view=today`` 显式传值 → 走 ``get_current_plan`` → ``get_plan`` 新契约。
 
-    ``get_current_plan`` 内部走 ``session.execute(select(Plan))`` → ``get_plan``。
+    BE-FIX-02 后 ``get_plan`` 响应 ``data.days`` 已统一为 ``PlanPreviewDay``
+    形态（``day_index`` 替代 ``day``，新增 ``title`` / ``task`` / ``duration_minutes``
+    / ``source`` / ``status`` 字段）。
     """
     started = date(2026, 7, 8)
     _install_plan_session(started_at=started)
@@ -168,7 +170,13 @@ def test_view_today_unchanged_legacy_response(
     assert "view" not in data, data
     assert "current_day_index" not in data, data
     assert data["plan_id"] == "p-view-1"
-    assert data["days"][0]["day"] == 1
+    # BE-FIX-02: 新契约用 day_index/title/task/duration_minutes/source/status
+    assert data["days"][0]["day_index"] == 1
+    assert "title" in data["days"][0]
+    assert "task" in data["days"][0]
+    assert "duration_minutes" in data["days"][0]
+    assert "source" in data["days"][0]
+    assert "status" in data["days"][0]  # 新字段对齐 PlanPreviewDay
 
 
 def test_view_default_is_today(

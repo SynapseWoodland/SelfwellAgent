@@ -1,0 +1,11 @@
+<!--
+  IA-REF: docs/design/ia-and-wireframe.md §4.5 P05 打卡完成
+  FIGMA  : docs/design/figma-pixso-spec/pages/08-checkin.html
+-->
+<view
+  class="ack-bubble ack-bubble--{{tone}}"
+  bindlongpress="onLongPress"
+>
+  <view class="ack-bubble__icon">✿</view>
+  <view class="ack-bubble__text">{{displayText}}</view>
+</view>

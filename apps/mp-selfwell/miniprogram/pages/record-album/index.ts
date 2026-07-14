@@ -1,18 +1,21 @@
 /**
- * PR-A4 清理 · record-album 兜底桩
+ * FE-FIX-02 · record-album → album 重定向桩
  * ──────────────────────────────────────────────────────────────
- * H3 record-album 兜底：home/index.ts:266 跳转
- *   wx.navigateTo({ url: '/pages/record-album/index' })
+ * 真源：docs/plan/frontend-fix-plan.md §FE-FIX-02。
  *
- * PR-5 record-album 落地后由真实实现替换。此 stub：
- *  - 不 404（app.json 未注册，提前垫底）
- *  - 可渲染空白页
- *  - 不依赖任何业务数据
+ * 临时兜底：用户从「home 抽屉 我的时光」进入 record-album 时，
+ * 自动 redirect 到已实现的 album 页（避免用户看到空白页）。
+ *
+ * PR-5 决策后保留 `record-album`（命名更清晰），将 `album` 逻辑迁回
+ * 到 `record-album`，删除 `album`。本 redirect 桩届时可删除。
  */
 Page({
   data: {},
-  onLoad() {},
+  onLoad() {
+    wx.redirectTo({ url: '/pages/album/index' });
+  },
   onNavBack() {
-    wx.navigateBack({ delta: 1 });
+    // 重定向后原页面已销毁，无法 navigateBack；统一走 reLaunch 兜底。
+    wx.reLaunch({ url: '/pages/home/index' });
   },
 });

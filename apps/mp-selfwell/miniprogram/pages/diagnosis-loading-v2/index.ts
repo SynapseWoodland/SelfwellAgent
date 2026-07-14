@@ -1,4 +1,4 @@
-import { API_BASE_URL, CURRENT_ENV } from '../../utils/config';
+import { buildSseStreamUrl } from '../../utils/sse-url';
 import { consumeSse, type SseConsumer, type SseEvent } from '../../utils/sse-http';
 
 interface LoadingStep {
@@ -81,9 +81,9 @@ Page({
   },
 
   startSse(streamPath: string) {
-    const streamUrl = /^https?:\/\//.test(streamPath)
-      ? streamPath
-      : `${API_BASE_URL[CURRENT_ENV]}${streamPath.startsWith('/') ? '' : '/'}${streamPath}`;
+    // FE-FIX-08：stream_url 拼接走 utils/sse-url.ts 工厂，规避双前缀 / 漏前缀 / 跨环境 baseURL。
+    // 真源：assistant_service.py:442 → `stream_url: f"/diagnosis/jobs/{job_id}/stream"`（无 /api/v1）
+    const streamUrl = buildSseStreamUrl(streamPath);
     const consumer = consumeSse(streamUrl, {
       method: 'GET',
       header: { Authorization: `Bearer ${wx.getStorageSync('jwt') || ''}` },

@@ -1,0 +1,67 @@
+/* ─────────────────────────────────────────────────────
+ * ack-bubble 样式（打卡 + 心情日记回应气泡）
+ * ─────────────────────────────────────────────────────
+ * Token 真源：app.wxss（PR-6 锁定）
+ *   --color-mint:      #A8C5B5（warm 语气）
+ *   --color-lavender:  #9C7AB8（neutral 语气）
+ *   --color-peach:     #A0724F（celebrate 语气）
+ *   --color-ink-300:   #A0AEC0
+ *   --color-cream:     #FFF9F0
+ *
+ * §17.15：ACK 气泡最大 30 字；超出截断 + 长按 tooltip
+ */
+
+.ack-bubble {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  min-height: 80rpx;
+  max-width: 580rpx;
+}
+
+.ack-bubble__icon {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  margin-right: 16rpx;
+  line-height: 1;
+}
+
+.ack-bubble__text {
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+/* warm 语气：mint 绿（打卡页默认）*/
+.ack-bubble--warm {
+  background-color: #E8F5EF;
+  color: #3D6B52;
+}
+.ack-bubble--warm .ack-bubble__icon {
+  color: #A8C5B5;
+}
+
+/* neutral 语气：lavender 紫（心情日记）*/
+.ack-bubble--neutral {
+  background-color: #F3EDF7;
+  color: #5C4080;
+}
+.ack-bubble--neutral .ack-bubble__icon {
+  color: #9C7AB8;
+}
+
+/* celebrate 语气：peach 橙（里程碑庆祝）*/
+.ack-bubble--celebrate {
+  background-color: #FDF2EA;
+  color: #7A4820;
+}
+.ack-bubble--celebrate .ack-bubble__icon {
+  color: #A0724F;
+}

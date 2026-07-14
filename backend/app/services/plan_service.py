@@ -80,6 +80,61 @@ _WEEK_TITLES: dict[int, str] = {
 }
 
 
+def _to_preview_day(
+    day_index: int, first_task: dict[str, Any] | None
+) -> dict[str, Any]:
+    """把内部 ``plan.days["items"]`` 单日条目转成 ``PlanPreviewDay`` 响应字段。
+
+    对齐 ``backend/app/api/routers/plans_v1.py:PlanPreviewDay`` schema。
+
+    Args:
+        day_index: 第几天（1-21）。
+        first_task: 当日 ``tasks[0]`` 原始 dict；允许为 ``None``。
+
+    Returns:
+        ``PlanPreviewDay`` 形态的 dict。
+    """
+    task_obj = first_task if isinstance(first_task, dict) else {}
+    title = task_obj.get("title") or f"第 {day_index} 天 · 核心养护"
+    task_label = (
+        task_obj.get("task")
+        or task_obj.get("video_id")
+        or f"task-d{day_index}"
+    )
+    return {
+        "day_index": day_index,
+        "title": title,
+        "task": task_label,
+        "duration_minutes": task_obj.get("duration_minutes", 12),
+        "source": task_obj.get("source", "video_pool"),
+        "status": task_obj.get("status", "pending"),
+    }
+
+
+def _transform_raw_days_to_preview(
+    raw_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """把 ``plan.days["items"]`` 数组转换成 ``PlanPreviewDay`` 数组。
+
+    容错：跳过非 dict 元素；缺失 ``day`` 时按下标兜底。
+    """
+    preview: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            continue
+        day_no = item.get("day")
+        if not isinstance(day_no, int):
+            day_no = index + 1
+        tasks_raw = item.get("tasks")
+        first_task = (
+            tasks_raw[0]
+            if isinstance(tasks_raw, list) and tasks_raw
+            else None
+        )
+        preview.append(_to_preview_day(day_no, first_task))
+    return preview
+
+
 def aggregate_plan_weeks(
     plan: Plan, *, today: date | None = None
 ) -> list[dict[str, Any]]:
@@ -243,6 +298,7 @@ async def generate_plan(
                 continue
             used_ids.add(v["id"])
             tasks.append({"video_id": v["id"], "title": v.get("title", "")})
+        # 内部存储保留旧 schema（{day, phase, tasks}），保证数据库向后兼容。
         days_payload.append({"day": d, "phase": phase, "tasks": tasks})
 
     # 6. 写 plan
@@ -268,27 +324,34 @@ async def generate_plan(
         user_id=user_id,
         total_videos=len(used_ids),
     )
+    # API 响应层：转 PlanPreviewDay 形态（对齐 PlanData 字段契约）。
+    api_days = _transform_raw_days_to_preview(days_payload)
     return {
         "plan_id": str(plan.id),
         "report_id": report_id,
         "length_days": PLAN_LENGTH_DAYS,
-        "days": days_payload,
+        "days": api_days,
         "started_at": plan.started_at.isoformat() if plan.started_at else None,
     }
 
 
 async def get_plan(session: AsyncSession, *, user_id: str, plan_id: str) -> dict[str, Any]:
-    """获取方案详情。"""
+    """获取方案详情。
+
+    Returns:
+        方案 dict（``plan_id`` + ``days`` 已转换为 ``PlanPreviewDay`` 形态）。
+    """
     stmt = select(Plan).where(Plan.id == plan_id, Plan.user_id == user_id)
     result = await session.execute(stmt)
     plan = result.scalar_one_or_none()
     if plan is None or plan.deleted_at is not None:
         raise PlanNotFoundError(field="plan_id")
+    raw_items = plan.days.get("items", []) if isinstance(plan.days, dict) else []
     return {
         "plan_id": str(plan.id),
         "report_id": plan.report_id,
         "status": plan.status,
-        "days": plan.days.get("items", []) if isinstance(plan.days, dict) else [],
+        "days": _transform_raw_days_to_preview(raw_items),
         "started_at": plan.started_at.isoformat() if plan.started_at else None,
     }
 
@@ -320,6 +383,9 @@ async def get_plan_preview(
     与 ``get_plan`` 不同:这里把 ``days.items[].tasks[]`` 扁平化成预览项,
     每项含前端期望的 ``day / day_index / title / task / duration_minutes / source / status``。
 
+    直读 ``plan.days["items"]``（内部存储形态），不走 ``get_plan`` 的响应层转换，
+    避免重复加工导致字段错位。
+
     Args:
         days: 预览返回前 N 天(默认 21,即全量);取值 1-21。
 
@@ -332,52 +398,32 @@ async def get_plan_preview(
     if not 1 <= days <= PLAN_LENGTH_DAYS:
         days = PLAN_LENGTH_DAYS
 
-    base = await get_plan(session, user_id=user_id, plan_id=plan_id)
-    raw_items = base.get("days", [])
+    stmt = select(Plan).where(Plan.id == plan_id, Plan.user_id == user_id)
+    result = await session.execute(stmt)
+    plan = result.scalar_one_or_none()
+    if plan is None or plan.deleted_at is not None:
+        raise PlanNotFoundError(field="plan_id")
 
+    raw_items = plan.days.get("items", []) if isinstance(plan.days, dict) else []
+    total = min(days, len(raw_items) if raw_items else days)
     preview_days: list[dict[str, Any]] = []
-    for index in range(min(days, len(raw_items) if raw_items else days)):
-        item = raw_items[index] if index < len(raw_items) else {}
-        tasks = item.get("tasks", []) if isinstance(item, dict) else []
-        first_task = tasks[0] if isinstance(tasks, list) and tasks else {}
-        day_no = item.get("day", index + 1) if isinstance(item, dict) else index + 1
-        title = (
-            first_task.get("title")
-            if isinstance(first_task, dict) and first_task.get("title")
-            else f"第 {day_no} 天 · 核心养护"
-        )
-        task_label = (
-            first_task.get("task")
-            or first_task.get("video_id")
-            or f"task-d{day_no}"
-        )
-        preview_days.append(
-            {
-                "day": day_no,
-                "day_index": day_no,
-                "title": title,
-                "task": task_label,
-                "duration_minutes": (
-                    first_task.get("duration_minutes", 12)
-                    if isinstance(first_task, dict)
-                    else 12
-                ),
-                "source": (
-                    first_task.get("source", "video_pool")
-                    if isinstance(first_task, dict)
-                    else "video_pool"
-                ),
-                "status": (
-                    first_task.get("status", "pending")
-                    if isinstance(first_task, dict)
-                    else "pending"
-                ),
-            }
-        )
+    for index in range(total):
+        item = raw_items[index] if isinstance(raw_items, list) else {}
+        if not isinstance(item, dict):
+            item = {}
+        tasks = item.get("tasks")
+        first_task = tasks[0] if isinstance(tasks, list) and tasks else None
+        day_no = item.get("day")
+        if not isinstance(day_no, int):
+            day_no = index + 1
+        cell = _to_preview_day(day_no, first_task)
+        cell["day"] = day_no
+        preview_days.append(cell)
+
     return {
-        "plan_id": base["plan_id"],
-        "report_id": base.get("report_id"),
-        "status": base.get("status"),
+        "plan_id": str(plan.id),
+        "report_id": plan.report_id,
+        "status": plan.status,
         "total_days": len(preview_days),
         "days": preview_days,
     }

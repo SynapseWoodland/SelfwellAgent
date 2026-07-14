@@ -165,11 +165,11 @@ def test_smart_analyze_payload_is_fallback_propagated_from_rule_engine() -> None
     assert smart_match
     smart_body = smart_match.group(0)
 
-    # `payload["is_fallback"]` 或 `payload.get("is_fallback")` 至少出现 1 次
+    # V1.1.1 BE-FIX-04：end_payload 直接使用局部变量 is_fallback，不再从 payload["is_fallback"] 中转
     matches = re.findall(
-        r'payload[\.\[](?:get\()?["\']is_fallback["\']',
+        r'\bis_fallback\b',
         smart_body,
     )
-    assert len(matches) >= 1, (
-        "_stream_smart_analyze 未读 `payload[\"is_fallback\"]`（F4 必改）"
+    assert len(matches) >= 2, (
+        "_stream_smart_analyze 局部变量 is_fallback 与 end_payload[\"is_fallback\"] 必出现（BE-FIX-04 F4 必改）"
     )

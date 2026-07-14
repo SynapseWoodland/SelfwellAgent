@@ -1,3 +1,21 @@
+/**
+ * IA-REF: docs/design/ia-and-wireframe.md §4.5 P07 主动回忆对话流
+ * 后端端点: POST /api/v1/butler/recall
+ *
+ * 行为：
+ *   - onLoad 默认 days_offset=7，从 options 读 trigger/days_offset
+ *   - 用户切换 chip → POST /butler/recall { trigger, days_offset }
+ *   - 响应解析对齐 docs/api/openapi.yaml §RecallResponse（V1.1.1）
+ *
+ * FE-FIX-09 字段映射（与 openapi.yaml RecallResponse 1:1）：
+ *   - recall_id（替代旧 id）
+ *   - referenced_feedbacks 是内联对象数组（id/body_part/snippet/feedback_type/photo_url/created_at）
+ *   - referenced_photos 是内联对象数组（url/body_part/uploaded_at）
+ *   - context_photos 是内联对象数组（url/caption）—— V1.1.1 之前在 recall-flow/index.ts
+ *     中错把 context_photos 当成 AIMessageContextPhotos 对象（带 summary/directions/tags），
+ *     本次按 openapi 修正为 array<{url, caption}>
+ *   - summary / encourage / safety_passed / created_at / trigger / days_offset
+ */
 import { ApiException, post } from '../../utils/request';
 
 const PRESET_DAYS = [3, 7, 14] as const;
@@ -9,35 +27,48 @@ interface PeriodChip {
   value: PeriodValue;
 }
 
-interface ContextDirection {
-  num: number;
-  title: string;
-  level: string;
-  description: string;
-}
-
-interface AIMessageContextPhotos {
-  directions: ContextDirection[];
-  tags: string[];
-  summary: string;
-  injected_at: string;
-}
-
-interface RecallPhoto {
+/** FE-FIX-09：与 openapi.yaml RecallResponse.referenced_photos 一致 */
+interface ReferencedPhoto {
   url: string;
-  caption?: string;
-  created_at?: string;
+  body_part?: string | null;
+  uploaded_at?: string | null;
 }
 
+/** FE-FIX-09：与 openapi.yaml RecallResponse.referenced_feedbacks 一致 */
+interface ReferencedFeedback {
+  id: string;
+  body_part?: string | null;
+  snippet?: string;
+  feedback_type?: string | null;
+  photo_url?: string | null;
+  created_at?: string | null;
+  created_by?: string | null;
+}
+
+/** FE-FIX-09：与 openapi.yaml RecallResponse.context_photos 一致（V1.1.1 起改为 array） */
+interface ContextPhoto {
+  url: string;
+  caption?: string | null;
+}
+
+/** FE-FIX-09：与 openapi.yaml RecallResponse 完整 1:1 锁值 */
 interface RecallResult {
   recall_id: string;
   trigger: string;
-  days_offset: number;
-  summary: string;
-  encourage: string;
-  referenced_photos?: RecallPhoto[];
-  context_photos?: AIMessageContextPhotos;
-  created_at: string;
+  summary?: string | null;
+  encourage?: string | null;
+  safety_passed?: boolean;
+  referenced_feedbacks?: ReferencedFeedback[];
+  referenced_photos?: ReferencedPhoto[];
+  context_photos?: ContextPhoto[];
+  is_empty?: boolean | null;
+  /** V1.1.1 当前实现不在响应中返回；保留 nullable 兼容 */
+  soft_tip?: { message?: string; buttons?: Array<{ label?: string; action?: string; style?: string }> } | null;
+  /** V1.1.1 当前实现不在响应中返回 */
+  llm_cost?: number | null;
+  created_at?: string | null;
+  ai_session_id?: string | null;
+  days_offset?: number;
 }
 
 interface PageData {

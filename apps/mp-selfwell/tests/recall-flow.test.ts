@@ -46,20 +46,39 @@ describe('PR-4 recall-flow page contract', () => {
     expect(ts).toMatch(/post<RecallResult,\s*\{ trigger: string; days_offset: number \}>/);
   });
 
-  it('renders AI summary and historical photo thumbnails', () => {
+  it('FE-FIX-09 渲染顶层 recall.summary + referenced_photos 缩略图', () => {
     const wxml = readPage('index.wxml');
-    expect(wxml).toContain('recall.context_photos.summary || recall.summary');
+    // V1.1.1：context_photos 已变为 array<{url, caption}>；summary 走顶层 recall.summary
+    expect(wxml).toContain('recall.summary');
+    expect(wxml).not.toContain('recall.context_photos.summary');
     expect(wxml).toContain('wx:for="{{recall.referenced_photos}}"');
     expect(wxml).toContain('src="{{item.url}}"');
   });
 
-  it('locks the AIMessage.context_photos TypeScript schema', () => {
+  it('FE-FIX-09 锁 RecallResponse.referenced_feedbacks / referenced_photos / context_photos 内联对象结构', () => {
     const ts = readPage('index.ts');
-    expect(ts).toMatch(/interface AIMessageContextPhotos[\s\S]*directions: ContextDirection\[\]/);
-    expect(ts).toMatch(/interface AIMessageContextPhotos[\s\S]*tags: string\[\]/);
-    expect(ts).toMatch(/interface AIMessageContextPhotos[\s\S]*summary: string/);
-    expect(ts).toMatch(/interface AIMessageContextPhotos[\s\S]*injected_at: string/);
-    expect(ts).toMatch(/interface ContextDirection[\s\S]*num: number[\s\S]*title: string[\s\S]*level: string[\s\S]*description: string/);
+    // ReferencedFeedback
+    expect(ts).toMatch(/interface\s+ReferencedFeedback[\s\S]*id:\s*string/);
+    expect(ts).toMatch(/interface\s+ReferencedFeedback[\s\S]*body_part\?:/);
+    expect(ts).toMatch(/interface\s+ReferencedFeedback[\s\S]*snippet\?:/);
+    expect(ts).toMatch(/interface\s+ReferencedFeedback[\s\S]*feedback_type\?:/);
+    expect(ts).toMatch(/interface\s+ReferencedFeedback[\s\S]*photo_url\?:/);
+    // ReferencedPhoto
+    expect(ts).toMatch(/interface\s+ReferencedPhoto[\s\S]*url:\s*string/);
+    expect(ts).toMatch(/interface\s+ReferencedPhoto[\s\S]*body_part\?:/);
+    expect(ts).toMatch(/interface\s+ReferencedPhoto[\s\S]*uploaded_at\?:/);
+    // ContextPhoto（V1.1.1 起改为 array）
+    expect(ts).toMatch(/interface\s+ContextPhoto[\s\S]*url:\s*string/);
+    expect(ts).toMatch(/interface\s+ContextPhoto[\s\S]*caption\?:/);
+    // RecallResult 顶层字段
+    expect(ts).toMatch(/interface\s+RecallResult[\s\S]*recall_id:\s*string/);
+    expect(ts).toMatch(/interface\s+RecallResult[\s\S]*safety_passed\?:/);
+    expect(ts).toMatch(/interface\s+RecallResult[\s\S]*referenced_feedbacks\?:\s*ReferencedFeedback\[\]/);
+    expect(ts).toMatch(/interface\s+RecallResult[\s\S]*referenced_photos\?:\s*ReferencedPhoto\[\]/);
+    expect(ts).toMatch(/interface\s+RecallResult[\s\S]*context_photos\?:\s*ContextPhoto\[\]/);
+    // 旧 AIMessageContextPhotos / ContextDirection 必须删除（不再用于 RecallResponse）
+    expect(ts).not.toMatch(/interface\s+AIMessageContextPhotos/);
+    expect(ts).not.toMatch(/interface\s+ContextDirection/);
   });
 
   it('offers continue-chat and save-as-diary CTAs', () => {

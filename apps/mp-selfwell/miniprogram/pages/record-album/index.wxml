@@ -1,4 +1,4 @@
-<!-- PR-A4 清理 · record-album 兜底桩 -->
+<!-- FE-FIX-02 · record-album → album 重定向桩 -->
 <view class="ra-page">
-  <text class="ra-placeholder">我的时光（施工中）</text>
+  <text class="ra-placeholder">正在打开「我的时光」…</text>
 </view>

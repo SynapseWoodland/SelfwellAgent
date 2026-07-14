@@ -299,7 +299,7 @@ def audit_persona_state_switch(
     to_state: str,
     trigger: str,
     session_id: str | None = None,
-    mock_reason: str | None = None,
+    fallback_reason: str | None = None,
 ) -> None:
     """审计事件 3：M5 Persona FSM 状态切换。
 
@@ -312,9 +312,11 @@ def audit_persona_state_switch(
         to_state: 切换后状态。
         trigger: 触发原因（intent 或外部事件）。
         session_id: 可选会话 ID。
-        mock_reason: 当回复走静态兜底（llm_model="static-fallback" / cost=0）
-            时透出原因（例如 ``llm_unavailable`` / ``rule_engine_fallback``），
-            便于运维聚合分析 mock 触发频率。
+        fallback_reason: 当回复走静态兜底（llm_model="static-fallback" / cost=0）
+            时透出原因（例如 ``llm_unavailable`` / ``rule_engine_fallback`` /
+            ``medical_guarded_short_circuit``），便于运维聚合分析 fallback
+            触发频率。Sprint 1 重命名自 ``mock_reason``，强调"实际 LLM 优先，
+            失败时回退"的语义。
 
     """
     extra: dict[str, object] = {
@@ -323,9 +325,118 @@ def audit_persona_state_switch(
         "trigger": trigger,
         "session_id": session_id,
     }
-    if mock_reason is not None:
-        extra["mock_reason"] = mock_reason
+    if fallback_reason is not None:
+        extra["fallback_reason"] = fallback_reason
     logger.info("audit_persona_state_switch", user_id_pseudo=user_id_pseudo, **extra)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §九 关键错误聚合 helper（Phase 4 批次 4）
+# 设计：在 Sentry/聚合服务未启用期间，先把这些错误以**统一结构 + WARN/ERROR 级别**
+# 输出到 stdout/file sink，方便 Loki / Grafana / 自建收集器按 ``error_kind`` 聚合。
+#
+# **调用约定**：
+# 1. service 层捕获到 critical exception（LLM timeout / DB error / SSE disconnect）
+#    应该调用这里列出的 helper，而不是直接 ``logger.exception(...)``，保证字段名固定
+#    （不同 service 用不同 key 的话聚合面板的 query 会很难写）。
+# 2. 任意字段值若是 PII（user_id / openid），调用方必须先 PII scrub。
+# 3. 一旦未来接 Sentry，直接在下面 ``_emit_to_sentry`` 里加分支即可，对外签名稳定。
+# ─────────────────────────────────────────────────────────────────────────────
+def log_llm_timeout(
+    *,
+    user_id_pseudo: str,
+    model: str,
+    timeout_sec: float,
+    intent: str,
+    fallback_taken: bool = True,
+) -> None:
+    """关键错误：LLM 调用超时（asyncio.wait_for 超时 / Ark SDK 内部超时）。"""
+    payload = {
+        "error_kind": "llm_timeout",
+        "user_id_pseudo": user_id_pseudo,
+        "model": model,
+        "intent": intent,
+        "timeout_sec": timeout_sec,
+        "fallback_taken": fallback_taken,
+    }
+    logger.error("critical_llm_timeout", **payload)
+    _emit_to_sentry("llm_timeout", payload)
+
+
+def log_db_error(
+    *,
+    user_id_pseudo: str,
+    op: str,
+    table: str | None,
+    error_code: str,
+    error_message: str,
+) -> None:
+    """关键错误：数据库操作失败。
+
+    关键错误路径示例：``commit`` / ``flush`` / ``SELECT FOR UPDATE`` / connection lost
+    等；进入这里后主流程必须已 rollback，调用方负责重试 / 错误响应。
+    """
+    payload = {
+        "error_kind": "db_error",
+        "user_id_pseudo": user_id_pseudo,
+        "op": op,
+        "table": table or "-",
+        "error_code": error_code,
+        "error_message": error_message[:500],
+    }
+    logger.error("critical_db_error", **payload)
+    _emit_to_sentry("db_error", payload)
+
+
+def log_sse_disconnect(
+    *,
+    user_id_pseudo: str,
+    endpoint: str,
+    stage: str | None,
+    sent_events: int,
+    error_kind: str = "client_closed",
+) -> None:
+    """关键事件：SSE 流提前终止（与 metrics SSE_DISCONNECTED_TOTAL 配套）。
+
+    Args:
+        endpoint: 路由名（同 metrics 维度）。
+        stage: 走到哪一步后断开（便于看"卡哪一阶段"）。
+        sent_events: 已发送的事件数（用于判断断在流开头 vs 流尾）。
+        error_kind: 断开原因（``client_closed`` / ``generator_exception`` /
+            ``network_reset`` 等）。
+
+    """
+    payload = {
+        "error_kind": "sse_disconnect",
+        "user_id_pseudo": user_id_pseudo,
+        "endpoint": endpoint,
+        "stage": stage or "-",
+        "sent_events": sent_events,
+        "disconnect_reason": error_kind,
+    }
+    logger.warning("critical_sse_disconnect", **payload)
+    # disconnect 不上报 Sentry：太频繁（移动端切后台）会刷屏；
+    # metrics 已经够监控，logger 留给运维排障 + Loki 聚合查询
+
+
+def _emit_to_sentry(error_kind: str, payload: dict[str, object]) -> None:
+    """未来 Sentry 接入点（Phase 4 批次 4 占位）。
+
+    当前实现：什么都不做。原因：Sentry SDK 没在 pyproject.toml 声明依赖；
+    引入它会触发一连串 alert rule / before_send / source map 配置工作量。
+    后续 owner 在 Sprint 7 接 Sentry 时，直接在这里把 ``payload`` 推过去。
+    """
+    try:
+        import sentry_sdk  # type: ignore[import-not-found]
+
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("error_kind", error_kind)
+            for k, v in payload.items():
+                scope.set_extra(k, v)
+            sentry_sdk.capture_message(error_kind, level="error")
+    except Exception:
+        # 未安装 sentry_sdk 或初始化失败 —— 静默（已经结构化 log）
+        return
 
 
 __all__ = [
@@ -336,6 +447,9 @@ __all__ = [
     "audit_safety_violation",
     "bind_request_context",
     "get_logger",
+    "log_db_error",
+    "log_llm_timeout",
+    "log_sse_disconnect",
     "logger",
     "setup_logging",
 ]

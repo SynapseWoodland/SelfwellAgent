@@ -79,6 +79,7 @@ dependencies = [
     "langchain-openai>=0.2.0",          # init_chat_model(model_provider="openai") 实现在此包
     "volcengine-python-sdk[ark]>=5.0.38",
     "psycopg>=3.3.4",
+    "openpyxl>=3.1.5",
 ]  # V1.3 runtime deps total: 21
 
 [project.optional-dependencies]

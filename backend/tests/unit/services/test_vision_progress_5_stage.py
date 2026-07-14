@@ -67,7 +67,7 @@ def test_vision_end_event_has_7_fields_per_v521_pr3_t19() -> None:
         '"ok"',
         '"reply"',
         '"persona_state"',
-        '"is_mock"',
+        '"is_fallback"',
         '"medical_guarded"',
         '"is_quick_reply"',
         '"level"',

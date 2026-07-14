@@ -38,10 +38,11 @@
       <view class="recall-flow__avatar">S</view>
       <view class="recall-flow__bubble">
         <view class="recall-flow__eyebrow">{{daysOffset}} 天前的你</view>
-        <view class="recall-flow__summary">{{recall.context_photos.summary || recall.summary}}</view>
+        <!-- FE-FIX-09：context_photos 现为 array<{url, caption}>；summary 走顶层 recall.summary -->
+        <view class="recall-flow__summary">{{recall.summary}}</view>
         <view wx:if="{{recall.encourage}}" class="recall-flow__encourage">{{recall.encourage}}</view>
         <scroll-view
-          wx:if="{{recall.referenced_photos.length}}"
+          wx:if="{{recall.referenced_photos && recall.referenced_photos.length}}"
           class="recall-flow__photos"
           scroll-x
           enhanced

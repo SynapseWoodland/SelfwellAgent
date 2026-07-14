@@ -47,9 +47,9 @@ from app.errors.codes import (
 )
 from app.llm import text_llm
 from app.services.ai_messages_crud import persist_assistant_message
-from app.services.emotion_classifier import EmotionClassifier, get_emotion_classifier
-from app.services.light_llm_service import LightLLMService, get_light_llm_service
-from app.services.quick_reply_service import QuickReplyService, get_quick_reply_service
+from app.services.emotion_classifier import get_emotion_classifier
+from app.services.light_llm_service import get_light_llm_service
+from app.services.quick_reply_service import get_quick_reply_service
 
 # Persona 4 态
 PERSONA_STATES: frozenset[str] = frozenset(
@@ -400,6 +400,7 @@ async def _create_smart_analyze_side_effects(
       任务;实际分析 pipeline 由 assistant.send_message_stream(smart_analyze mode)
       在后续用户发图消息时触发。这里只占位 report + job_id。
     - 复用 ``JobStateStore`` singleton 注入,与 diagnosis_v1 共享同一 store。
+
     """
     from datetime import UTC, datetime
     from decimal import Decimal
@@ -547,7 +548,7 @@ async def send_message(
             llm_model = "static-fallback"
     safety_passed = to_state != "medical_guarded"
 
-    # 4. persona_state 切换 + 审计（必须在 llm_model/llm_cost 算出后再算 mock_reason）
+    # 4. persona_state 切换 + 审计（必须在 llm_model/llm_cost 算出后再算 fallback_reason）
     if to_state != from_state:
         ai_session.persona_state_end = to_state
         audit_kwargs: dict[str, object] = {
@@ -558,7 +559,7 @@ async def send_message(
             "session_id": session_id,
         }
         if llm_model == "static-fallback" and llm_cost == Decimal("0.0000"):
-            audit_kwargs["mock_reason"] = "llm_unavailable_fallback"
+            audit_kwargs["fallback_reason"] = "llm_unavailable_fallback"
         audit_persona_state_switch(**audit_kwargs)
 
     # 5. AI 回复：PromptTemplate | text_llm + 静态文案兜底
@@ -604,7 +605,43 @@ async def send_message(
 
 
 def _sse_pack(event: str, data: dict[str, Any]) -> str:
-    """组装一帧标准 SSE（与 diagnosis_v1._job_event_stream 同形）。"""
+    """组装一帧标准 SSE（与 diagnosis_v1._job_event_stream 同形）。
+
+    Phase 4 批次 4 · 断点修复：
+    SSE 流式响应无法依赖 response header 透传 trace_id（响应头只在流开始时可写，
+    前端 EventSource 抓 error 时往往已丢头）；所以**第一帧 event 强制附带
+    trace_id / request_id** 到 data payload，方便前端排查 SSE 错误时反查日志。
+
+    Phase 4 批次 4 · 同时给每个 SSE 事件打点（SSE_EVENTS_TOTAL），
+    error 事件额外进入 SSE_ERRORS_TOTAL，便于监控 SSE 错误率。
+    """
+    # 仅对首帧注入（event="start"）；其它帧 data 由调用方自行决定是否复用
+    if event == "start":
+        try:
+            from app.core.trace import current_request_id, current_trace_id
+
+            rid = current_request_id()
+            tid = current_trace_id()
+            if rid or tid:
+                meta = dict(data)
+                if rid and "request_id" not in meta:
+                    meta["request_id"] = rid
+                if tid and "trace_id" not in meta:
+                    meta["trace_id"] = tid
+                data = meta
+        except Exception as exc:
+            # trace 模块缺失时不阻断主流程（SSE 仍可发）
+            logger.debug("sse_pack_trace_inject_failed", exc_type=type(exc).__name__)
+    try:
+        from app.core.observability import observe_sse_event
+
+        observe_sse_event(
+            endpoint="assistant.send_message_stream",
+            event_name=event,
+        )
+    except Exception as exc:
+        # observability 失败不阻断主流程（SSE 帧必须能发出去）
+        logger.debug("sse_pack_observe_failed", exc_type=type(exc).__name__)
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
@@ -760,14 +797,12 @@ async def _stream_smart_analyze(
     body_parts: list[str],
     user_msg: AIMessage,
 ) -> AsyncIterator[str]:
-    """智能分析模式：vision LLM 5 阶段流（Sprint 1 走 rule_engine mock）。"""
+    """智能分析模式：vision LLM 5 阶段流（Sprint 1 默认走真实 vision LLM，保留 rule-engine fallback 兜底）。"""
     from app.services.diagnosis_service import (
         _check_text_safety,
         _invoke_llm_structured,
         _rule_engine_fallback,
     )
-    from app.conf.feature_flags import feature_flags
-    from app.conf.app_config import app_config
 
     job_id = str(uuid4())
     _FEATURE_FLAGS: Any = None  # resolved lazily below
@@ -823,9 +858,10 @@ async def _stream_smart_analyze(
         }
 
         # ── Phase 3: LLM 调用 ──────────────────────────────────
-        # Sprint 1: feature flag sample_rate=0 走 mock；sample_rate>0 才调 vision LLM
+        # Sprint 1：默认走真实 vision LLM（assistant_vision_sample_rate=1.0）；
+        # 超时 / 异常 / 灰度未命中才回退 rule-engine 兜底。
         llm_model = "rule-engine"
-        is_mock = True
+        is_fallback = True
         start_ts = time.monotonic()
 
         # 懒加载 feature_flags 和 app_config（避免循环 import）
@@ -858,8 +894,8 @@ async def _stream_smart_analyze(
                 tags = payload["tags"]
                 summary = payload["summary"]
                 llm_model = payload["model"]
-                is_mock = False
-            except asyncio.TimeoutError:
+                is_fallback = False
+            except TimeoutError:
                 # V4.1 Step 1.2：vision LLM 超时 → rule-engine fallback
                 logger.warning("smart_analyze_llm_timeout", job_id=job_id,
                              timeout_sec=vision_timeout)
@@ -867,7 +903,7 @@ async def _stream_smart_analyze(
                 directions = payload["directions"]
                 tags = payload.get("tags", [])
                 summary = payload.get("summary", "")
-                is_mock = True
+                is_fallback = True
             except Exception as exc:
                 logger.exception("smart_analyze_llm_failed",
                                 job_id=job_id, error_type=type(exc).__name__)
@@ -875,14 +911,14 @@ async def _stream_smart_analyze(
                 directions = payload["directions"]
                 tags = payload.get("tags", [])
                 summary = payload.get("summary", "")
-                is_mock = True
+                is_fallback = True
         else:
             # Sprint 1 默认走 rule_engine fallback
             payload = _rule_engine_fallback(profile, text)
             directions = payload["directions"]
             tags = payload.get("tags", [])
             summary = payload.get("summary", "")
-            is_mock = True
+            is_fallback = True
 
         llm_latency_ms = int((time.monotonic() - start_ts) * 1000)
 
@@ -953,7 +989,7 @@ async def _stream_smart_analyze(
         yield await _emit_progress(5, 100, "已就绪")
 
         # V5.2.1-PR3 T19：end event 7 字段 schema（ok / reply / persona_state /
-        #                          is_mock / medical_guarded / is_quick_reply / level）
+        #                          is_fallback / medical_guarded / is_quick_reply / level）
         reply_text = f"基于你的照片，我为你生成了 {len(directions)} 条养护建议，可以看看。"
         # medical_guarded / is_quick_reply PR4 之前为 None，PR4 改真值
         medical_guarded = not safety_check["passed"]  # PR4 T20 改真值
@@ -967,18 +1003,17 @@ async def _stream_smart_analyze(
             "ok": True,
             "reply": reply_text,
             "persona_state": to_state,
-            "is_mock": is_mock,
+            "is_fallback": is_fallback,
             "medical_guarded": medical_guarded,
             "is_quick_reply": is_quick_reply,
             "level": primary_level,
         }
-        if payload.get("is_fallback"):
-            end_payload["is_fallback"] = True
-            end_payload["fallback_reason"] = payload.get("fallback_reason", "资料不足")
+        if is_fallback:
+            end_payload["fallback_reason"] = "vision_unavailable"
         yield _sse_pack("end", end_payload)
 
         logger.info("smart_analyze_done", job_id=job_id, llm_model=llm_model,
-                    is_mock=is_mock, latency_ms=llm_latency_ms,
+                    is_fallback=is_fallback, latency_ms=llm_latency_ms,
                     photo_count=len(image_keys))
 
     except Exception as exc:
@@ -1002,7 +1037,7 @@ async def _stream_chat(
     text: str,
     user_msg: AIMessage,
 ) -> AsyncIterator[str]:
-    """chat 模式：text LLM token 流 + 快问分层路由。
+    """Chat 模式：text LLM token 流 + 快问分层路由。
 
     事件序列：
       token_delta data: {"token": "单字"}   ← 每 token 一个事件
@@ -1256,7 +1291,7 @@ async def _stream_chat(
                 user_id_pseudo=hash_user_id_pseudo(str(user_id)),
                 from_state=from_state, to_state=to_state,
                 trigger=intent, session_id=session_id,
-                mock_reason="medical_guarded_short_circuit",
+                fallback_reason="medical_guarded_short_circuit",
             )
         reply_text_medical = _FALLBACK_BY_STATE["medical_guarded"][0]
         ai_session.message_count += 1
@@ -1341,7 +1376,7 @@ async def _stream_chat(
             "session_id": session_id,
         }
         if llm_model == "static-fallback":
-            audit_kwargs["mock_reason"] = "llm_unavailable_fallback"
+            audit_kwargs["fallback_reason"] = "llm_unavailable_fallback"
         audit_persona_state_switch(**audit_kwargs)
 
     # 落库
