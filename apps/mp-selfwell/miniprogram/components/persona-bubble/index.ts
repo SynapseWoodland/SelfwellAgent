@@ -28,7 +28,7 @@ type PersonaState =
 
 Component({
   options: {
-    styleIsolation: 'apply-shared',
+    styleIsolation: 'isolated',
     multipleSlots: true,
   },
 

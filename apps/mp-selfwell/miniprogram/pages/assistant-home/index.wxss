@@ -38,13 +38,13 @@
   flex-direction: column;
 }
 
-/* 对话流（flex:1 填满剩余空间 + height:0 配合 flex 约束） */
+/* 对话流 - iOS 兼容写法 */
 .assistant-stream {
   flex: 1;
   min-height: 0;
-  height: 0;
+  height: auto;
   overflow-y: auto;
-  padding: 12px 0 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ────────── 回忆气泡（hook） ────────── */

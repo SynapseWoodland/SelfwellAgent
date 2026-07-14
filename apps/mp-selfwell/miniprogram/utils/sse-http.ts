@@ -24,6 +24,65 @@
 import type { SseEventName } from '../types/api';
 import { dlog } from './dlog';
 
+/**
+ * ArrayBuffer → string 转换
+ * - 微信小程序 iOS 客户端不支持 TextDecoder，需自实现 UTF-8 解码
+ * - 小程序基础库 ≥ 2.19.0 提供 ArrayBuffer 工具；本实现零依赖
+ */
+function arrayBufferToString(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let result = '';
+  // 按 chunk 处理，避免一次性转 string 触发超大字符串
+  const CHUNK_SIZE = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const slice = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    result += String.fromCharCode.apply(null, Array.from(slice));
+  }
+  // UTF-8 解码
+  try {
+    // 尝试使用 decodeURIComponent 转义（仅对 ASCII 安全部分）
+    // 微信小程序环境不提供 TextDecoder，但提供 wx.arrayBufferToBase64 / wx.base64ToArrayBuffer
+    // 这里采用 BinaryString + decodeURIComponent 的经典兼容写法
+    const utf8Bytes = result;
+    let str = '';
+    let i = 0;
+    while (i < utf8Bytes.length) {
+      const c1 = utf8Bytes.charCodeAt(i);
+      if (c1 < 0x80) {
+        str += String.fromCharCode(c1);
+        i += 1;
+      } else if ((c1 & 0xe0) === 0xc0) {
+        const c2 = utf8Bytes.charCodeAt(i + 1);
+        str += String.fromCharCode(((c1 & 0x1f) << 6) | (c2 & 0x3f));
+        i += 2;
+      } else if ((c1 & 0xf0) === 0xe0) {
+        const c2 = utf8Bytes.charCodeAt(i + 1);
+        const c3 = utf8Bytes.charCodeAt(i + 2);
+        str += String.fromCharCode(((c1 & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f));
+        i += 3;
+      } else {
+        // 4 字节代理对 (UTF-16)
+        const c2 = utf8Bytes.charCodeAt(i + 1);
+        const c3 = utf8Bytes.charCodeAt(i + 2);
+        const c4 = utf8Bytes.charCodeAt(i + 3);
+        const codePoint =
+          ((c1 & 0x07) << 18) |
+          ((c2 & 0x3f) << 12) |
+          ((c3 & 0x3f) << 6) |
+          (c4 & 0x3f);
+        const offset = codePoint - 0x10000;
+        str += String.fromCharCode(0xd800 + (offset >> 10));
+        str += String.fromCharCode(0xdc00 + (offset & 0x3ff));
+        i += 4;
+      }
+    }
+    return str;
+  } catch (e) {
+    // 降级：返回原始字节字符串（可能含乱码，但不会崩溃）
+    return result;
+  }
+}
+
 /** 单条已解析事件 */
 export interface SseEvent {
   name: SseEventName;
@@ -176,11 +235,14 @@ export function consumeSse(
     if (typeof res.data === 'string') {
       chunk = res.data;
     } else if (res.data instanceof ArrayBuffer) {
-      chunk = new TextDecoder('utf-8').decode(new Uint8Array(res.data));
+      chunk = arrayBufferToString(res.data);
     } else if (res.data) {
       chunk = String(res.data);
     }
-    if (chunk) feed(chunk);
+    if (chunk) {
+      dlog('sse-http:onChunk', 'chunk length:', chunk.length, 'preview:', chunk.substring(0, 80));
+      feed(chunk);
+    }
   }
 
   function cleanup(): void {
@@ -232,7 +294,7 @@ export function consumeSse(
       url,
       method: httpMethod,
       enableChunked: true,
-      responseType: 'text',
+      responseType: 'arraybuffer',
       header,
       ...(bodyData ? { data: bodyData } : {}),
       timeout: opts.timeoutMs,
