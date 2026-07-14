@@ -1,40 +1,53 @@
+/**
+ * plan-delivery 静态契约锁
+ * PR-V2-C · 对齐 15h-p03c-plan-delivery.html 原型
+ */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const read = (name: string) => readFileSync(
-  join(__dirname, '..', 'miniprogram', 'pages', 'plan-delivery', name),
-  'utf-8',
-);
+const read = (name: string) =>
+  readFileSync(
+    join(__dirname, '..', 'miniprogram', 'pages', 'plan-delivery', name),
+    'utf-8',
+  );
 
-describe('plan-delivery contract', () => {
-  it('renders the 46px deliver icon with the 0.6s pop animation', () => {
+describe('plan-delivery · 15h 原型对齐', () => {
+  it('hero bounce 动画', () => {
     const wxss = read('index.wxss');
-    expect(wxss).toContain('.deliver-icon');
-    expect(wxss).toContain('font-size: 46px');
-    expect(wxss).toContain('animation: pop .6s ease-out');
-    expect(wxss).toContain('@keyframes pop');
+    expect(wxss).toContain('.plan-hero-icon');
+    expect(wxss).toContain('animation: bounce');
+    expect(wxss).toContain('@keyframes bounce');
   });
 
-  it('renders the summary-card-m with a 36px green gradient icon', () => {
+  it('bottom CTA 有两个按钮', () => {
     const wxss = read('index.wxss');
-    expect(read('index.wxml')).toContain('21 天养护方案已生成');
-    expect(wxss).toContain('.summary-card-m');
-    expect(wxss).toMatch(/\.summary-icon-m[\s\S]*width: 36px;[\s\S]*linear-gradient/);
+    expect(wxss).toContain('.btn-primary');
+    expect(wxss).toContain('.btn-secondary');
+    expect(wxss).toContain('.plan-cta');
+    expect(wxss).toContain('position: fixed');
   });
 
-  it('builds all 21 day rows and previews the first seven', () => {
+  it('前 5 天预览 + phase 样式', () => {
     const ts = read('index.ts');
-    // FE-FIX-07：21 天预览字段映射走 services/plan.ts mapPlanDays 纯函数；
-    // page 内不再使用 Array.from({length:21}) 直接 map，留给 service 层处理
-    expect(ts).toMatch(/mapPlanDays\(\s*preview\.days\s*,\s*fallbacks\s*\)/);
-    expect(ts).toMatch(/days\.slice\(\s*0\s*,\s*7\s*\)/);
-    expect(read('index.wxml')).toContain('查看全部 21 天');
+    expect(ts).toMatch(/days\.slice\(\s*0\s*,\s*5\s*\)/);
+    const wxss = read('index.wxss');
+    expect(wxss).toContain('.day-row.p1');
+    expect(wxss).toContain('.day-row.p2');
+    expect(wxss).toContain('.day-row.p3');
   });
 
-  it('shows all four status legend items', () => {
+  it('阶段图例（phase-legend）+ 3 个阶段 dot', () => {
+    const wxss = read('index.wxss');
+    expect(wxss).toContain('.phase-legend');
+    expect(wxss).toContain('.p1-dot');
+    expect(wxss).toContain('.p2-dot');
+    expect(wxss).toContain('.p3-dot');
+  });
+
+  it('mapPlanDays 走 services/plan.ts', () => {
     const ts = read('index.ts');
-    for (const label of ['已完成', '进行中', '待办', '反馈日']) expect(ts).toContain(label);
-    expect(read('index.wxml')).toContain('legend-item-m');
+    expect(ts).toContain('mapPlanDays');
+    expect(ts).toContain('services/plan');
   });
 });

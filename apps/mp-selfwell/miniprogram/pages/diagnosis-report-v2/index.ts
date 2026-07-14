@@ -29,7 +29,7 @@ Page({
     planId: '',
     profileCount: 5,
     photoCount: 3,
-    expandedActions: false,
+    expandedActions: true,
     generating: false,
     directions: DEFAULT_DIRECTIONS,
     tags: [
@@ -123,6 +123,14 @@ Page({
 
   onToggleActions() {
     this.setData({ expandedActions: !this.data.expandedActions });
+  },
+
+  onTapAction(event: MiniEvent) {
+    const index = Number((event.currentTarget.dataset as { index?: string }).index ?? 0);
+    const action = this.data.actions[index];
+    if (action) {
+      wx.showToast({ title: action.title, icon: 'none' });
+    }
   },
 
   onOpenVideo(event: MiniEvent) {

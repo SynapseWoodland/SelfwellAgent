@@ -34,8 +34,12 @@ function readFile(name: string): string {
 }
 
 // 复刻 component observer 内的算法（保持单一真源在 observer 内）
-function computeDashOffsets(size: number, percents: number[]): Array<{ percent: number; radius: number; circumference: number; dashOffset: number }> {
-  const r = size / 2 - 16;
+function computeDashOffsets(
+  size: number,
+  percents: number[],
+  strokeWidth = 6,
+): Array<{ percent: number; radius: number; circumference: number; dashOffset: number }> {
+  const r = size / 2 - strokeWidth;
   const c = 2 * Math.PI * r;
   return percents.map((percent) => {
     const safe = Math.max(0, Math.min(100, Number(percent) || 0));
@@ -62,13 +66,13 @@ describe('FE-FIX-04 · progress-ring 组件契约', () => {
     expect(ts).toMatch(/subLabel:\s*\{\s*type:\s*String/);
   });
 
-  it('用例 3: observer 公式 r = size/2 - 16 / c = 2πr / dashOffset = c * (1 - percent/100)', () => {
+  it('用例 3: observer 公式 r = size/2 - strokeWidth / c = 2πr / dashOffset = c * (1 - percent/100)', () => {
     const ts = readFile('index.ts');
-    // 关键算法字面锁
-    expect(ts).toContain('size / 2 - 16');
+    // 关键算法字面锁（V2 支持 strokeWidth 参数，不再写死 16）
+    expect(ts).toMatch(/size\s*\/\s*2\s*-\s*strokeWidth/);
     expect(ts).toContain('2 * Math.PI *');
-    expect(ts).toContain('c * (1 - ');
-    expect(ts).toMatch(/observers:\s*\{[\s\S]*['"]percent,\s*size['"]/);
+    expect(ts).toMatch(/c\s*\*\s*\(1\s*-\s*/);
+    expect(ts).toMatch(/observers:\s*\{[\s\S]*['"]percent,\s*size,\s*strokeWidth['"]/);
   });
 
   it('用例 4: percent=0 → dashOffset = circumference（全未完成）', () => {
@@ -98,13 +102,13 @@ describe('FE-FIX-04 · progress-ring 组件契约', () => {
     expect(rows[1].dashOffset).toBeCloseTo(0, 6);
   });
 
-  it('用例 8: size 变化后 radius / circumference 重算（默认 240 → 改 90 / 360）', () => {
-    const r90 = computeDashOffsets(90, [50]);
-    const r240 = computeDashOffsets(240, [50]);
-    const r360 = computeDashOffsets(360, [50]);
-    expect(r90[0].radius).toBe(90 / 2 - 16);
-    expect(r240[0].radius).toBe(240 / 2 - 16);
-    expect(r360[0].radius).toBe(360 / 2 - 16);
+  it('用例 8: size 变化后 radius / circumference 重算（默认 240 → 改 90 / 360；strokeWidth 默认 6px）', () => {
+    const r90 = computeDashOffsets(90, [50], 6);
+    const r240 = computeDashOffsets(240, [50], 6);
+    const r360 = computeDashOffsets(360, [50], 6);
+    expect(r90[0].radius).toBe(90 / 2 - 6);
+    expect(r240[0].radius).toBe(240 / 2 - 6);
+    expect(r360[0].radius).toBe(360 / 2 - 6);
     expect(r90[0].circumference).not.toBe(r240[0].circumference);
     expect(r240[0].circumference).not.toBe(r360[0].circumference);
     // dashOffset 永远等于 circumference * (1 - 0.5) = circumference * 0.5

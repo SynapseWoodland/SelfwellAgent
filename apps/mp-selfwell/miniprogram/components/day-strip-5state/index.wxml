@@ -1,6 +1,8 @@
-<!-- PR-V2-A · day-strip-5state WXML stub -->
-<!-- AC-2: data-state 属性绑定状态；AC-3: 5 状态 css class 用模板拼接 state-{{item.state}} -->
-<view class="day-strip">
+<!-- day-strip-5state 组件
+  PR-V2-A P1.2
+  5 态：completed / today / missed / future / feedback
+-->
+<view class="day-strip {{compact ? 'day-strip--compact' : ''}}">
   <view
     wx:for="{{days}}"
     wx:key="index"
@@ -10,5 +12,7 @@
     bindtap="onSelect"
   >
     <text class="day-number">{{item.dayNumber}}</text>
+    <!-- 今日外发光 dot -->
+    <view wx:if="{{item.state === 'today'}}" class="day-today-dot"></view>
   </view>
 </view>

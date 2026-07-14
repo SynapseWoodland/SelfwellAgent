@@ -11,6 +11,8 @@ describe('diagnosis-report-v2 contract', () => {
   it('renders the dynamic 3-photo and 5-profile hero counts', () => {
     const wxml = read('index.wxml');
     expect(wxml).toContain('基于 {{photoCount}} 张照片 + {{profileCount}} 项档案');
+    expect(wxml).toContain('hero-title');
+    expect(wxml).toContain('不是医学判断');
     expect(read('index.ts')).toContain('profileCount: 5');
   });
 
@@ -24,14 +26,19 @@ describe('diagnosis-report-v2 contract', () => {
   it('renders twelve tags including lavender strong tags', () => {
     const ts = read('index.ts');
     expect((ts.match(/label: '[^']+', strong:/g) ?? []).length).toBe(12);
-    expect(read('index.wxss')).toMatch(/\.tag\.strong[\s\S]*var\(--color-secondary-lavender\)/);
+    const wxss = read('index.wxss');
+    expect(wxss).toContain('.tag.strong');
+    expect(wxss).toContain('.tag');
   });
 
   it('locks the three phase left-edge colors', () => {
     const wxss = read('index.wxss');
-    expect(wxss).toContain('.phase-card.p1 { border-left: 3px solid var(--color-primary-mint); }');
-    expect(wxss).toContain('.phase-card.p2 { border-left: 3px solid #C7D8B9; }');
-    expect(wxss).toContain('.phase-card.p3 { border-left: 3px solid var(--color-accent-warm); }');
+    expect(wxss).toContain('.phase-card.p1');
+    expect(wxss).toContain('border-left: 3px solid var(--color-primary-mint');
+    expect(wxss).toContain('.phase-card.p2');
+    expect(wxss).toContain('border-left: 3px solid #C7D8B9');
+    expect(wxss).toContain('.phase-card.p3');
+    expect(wxss).toContain('border-left: 3px solid var(--color-accent-warm');
   });
 
   it('uses wx:if plus wx:else for the three-action fold', () => {

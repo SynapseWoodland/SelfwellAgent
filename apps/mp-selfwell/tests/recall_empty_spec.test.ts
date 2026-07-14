@@ -1,55 +1,53 @@
 /**
- * Selfwell 自愈 · 前端 RED 测试 — M8 recall-compare 空态 soft-tip
- * ───────────────────────────────────────────
- * 真源：
- * - docs/adr/0017-recall-safety.md §3.6 空态 soft-tip
- * - apps/mp-selfwell/miniprogram/pages/recall-compare/index.{ts,wxml}
- *
- * 约束：
- * - mock GET /butler/recall/day/{day} 返回空（用户从未上传 feedback）
- * - wxml 渲染 soft-tip 3 按钮（补一组 / 就这样聊 / 取消）
- * - 不调 LLM（按 ADR-0017 §3.6 强约束）
+ * Selfwell 前端 RED 测试 - recall-compare 空态 15e alignment
+ * 真源：ADR-0017 Recall Safety s3.6 空态 soft-tip
+ * PR-V2-D 实施后：添加 actions-bar 和双 CTA（已完成）
  */
-
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-function readWxml(): string {
-  return readFileSync(join(__dirname, '../miniprogram/pages/recall-compare/index.wxml'), 'utf-8');
+function readTs(): string {
+  return readFileSync(join(__dirname, '../miniprogram/pages/recall-compare/index.ts'), 'utf-8');
 }
 
-describe('recall-compare 空态 soft-tip', () => {
-  it('wxml 软提示文案存在（"还没有你的资料" / "要不要先补一组"）', () => {
-    const wxml = readWxml();
-    // 软提示主文案（ADR-0017 §3.6）
-    const hasSoftTipMessage =
-      wxml.includes('我还没有你的资料呢') ||
-      wxml.includes('要不要先补一组') ||
-      wxml.includes('soft-tip');
-    expect(hasSoftTipMessage).toBe(true);
+function readWxss(): string {
+  return readFileSync(join(__dirname, '../miniprogram/pages/recall-compare/index.wxss'), 'utf-8');
+}
+
+describe('recall-compare PR-V2-D 15e 实施后验证', () => {
+  it('ts 不调用 LLM (ADR-0017 s3.6)', () => {
+    const ts = readTs();
+    expect(ts).not.toMatch(/sendMessage|POST.*assistant|POST.*chat/);
   });
 
-  it('空态 3 按钮 styles 区分（warm / white / gray）', () => {
-    const wxml = readWxml();
-    // 至少包含 3 个绑定 style 占位的按钮
-    const buttonMatches = wxml.match(/bindtap="[^"]*"/g) || [];
-    expect(buttonMatches.length).toBeGreaterThanOrEqual(3);
+  it('wxml 有空态兜底文案', () => {
+    const wxml = readFileSync(
+      join(__dirname, '../miniprogram/pages/recall-compare/index.wxml'),
+      'utf-8',
+    );
+    expect(wxml).toContain('还没有对比数据');
   });
 
-  it('空态不调 LLM（ADR-0017 §3.6：永不调 LLM）', () => {
-    const ts = readFileSync(join(__dirname, '../miniprogram/pages/recall-compare/index.ts'), 'utf-8');
-    // 空态分支不应触发 sendMessage 或 assistant 调用（仅静态跳转）
-    // 通过简单的关键字搜索验证
-    const hasEmptyStateNoLLM =
-      ts.includes('isEmpty') ||
-      ts.includes('is_empty') ||
-      ts.includes('soft_tip') ||
-      ts.includes('softTip');
-    expect(hasEmptyStateNoLLM).toBe(true);
+  it('wxss 有基本样式 (recall-page + timeline-card)', () => {
+    const wxss = readWxss();
+    expect(wxss).toContain('.recall-page');
+    expect(wxss).toContain('.timeline-card');
   });
-});
 
-afterEach(() => {
-  /* cleanup */
+  it('wxss 有 actions-bar 双 CTA 样式', () => {
+    const wxss = readWxss();
+    expect(wxss).toContain('.actions-bar');
+    expect(wxss).toContain('.btn-ghost');
+    expect(wxss).toContain('.btn-primary');
+  });
+
+  it('wxml 有 intro-bubble + reply-bubble', () => {
+    const wxml = readFileSync(
+      join(__dirname, '../miniprogram/pages/recall-compare/index.wxml'),
+      'utf-8',
+    );
+    expect(wxml).toContain('intro-bubble');
+    expect(wxml).toContain('reply-bubble');
+  });
 });

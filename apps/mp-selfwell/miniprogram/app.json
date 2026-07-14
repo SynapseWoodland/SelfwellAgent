@@ -21,7 +21,8 @@
     "pages/diagnosis-upload-v2/index",
     "pages/diagnosis-loading-v2/index",
     "pages/diagnosis-report-v2/index",
-    "pages/plan-delivery/index"
+    "pages/plan-delivery/index",
+    "pages/task-detail/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

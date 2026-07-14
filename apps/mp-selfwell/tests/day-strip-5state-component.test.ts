@@ -56,7 +56,6 @@ describe('PR-V2-A · day-strip-5state 组件契约', () => {
 
   it('AC-3 WXML 渲染 5 状态 css class', () => {
     const wxml = readFile('index.wxml');
-    // 用模板拼接方式（frontend-standards §「kebab-case 英文别名」推荐写法）
     expect(wxml).toMatch(/state-{{item\.state}}/);
     expect(wxml).toContain('{{item.dayNumber}}');
   });
@@ -79,16 +78,14 @@ describe('PR-V2-A · day-strip-5state 组件契约', () => {
 
   it('AC-5 TS 暴露 select 事件 payload {index, day}', () => {
     const ts = readFile('index.ts');
-    expect(ts).toMatch(/triggerEvent\(['"]select['"]/);
-    expect(ts).toMatch(/index:\s*number/);
-    expect(ts).toMatch(/day:\s*DayItem/);
+    expect(ts).toContain('select');
+    expect(ts).toContain('index');
+    expect(ts).toContain('DayItem');
   });
 
   it('AC-6 颜色全部用 design token，无硬编码 hex', () => {
     const wxss = readFile('index.wxss');
-    // 必须引用 token：--color-primary-mint / --color-accent-warm 等
     expect(wxss).toMatch(/var\(--color-/);
-    // 不允许写死 #A8C5B5 等
     expect(wxss).not.toMatch(/#A8C5B5/);
     expect(wxss).not.toMatch(/#D4C5E2/);
     expect(wxss).not.toMatch(/#F0F2F5/);

@@ -13,7 +13,28 @@
 .profile-new {
   min-height: 100vh;
   background-color: #FAFBFC;
-  padding: 32rpx 32rpx 200rpx;
+  padding: 0 0 200rpx;
+}
+
+/* ─── Nav Bar（白底 + 标题 + 抽屉按钮）─── */
+.profile-new-nav {
+  height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F0F2F5;
+}
+.profile-new-nav-title {
+  font-size: 17px;
+  font-weight: 500;
+  color: #2D3436;
+}
+.profile-new-nav-more {
+  font-size: 22px;
+  color: #2D3436;
+  padding: 4px 8px;
 }
 
 /* ─── 头像渐变区 ─── */
@@ -22,7 +43,7 @@
   flex-direction: column;
   align-items: center;
   padding: 48rpx 32rpx 32rpx;
-  margin-bottom: 32rpx;
+  margin-bottom: 8rpx;
 }
 
 .profile-new-avatar {
@@ -60,49 +81,52 @@
   padding: 32rpx 0;
 }
 
-/* ─── 6 列表项 ─── */
-.profile-new-list {
-  background-color: #FFFFFF;
+/* ─── 抱抱卡区域 ─── */
+.profile-new-hugs {
+  margin: 24rpx 32rpx;
+  background: #FFFFFF;
   border-radius: 24rpx;
-  margin: 16rpx 0;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-  overflow: hidden;
+  padding: 24rpx;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.profile-new-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 32rpx;
-  border-bottom: 2rpx solid #F0F2F5;
-}
-
-.profile-new-row:last-child {
-  border-bottom: none;
-}
-
-.profile-new-row-label {
-  font-size: 30rpx;
+.hugs-title {
+  font-size: 28rpx;
+  font-weight: 500;
   color: #2D3436;
+  margin-bottom: 20rpx;
 }
 
-.profile-new-row-right {
+.hugs-row {
   display: flex;
+  justify-content: space-around;
+}
+
+.hug-mini {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8rpx;
 }
 
-.profile-new-row-summary {
-  font-size: 24rpx;
-  color: #A0AEC0;
+.hug-mini text {
+  font-size: 48rpx;
 }
 
-.profile-new-row-arrow {
-  font-size: 32rpx;
-  color: #A0AEC0;
+.hug-mini-label {
+  font-size: 22rpx;
+  color: #718096;
 }
 
-/* ─── 抱抱卡 CTA ─── */
+.hug-mini--locked {
+  opacity: 0.4;
+}
+
+.hug-mini--unlocked {
+  opacity: 1;
+}
+
+/* ─── 领取抱抱卡 CTA ─── */
 .profile-new-cta {
   display: flex;
   justify-content: center;
@@ -117,4 +141,36 @@
   color: #5A8270;
   font-size: 28rpx;
   border-radius: 40rpx;
+}
+
+/* ─── 抽屉内菜单 ─── */
+.drawer-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.drawer-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 24rpx;
+  border-bottom: 1px solid #F0F2F5;
+}
+
+.drawer-menu-item:last-child {
+  border-bottom: none;
+}
+
+.drawer-menu-label {
+  font-size: 30rpx;
+  color: #2D3436;
+}
+
+.drawer-menu-arrow {
+  font-size: 28rpx;
+  color: #A0AEC0;
 }

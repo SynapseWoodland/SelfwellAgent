@@ -6,7 +6,18 @@
  * §13 / §17 强约束：
  *  - 禁止的三个色码（详见 tokens-flat.json 的 forbiddenColors_NOTE 段）
  *  - 主色 #A8C5B5（薄荷绿）；中性色 #2D3436 / #4A5568 / #718096 / #A0AEC0 / #E2E8F0
+ *
+ * ─────────────────────────────────────────────────────────────
+ * V2 Token（PR-V2-A）：
+ *  - V1 rpx token 在本文件 page { } 块（--mint / --ink-*）
+ *  - V2 px token 在 styles/v2-tokens.wxss（--color-primary-mint 等）
+ *  - V2 页面：@import "../../styles/v2-tokens.wxss";（引用 V2 token）
+ *  - V1 页面：继续引用本文件全局 V1 token
+ * ─────────────────────────────────────────────────────────────
  */
+
+/* V2 token（px 体系，由 styles/v2-tokens.wxss 提供全局 V2 token 覆盖） */
+@import "./styles/v2-tokens.wxss";
 
 page {
   /* Color tokens */

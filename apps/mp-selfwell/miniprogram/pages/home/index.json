@@ -3,6 +3,8 @@
   "enablePullDownRefresh": true,
   "usingComponents": {
     "progress-ring": "/components/progress-ring/index",
-    "task-card": "/components/task-card/index"
+    "task-card": "/components/task-card/index",
+    "day-strip-5state": "/components/day-strip-5state/index",
+    "drawer-overlay": "/components/drawer-overlay/index"
   }
 }

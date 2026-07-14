@@ -1,82 +1,87 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §4.8 P08 对比回顾
- * 后端端点:
- *   - POST /butler/recall         — 触发主动回忆生成
- *   - GET  /butler/recall/day/:day — 按天获取回忆对比
- *
- * 行为：
- *   - onLoad 默认选中 day=7（第一个可对比节点）
- *   - 用户切换 tab → GET /butler/recall/day/:day
- *   - 无数据时显示空状态文案
- *   - 若当前用户尚未到达对应天数，提示"还有 N 天再来"
+ * recall-compare/index.ts
+ * PR-V2-D · 对齐 15e-recall-cta-buttons.html 原型
+ * 双时间线对比：Day N vs Day today（照片 + 摘要 + AI鼓励）
+ * 后端端点：
+ *   - GET /butler/recall/day/:day — 按天获取回忆快照
+ *   - POST /feedback — 写入心情日记
  */
-import { get, post, ApiException } from '../../utils/request';
-import type { RecallDay } from '../../types/api';
+import { get } from '../../utils/request';
 
-const DAYS: RecallDay[] = [7, 14, 21];
+interface RecallPhoto {
+  url: string;
+  caption: string;
+}
 
 interface RecallSnapshot {
-  emotionTrend: string;     // 来自 summary_text
-  habitStreak: string;     // 来自 diff_tags.join(' / ')
-  highlights: string[];     // 来自 diff_tags
+  baselineDay: number;
+  baselineDate: string;
+  baselinePhotos: RecallPhoto[];
   baseline_report_text: string;
+  currentDay: number;
+  currentDate: string;
+  currentPhotos: RecallPhoto[];
   current_report_text: string;
-  generated_at: string;
+  ai_reply_text: string;
+  intro_text: string;
 }
 
 interface PageData {
-  days: number[];
-  activeDay: RecallDay;
+  activeDay: number;
   snapshot: RecallSnapshot | null;
+  introText: string;
   loading: boolean;
-  errMsg: string;
 }
+
+const DAYS = [7, 14, 21] as const;
+type DayOption = 7 | 14 | 21;
 
 Page({
   data: {
-    days: DAYS,
     activeDay: 7,
     snapshot: null,
+    introText: '',
     loading: false,
-    errMsg: '',
   } as PageData,
 
-  onLoad(options: { day?: string }) {
-    const day = options?.day ? (parseInt(options.day, 10) as RecallDay) : 7;
-    this.setData({ activeDay: DAYS.includes(day) ? day : 7 });
-    this._loadSnapshot(this.data.activeDay);
+  onLoad(options: Record<string, string | undefined>) {
+    const raw = options?.day ? parseInt(String(options.day), 10) : 7;
+    const day = DAYS.includes(raw as DayOption) ? (raw as DayOption) : 7;
+    this.setData({ activeDay: day });
+    void this._loadSnapshot(day);
   },
 
   onSelectDay(e: WechatMiniprogram.TapEvent) {
-    const day = e.currentTarget.dataset.day as RecallDay;
+    const day = Number((e.currentTarget.dataset as { day?: number }).day ?? 7) as DayOption;
     if (day === this.data.activeDay) return;
     this.setData({ activeDay: day, snapshot: null });
-    this._loadSnapshot(day);
+    void this._loadSnapshot(day);
   },
 
-  async _loadSnapshot(day: RecallDay) {
-    this.setData({ loading: true, errMsg: '' });
+  async _loadSnapshot(day: number) {
+    this.setData({ loading: true });
     try {
-      const data = await get<Record<string, unknown>>(`/butler/recall/day/${day}`);
-      if (!data || Object.keys(data).length === 0) {
-        // 无数据 — 用户尚未到达该节点
-        this.setData({ loading: false, snapshot: null });
-        return;
-      }
-
-      // API → UI snapshot 映射
+      const raw = (await get<Record<string, unknown>>(`/butler/recall/day/${day}`)) ?? {};
+      const photos = (arr: unknown[]) =>
+        (Array.isArray(arr) ? arr : []).map((p) => ({
+          url: String((p as { url?: unknown }).url ?? ''),
+          caption: String((p as { caption?: unknown }).caption ?? ''),
+        }));
       const snapshot: RecallSnapshot = {
-        emotionTrend: (data['summary_text'] as string) ?? '',
-        habitStreak: ((data['diff_tags'] as string[]) ?? []).join(' / '),
-        highlights: ((data['diff_tags'] as string[]) ?? []).filter(Boolean),
-        baseline_report_text: (data['baseline_report_text'] as string) ?? '',
-        current_report_text: (data['current_report_text'] as string) ?? '',
-        generated_at: (data['generated_at'] as string) ?? '',
+        baselineDay: day,
+        baselineDate: String(raw['baseline_date'] ?? ''),
+        baselinePhotos: photos(raw['baseline_photos']),
+        baseline_report_text: String(raw['baseline_report_text'] ?? ''),
+        currentDay: 0,
+        currentDate: new Date().toLocaleDateString('zh-CN'),
+        currentPhotos: photos(raw['current_photos']),
+        current_report_text: String(raw['current_report_text'] ?? ''),
+        ai_reply_text: String(raw['ai_reply_text'] ?? '你已经在路上了，继续加油 🌿'),
+        intro_text: String(raw['intro_text'] ?? raw['summary_text'] ?? ''),
       };
-      this.setData({ snapshot, loading: false });
-    } catch (e) {
-      const msg = e instanceof ApiException ? e.message : '加载失败';
-      this.setData({ loading: false, errMsg: msg });
+      this.setData({ snapshot, introText: snapshot.intro_text, loading: false });
+    } catch {
+      this.setData({ loading: false });
     }
   },
 
@@ -85,23 +90,13 @@ Page({
   },
 
   onSaveAsDiary() {
-    const summary = this.data.snapshot?.emotionTrend ?? '';
+    const summary = this.data.snapshot?.current_report_text ?? '';
     wx.navigateTo({
       url: `/pages/feedback-diary/index?source=recall&text=${encodeURIComponent(summary)}`,
     });
   },
 
-  onAskAnother() {
-    wx.navigateTo({
-      url: '/pages/recall-flow/index?trigger=user_manual&days_offset=7',
-    });
-  },
-
-  onShareAppMessage() {
-    const day = this.data.activeDay;
-    return {
-      title: `第 ${day} 天的蜕变对比`,
-      path: `/pages/recall-compare/index?day=${day}`,
-    };
+  onNavBack() {
+    wx.navigateBack();
   },
 });

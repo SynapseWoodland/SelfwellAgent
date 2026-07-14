@@ -211,4 +211,13 @@ Page({
       });
     }
   },
+
+  onClear() {
+    wx.showToast({ title: '已清空', icon: 'none' });
+  },
+
+  onRegenerate() {
+    wx.showToast({ title: '正在重新生成…', icon: 'none' });
+    void this._triggerRecall();
+  },
 });

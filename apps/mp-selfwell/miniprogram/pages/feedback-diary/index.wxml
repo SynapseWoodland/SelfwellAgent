@@ -1,25 +1,85 @@
-<view class="diary">
-  <view class="diary-card">
-    <view class="diary-title">今天的心情</view>
-    <textarea
-      class="diary-input"
-      placeholder="写下一点点，就够了"
-      maxlength="200"
-      value="{{text}}"
-      bindinput="onInput"
-    />
-    <button
-      class="diary-btn"
-      bindtap="onSubmit"
-      loading="{{submitting}}"
-      disabled="{{submitting}}"
-    >
-      写完了
-    </button>
+<!-- feedback-diary/index.wxml
+  PR-V2-C · 对齐 15a-butler-home-tab1.html 心情日记入口
+  心情选择：emoji grid · 照片上传：可选 · 文字记录 · ack气泡
+-->
+<view class="diary-page">
+  <!-- Nav Bar -->
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">心情日记</view>
+    <view class="nav-space"></view>
   </view>
 
-  <view wx:if="{{ackText}}" class="diary-ack-wrap">
-    <ack-bubble text="{{ackText}}" tone="warm" />
-    <view class="diary-ack-tip">长按查看完整回应（≤ 30 字）</view>
+  <scroll-view class="diary-scroll" scroll-y>
+    <!-- 日期标签 -->
+    <view class="diary-date">{{dateLabel}}</view>
+
+    <!-- 心情选择（emoji grid · 15a原型chips风格） -->
+    <view class="mood-section">
+      <view class="section-label">今天感觉怎么样？</view>
+      <view class="mood-grid">
+        <view
+          wx:for="{{moods}}"
+          wx:key="id"
+          class="mood-item {{selectedMood === item.id ? 'is-selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onSelectMood"
+        >
+          <view class="mood-emoji">{{item.emoji}}</view>
+          <view class="mood-label">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 照片上传（可选 · 最多1张） -->
+    <view class="photo-section">
+      <view class="section-label">附张照片（可选）</view>
+      <view class="photo-row">
+        <view
+          wx:if="{{!photoUrl}}"
+          class="photo-slot"
+          bindtap="onPickPhoto"
+        >
+          <view class="photo-icon">📷</view>
+          <view class="photo-hint">添加照片</view>
+        </view>
+        <view wx:if="{{photoUrl}}" class="photo-preview" bindtap="onPickPhoto">
+          <image class="photo-img" src="{{photoUrl}}" mode="aspectFill" />
+          <view class="photo-repick">更换</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 文字记录 -->
+    <view class="diary-card">
+      <view class="diary-title">写点什么</view>
+      <textarea
+        class="diary-input"
+        placeholder="写下一点点，就够了"
+        maxlength="200"
+        value="{{text}}"
+        bindinput="onInput"
+      />
+      <view class="diary-char-count">{{text.length}} / 200</view>
+    </view>
+
+    <!-- ACK 气泡（提交后展示） -->
+    <view wx:if="{{ackText}}" class="diary-ack-wrap">
+      <ack-bubble text="{{ackText}}" tone="warm" />
+    </view>
+
+    <view class="diary-bottom-space"></view>
+  </scroll-view>
+
+  <!-- 底部提交按钮 -->
+  <view class="diary-submit-bar">
+    <button
+      class="btn-submit {{canSubmit ? '' : 'btn-disabled'}}"
+      bindtap="onSubmit"
+      loading="{{submitting}}"
+      disabled="{{!canSubmit || submitting}}"
+    >
+      {{submitting ? '保存中…' : '保存日记'}}
+    </button>
   </view>
 </view>

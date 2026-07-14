@@ -238,3 +238,24 @@
   background: #a8c5b5;
   color: #2d3436;
 }
+
+/* 工具条（15a/08b原型） */
+.recall-flow__util-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #FAFBFC;
+  border-bottom: 1px solid #F0F2F5;
+}
+.util-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #F0F2F5;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.util-icon { font-size: 12px; }
+.util-label { font-size: 12px; color: #718096; }

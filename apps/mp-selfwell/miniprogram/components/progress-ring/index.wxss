@@ -1,14 +1,13 @@
-/* ─────────────────────────────────────────────────────
- * 进度环样式（PR-A4-b 还原）
- * ─────────────────────────────────────────────────────
- * Token 真源：app.wxss §13 / §17（PR-6 锁定）
- *   --progress-ring-fg:  #A8C5B5（前景：已完成）
- *   --progress-ring-bg:  #E2E8F0（背景：未完成）
+/* ─────────────────────────────────────────────────────────
+ * progress-ring WXSS
+ * PR-V2-A P1.1 · 对齐 styles/v2-tokens.wxss
  *
- * 颜色说明：本组件样式表的 hardcoded 色码与 app.wxss token 同源；
- * 若 PR-7 迁移到 token 引用，需通过 vitest（home-tab2.test / profile-new.test）
- * 验证视觉不退。
- */
+ * Token（styles/v2-tokens.wxss）：
+ *   --ring-size-sm: 60px / --ring-size-md: 90px / --ring-size-lg: 160px
+ *   --ring-stroke: 6px / --ring-stroke-lg: 8px
+ *   --ring-fg: #A8C5B5
+ *   --ring-bg: #E2E8F0
+ * ───────────────────────────────────────────────────────── */
 
 .ring-wrap {
   position: relative;
@@ -17,21 +16,34 @@
   justify-content: center;
 }
 
+/* ── SVG stroke 方式（兼容旧版）────────────────────────── */
 .ring-svg {
   transform: rotate(-90deg);
 }
 
 .ring-bg {
   fill: none;
-  stroke: #E2E8F0;
+  stroke: var(--ring-bg, #E2E8F0);
 }
 
 .ring-fg {
   fill: none;
-  stroke: #A8C5B5;
+  stroke: var(--ring-fg, #A8C5B5);
   transition: stroke-dashoffset 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.ring-fg-gradient {
+  fill: none;
+  stroke: url(#ring-grad);
+  transition: stroke-dashoffset 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── conic-gradient 备选说明 ────────────────────────────
+ * 注意：微信小程序不支持 CSS conic-gradient。
+ * 若未来需要渐变圆环，用 SVG linearGradient 实现（如 .ring-fg-gradient）。
+ * ──────────────────────────────────────────────────── */
+
+/* ── 中心文字（两种方式共用）──────────────────────────── */
 .ring-text {
   position: absolute;
   inset: 0;
@@ -43,14 +55,13 @@
 }
 
 .ring-label {
-  font-size: 56rpx;
   font-weight: 600;
-  color: #2D3436;
+  color: var(--color-text-primary, #2D3436);
   line-height: 1;
 }
 
 .ring-sub {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #718096;
+  margin-top: 4px;
+  color: var(--color-text-muted, #718096);
+  line-height: 1.2;
 }

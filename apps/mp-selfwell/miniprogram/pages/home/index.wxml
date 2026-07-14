@@ -1,123 +1,159 @@
 <!--
-  PR-3 commit-1 · pages/home 升版为「今天」Tab（V2 15b-today-tab2.html）
-  ──────────────────────────────────────────────────────────────────────
-  真源：plans/v2-IA-pr-internal.md §PR-3 commit-1
-  真源：docs/design/figma-pixso-spec/pages/15b-today-tab2.html
-  API    : GET /users/me (openapi.yaml#UsersApi.getCurrentUser)
-           GET /checkins/today (openapi.yaml#CheckinsApi.getCheckinCalendar)
-           GET /plans/today (openapi.yaml#PlansApi.getTodayPlan)
-  PUSH   : §§17.17 payload = { traceparent, client_platform: 'wechat_mp', user_id_pseudo }
-
-  升版要点：
-  - 进度环 90px（PR-6 token --progress-ring-size · 兼容 V1 size=240）
-  - 21 天方案 day-strip（21 格，done/today/future 三态）
-  - hug-section（抱抱卡入口 → /pages/share-hug-card/index）
-  - time-section（我的时光入口 → /pages/record-album/index）
-  - 抽屉管理页（drawer-card 8 个，drawer 容器 + 蒙层 + catchtap 关闭）
-
-  关键约束（frontend-standards §WXSS class 命名）：
-  - 业务字段值不拼接 class 名；如 dayStrip cell 状态用 [data-state='done|today|future']
+  pages/home/index.wxml — 今天 Tab（V2 15b-today-tab2.html）
+  PR-V2-C
+  真源：docs/design/figma-pixso-spec/pages-v2/15b-today-tab2.html
+  Token：styles/v2-tokens.wxss
 -->
 <view class="home">
-  <!-- 顶部问候条：保留现有 greeting + streak -->
-  <view class="home-greeting">
-    <view class="home-greeting-title">{{nickname ? nickname + '，' : ''}}{{greeting}}</view>
-    <view class="home-greeting-sub">已走过 <text class="streak">{{streak}}</text> 天</view>
-  </view>
-
-  <!-- 进度环 90px（V2 设计稿 15b-today-tab2.html） -->
-  <view class="home-progress">
-    <progress-ring
-      percent="{{percent}}"
-      size="{{90}}"
-      label="{{percent}}%"
-      sub-label="今日完成"
-    />
-  </view>
-
-  <!-- 21-day strip（21 天方案 day-strip） -->
-  <view class="home-daystrip" data-test="daystrip">
-    <view
-      wx:for="{{dayStrip}}"
-      wx:key="index"
-      class="home-daystrip-cell"
-      data-state="{{item.state}}"
-      data-index="{{item.index}}"
-    >
-      <view class="home-daystrip-cell-inner">{{item.index}}</view>
+  <!-- ── 顶部 Nav Bar ────────────────────────────────── -->
+  <view class="home-nav">
+    <view class="home-nav-title">今天</view>
+    <view class="home-nav-btn" bindtap="onOpenDrawer" data-test="nav-drawer-btn">
+      <!-- SVG 三点图标 -->
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <circle cx="5" cy="12" r="1.5" fill="#2D3436"/>
+        <circle cx="12" cy="12" r="1.5" fill="#2D3436"/>
+        <circle cx="19" cy="12" r="1.5" fill="#2D3436"/>
+      </svg>
     </view>
   </view>
 
-  <!-- 今日小动作（保留现有 task-cards，与原 home 行为一致） -->
-  <view class="home-card">
-    <view class="home-card-title">
-      <text>今日小动作</text>
-      <text class="home-card-title-right">{{done}}/{{total}} 项</text>
-    </view>
-    <view class="home-card-hint">点击卡片即可打卡</view>
-    <task-card
-      wx:for="{{taskCards}}"
-      wx:key="id"
-      id="{{item.id}}"
-      title="{{item.title}}"
-      subtitle="{{item.subtitle}}"
-      done="{{item.done}}"
-      bind:toggle="onTaskToggle"
-    />
-  </view>
-
-  <!-- hug-section：抱抱卡入口 -->
-  <view class="home-section" bindtap="onGotoShare">
-    <view class="home-section-icon">♡</view>
-    <view class="home-section-text">
-      <view class="home-section-title">领取今日抱抱卡</view>
-      <view class="home-section-sub">给坚持的自己一个拥抱</view>
-    </view>
-    <view class="home-section-arrow">›</view>
-  </view>
-
-  <!-- time-section：我的时光入口 -->
-  <view class="home-section" bindtap="onGotoTimeAlbum">
-    <view class="home-section-icon">◷</view>
-    <view class="home-section-text">
-      <view class="home-section-title">我的时光</view>
-      <view class="home-section-sub">看看你走过的痕迹</view>
-    </view>
-    <view class="home-section-arrow">›</view>
-  </view>
-
-  <!-- 主操作条（保留） -->
-  <view class="home-cta">
-    <button class="home-btn home-btn--primary" bindtap="onGotoCheckin">去打卡</button>
-    <button class="home-btn home-btn--ghost" bindtap="onGotoAssistant">找管家聊聊</button>
-  </view>
-
-  <!-- 抽屉触发按钮（右下角浮动） -->
-  <view class="home-drawer-trigger" bindtap="onOpenDrawer" data-test="drawer-trigger">
-    <text>≡</text>
-  </view>
-
-  <!-- 抽屉管理页（drawer-card 8 个） -->
-  <view wx:if="{{drawerOpen}}" class="home-drawer-mask" bindtap="onCloseDrawer" data-test="drawer-mask">
-    <view class="home-drawer" catchtap="">
-      <view class="home-drawer-header">
-        <text class="home-drawer-title">管理</text>
-        <view class="home-drawer-close" bindtap="onCloseDrawer" data-test="drawer-close">×</view>
+  <!-- ── 可滚动内容 ────────────────────────────────── -->
+  <scroll-view class="home-scroll" scroll-y>
+    <!-- P0-1: 进度区（mint 渐变背景） -->
+    <view class="home-progress-section" data-test="progress-section">
+      <!-- 进度环 90px（左侧） -->
+      <progress-ring
+        size="{{90}}"
+        variant="gradient"
+        percent="{{percent}}"
+        label="{{done}}"
+        sub-label="/ {{total}}"
+      />
+      <!-- 进度信息（右侧） -->
+      <view class="home-progress-info">
+        <view class="home-progress-greet">{{greeting}}{{nickname ? '，' + nickname : ''}}</view>
+        <view class="home-progress-sub">已坚持 {{streak}} 天 · 慢慢来</view>
+        <button class="home-btn-checkin" bindtap="onToggleCheckin">今日打卡</button>
       </view>
-      <view class="home-drawer-grid">
-        <view
-          wx:for="{{drawerCards}}"
+    </view>
+
+    <!-- P0-3: plan-overview 卡片（day-strip + phase-bar + phase-label） -->
+    <view class="home-plan-overview" bindtap="onGotoPlan" data-test="plan-overview">
+      <view class="home-plan-overview-head">
+        <view class="home-plan-overview-title">21 天方案 · 你走过 {{streak}} 天</view>
+        <view class="home-plan-overview-link">查看完整方案 ›</view>
+      </view>
+      <!-- 21 天 day-strip（5 态） -->
+      <day-strip-5state
+        days="{{dayStrip}}"
+        activeIndex="{{currentDayIndex}}"
+        bind:select="onDayStripSelect"
+      />
+      <!-- phase-bar（三阶段进度条） -->
+      <view class="home-phase-bar">
+        <view class="home-phase-bar-p1" style="flex: {{currentDay <= 7 ? currentDay : 7}};"></view>
+        <view class="home-phase-bar-p2" style="flex: {{currentDay > 7 ? (currentDay <= 14 ? currentDay - 7 : 7) : 0}};"></view>
+        <view class="home-phase-bar-p3" style="flex: {{currentDay > 14 ? currentDay - 14 : 0}};"></view>
+      </view>
+      <!-- phase-label -->
+      <view class="home-phase-label">
+        <text>阶段 {{phaseIndex}} · 第 {{phaseDayStart}}-{{phaseDayEnd}} 天</text>
+        <text class="home-phase-label-now">第 {{currentDay}} 天 / 阶段 {{phaseIndex}}</text>
+      </view>
+    </view>
+
+    <!-- task-section（今日小动作） -->
+    <view class="home-task-section" data-test="task-section">
+      <view class="home-task-header">
+        <text class="home-task-title">今日小动作</text>
+        <text class="home-task-meta">{{done}}/{{total}} 项 · {{totalMinutes}} 分钟</text>
+      </view>
+      <view class="home-task-hint">不强制</view>
+      <!-- task cards -->
+      <view class="home-task-list">
+        <task-card
+          wx:for="{{taskCards}}"
           wx:key="id"
-          class="home-drawer-card"
-          data-id="{{item.id}}"
-          bindtap="onTapDrawerCard"
-          data-test="drawer-card-{{item.id}}"
-        >
-          <view class="home-drawer-card-icon">{{item.iconText}}</view>
-          <view class="home-drawer-card-title">{{item.title}}</view>
-          <view class="home-drawer-card-subtitle">{{item.subtitle}}</view>
-        </view>
+          id="{{item.id}}"
+          title="{{item.title}}"
+          subtitle="{{item.subtitle}}"
+          done="{{item.done}}"
+          video-url="{{item.videoUrl}}"
+          bind:toggle="onTaskToggle"
+          bind:tap="onTaskTap"
+        />
       </view>
     </view>
+
+    <!-- P1: hug-section（米色渐变抱抱卡入口） -->
+    <view
+      class="home-hug-section {{hugDisabled ? 'disabled' : ''}}"
+      bindtap="{{hugDisabled ? '' : 'onGotoShare'}}"
+      data-test="hug-section"
+    >
+      <view class="home-hug-title">🎁 抱抱卡 · {{hugCardSubtitle}}</view>
+      <view class="home-hug-sub">第 7/14/21 天可生成专属抱抱卡</view>
+    </view>
+
+    <!-- time-section（我的时光入口） -->
+    <view class="home-time-section" bindtap="onGotoTimeAlbum" data-test="time-section">
+      <view class="home-time-icon">◷</view>
+      <view class="home-time-content">
+        <view class="home-time-title">我的时光</view>
+        <view class="home-time-sub">21 天时间轴 · 看看走过的路</view>
+      </view>
+      <view class="home-time-arrow">›</view>
+    </view>
+  </scroll-view>
+
+  <!-- ── 底部 Tab Bar 占位（由 app.json tabBar 渲染，此处占位 83px）── -->
+  <view class="home-tab-bar-placeholder"></view>
+
+  <!-- 右下角浮动抽屉按钮（FAB） -->
+  <view class="home-drawer-fab" bindtap="onOpenDrawer" data-test="drawer-fab">
+    <text>⋯</text>
   </view>
+
+  <!-- P1: 打卡完成全屏遮罩（打卡完成后显示） -->
+  <view
+    wx:if="{{checkinComplete}}"
+    class="home-complete-overlay"
+    data-test="complete-overlay"
+  >
+    <view class="home-complete-icon">🌿</view>
+    <view class="home-complete-title">今天的你，练完了</view>
+    <view class="home-complete-sub">已坚持 {{streak}} 天<br/>真的棒，明天见</view>
+    <button class="home-btn-checkin" bindtap="onToggleCheckin">返回</button>
+  </view>
+
+  <!-- P0-4: 抽屉（右侧滑入，用 drawer-overlay 组件） -->
+  <drawer-overlay
+    visible="{{drawerOpen}}"
+    title="管理页"
+    peek-tab="{{true}}"
+    bind:close="onCloseDrawer"
+  >
+    <!-- 抽屉内容：管理卡片 grid -->
+    <view class="home-drawer-grid">
+      <view
+        wx:for="{{drawerCards}}"
+        wx:key="id"
+        class="home-drawer-card"
+        data-id="{{item.id}}"
+        bindtap="onTapDrawerCard"
+        data-test="drawer-card-{{item.id}}"
+      >
+        <view class="home-drawer-card-icon" style="background: {{item.iconBg}};">{{item.iconText}}</view>
+        <view class="home-drawer-card-title">{{item.title}}</view>
+        <view class="home-drawer-card-sub">{{item.subtitle}}</view>
+      </view>
+    </view>
+    <!-- 抽屉底部进度块 -->
+    <view class="home-drawer-progress">
+      <view class="home-drawer-progress-label">当前进度</view>
+      <view class="home-drawer-progress-num">第 {{streak}} 天 / 21</view>
+      <view class="home-drawer-progress-sub">已坚持 {{streak}} 天 · 慢慢来</view>
+    </view>
+  </drawer-overlay>
 </view>

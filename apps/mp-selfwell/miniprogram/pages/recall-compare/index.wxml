@@ -1,31 +1,85 @@
-<view class="recall">
-  <view class="recall-title">每 7 天的你</view>
-  <view class="recall-tabs">
-    <view
-      wx:for="{{days}}"
-      wx:key="*this"
-      class="recall-tab {{item === activeDay ? 'is-active' : ''}}"
-      bindtap="onSelectDay"
-      data-day="{{item}}"
-    >第 {{item}} 天</view>
+<!--
+  recall-compare/index.wxml
+  PR-V2-D · 对齐 15e-recall-cta-buttons.html 原型
+  双时间线对比：intro-bubble + Day对比卡片 + reply-bubble + 双CTA
+-->
+<view class="recall-page">
+  <!-- Nav Bar（15e原型：返回 + "问问过去的你"） -->
+  <view class="recall-nav">
+    <view class="nav-back" bindtap="onNavBack">‹</view>
+    <view class="nav-title">问问过去的你</view>
+    <view class="nav-space"></view>
   </view>
-  <view class="recall-card">
-    <view wx:if="{{loading}}" class="recall-loading">加载中…</view>
-    <block wx:else>
-      <view class="recall-meta">
-        <text wx:if="{{snapshot.emotionTrend}}">{{snapshot.emotionTrend}}</text>
-        <text wx:if="{{snapshot.habitStreak}}"> · 习惯坚持 {{snapshot.habitStreak}} 天</text>
+
+  <scroll-view class="recall-scroll" scroll-y>
+    <!-- 引言气泡：引用用户历史记录（15e原型） -->
+    <view class="intro-bubble" wx:if="{{introText}}">
+      <view class="intro-label">过去的你写过：</view>
+      <em class="intro-quote">「{{introText}}」</em>
+    </view>
+
+    <!-- Day 对比：基准日（baseline） -->
+    <view class="timeline-card" wx:if="{{snapshot}}">
+      <view class="tl-day">
+        <text class="tl-day-icon">📷</text>
+        <text class="tl-day-label">Day {{snapshot.baselineDay}} · 当时</text>
       </view>
-      <view
-        wx:for="{{snapshot.highlights}}"
-        wx:key="*this"
-        class="recall-highlight"
-      >
-        · {{item}}
+      <view class="tl-date">{{snapshot.baselineDate}}</view>
+
+      <!-- 照片网格（双图：正面/左侧） -->
+      <view class="tl-grid">
+        <view class="tl-img" wx:for="{{snapshot.baselinePhotos}}" wx:key="url">
+          <view wx:if="{{!item.url}}" class="tl-img-ph">🌿</view>
+          <image wx:else src="{{item.url}}" mode="aspectFill" class="tl-img-real" />
+          <view class="tl-img-label">{{item.caption}}</view>
+        </view>
       </view>
-      <view wx:if="{{!snapshot.highlights.length}}" class="recall-empty">
-        暂无对比数据，下次 7 天时回来看看～
+
+      <view class="tl-note">{{snapshot.baseline_report_text}}</view>
+    </view>
+
+    <!-- AI 鼓励回复气泡（15e原型：暖色渐变） -->
+    <view class="reply-bubble" wx:if="{{snapshot}}">
+      {{snapshot.ai_reply_text}}
+    </view>
+
+    <!-- Day 对比：今天（current） -->
+    <view class="timeline-card" wx:if="{{snapshot}}">
+      <view class="tl-day">
+        <text class="tl-day-icon">📷</text>
+        <text class="tl-day-label">Day {{snapshot.currentDay}} · 今天</text>
       </view>
-    </block>
+      <view class="tl-date">{{snapshot.currentDate}}</view>
+
+      <view class="tl-grid">
+        <view class="tl-img current-img" wx:for="{{snapshot.currentPhotos}}" wx:key="url">
+          <view wx:if="{{!item.url}}" class="tl-img-ph">🌿</view>
+          <image wx:else src="{{item.url}}" mode="aspectFill" class="tl-img-real" />
+          <view class="tl-img-label">{{item.caption}}</view>
+        </view>
+      </view>
+
+      <view class="tl-note">{{snapshot.current_report_text}}</view>
+    </view>
+
+    <!-- 软提示语（15e原型） -->
+    <view class="soft-tip" wx:if="{{snapshot}}">
+      不做评判 · 只引用你的原文做事实确认
+    </view>
+
+    <!-- 空态 -->
+    <view class="empty-state" wx:if="{{!snapshot && !loading}}">
+      <view class="empty-icon">◷</view>
+      <view class="empty-title">还没有对比数据</view>
+      <view class="empty-sub">完成 7 天后回来，就能看到自己的变化了</view>
+    </view>
+
+    <view class="recall-bottom-space"></view>
+  </scroll-view>
+
+  <!-- 底部双 CTA（15e原型） -->
+  <view class="actions-bar" wx:if="{{snapshot}}">
+    <button class="btn btn-ghost" bindtap="onContinueChat">继续聊聊</button>
+    <button class="btn btn-primary" bindtap="onSaveAsDiary">保存为日记</button>
   </view>
 </view>

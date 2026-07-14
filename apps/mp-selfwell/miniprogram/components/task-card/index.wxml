@@ -1,13 +1,22 @@
-<view
-  class="task-card {{done ? 'is-done' : ''}} {{disabled ? 'is-disabled' : ''}}"
-  bindtap="onTap"
->
-  <view class="task-circle {{done ? 'is-done' : ''}}">
-    <view wx:if="{{done}}" class="task-check">✓</view>
+<!--
+  v2 重构：打卡与视频解耦
+  - task-checkbox: 勾选区域，触发 toggle 事件
+  - task-content + task-arrow: 卡片区域，触发 tap 事件
+-->
+<view class="task-card {{done ? 'is-done' : ''}} {{disabled ? 'is-disabled' : ''}}">
+  <!-- 左侧：勾选区域（独立点击 → toggle 事件） -->
+  <view class="task-checkbox" bindtap="onCheckboxTap">
+    <view class="task-circle {{done ? 'is-done' : ''}}">
+      <view wx:if="{{done}}" class="task-check">✓</view>
+    </view>
   </view>
-  <view class="task-content">
+
+  <!-- 中间：内容区域（点击 → tap 事件，跳转视频详情） -->
+  <view class="task-content" bindtap="onCardTap">
     <view class="task-title {{done ? 'is-done' : ''}}">{{title}}</view>
     <view wx:if="{{subtitle}}" class="task-subtitle">{{subtitle}}</view>
   </view>
-  <view class="task-arrow">›</view>
+
+  <!-- 右侧：箭头（点击 → tap 事件） -->
+  <view class="task-arrow" bindtap="onCardTap">›</view>
 </view>

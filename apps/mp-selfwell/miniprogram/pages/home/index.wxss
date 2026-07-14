@@ -1,326 +1,394 @@
 /* =================================================================
- * PR-3 commit-1 · pages/home 升版为「今天」Tab（V2 15b-today-tab2.html）
- * 设计 token（PR-6 app.wxss 已锁定，PR-3 直接引用）：
- *   --color-primary-mint: #A8C5B5 (主色：薄荷绿)
- *   --color-primary-mint-dark: #5A8270
- *   --color-secondary-cream: #F5E6D3
- *   --color-secondary-lavender: #D4C5E2
- *   --color-secondary-peach: #F0D9C4
- *   --color-accent-warm: #9C7AB8
- *   --color-accent-earth: #A0724F
- *   --color-bg-page: #FAFBFC
- *   --color-card: #FFFFFF
- *   --color-border: #F0F2F5
- *   --color-text-primary: #2D3436
- *   --color-text-secondary: #718096
- *   --color-text-weak: #A0AEC0
- *   --radius-md: 12px / 24rpx
- *   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06)
- *   --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.08)
+ * pages/home/index.wxss — 今天 Tab（V2 15b-today-tab2.html）
+ * PR-V2-C
+ * 真源：docs/design/figma-pixso-spec/pages-v2/15b-today-tab2.html
+ * Token：styles/v2-tokens.wxss
  *
- *  关键约束（frontend-standards §WXSS class 命名）：
- *  - 业务字段值不拼接 class 名；如 dayStrip cell 用 [data-state='done|today|future']
+ * 关键约束：
+ *  - 颜色/圆角/间距必须引用 var(--color-*) / var(--radius-*) / var(--space-*)，禁止硬编码 hex
+ *  - 业务字段值不拼接 class 名；day-strip cell 用 [data-state='completed|today|missed|future|feedback']
  * ================================================================= */
 
-.home {
-  min-height: 100vh;
-  background-color: #FAFBFC;
-  padding: 32rpx 32rpx 200rpx;
-}
+@import "../../styles/v2-tokens.wxss";
 
-/* ─── 顶部问候条 ─── */
-.home-greeting {
-  padding: 32rpx;
-  background: linear-gradient(180deg, #F0D9C4 0%, #FAFBFC 100%);
-  border-radius: 24rpx;
-  margin-bottom: 16rpx;
-}
-
-.home-greeting-title {
-  font-size: 44rpx;
-  font-weight: 500;
-  color: #2D3436;
-}
-
-.home-greeting-sub {
-  margin-top: 8rpx;
-  font-size: 28rpx;
-  color: #718096;
-}
-
-.home-greeting-sub .streak {
-  color: #A8C5B5;
-  font-weight: 500;
-}
-
-/* ─── 进度环 90px ─── */
-.home-progress {
-  margin: 16rpx 0;
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 32rpx;
-  text-align: center;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-/* ─── 21-day strip（21 天方案 day-strip） ─── */
-.home-daystrip {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6rpx;
-  margin: 16rpx 0;
-  padding: 16rpx;
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-  overflow-x: auto;
-}
-
-.home-daystrip-cell {
-  flex: 1 0 auto;
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 50%;
+/* ── Nav Bar ────────────────────────────────────────── */
+.home-nav {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 18rpx;
-  background-color: #F0F2F5;
-  color: #A0AEC0;
-}
-
-/* 三态配色：done/today/future */
-.home-daystrip-cell[data-state='done'] {
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-}
-
-.home-daystrip-cell[data-state='today'] {
-  background-color: #5A8270;
-  color: #FFFFFF;
-  box-shadow: 0 0 0 4rpx rgba(168, 197, 181, 0.25);
-}
-
-.home-daystrip-cell[data-state='future'] {
-  background-color: #F0F2F5;
-  color: #A0AEC0;
-}
-
-.home-daystrip-cell-inner {
-  font-size: 18rpx;
-  line-height: 1;
-}
-
-/* ─── 今日小动作（保留现有 task-cards） ─── */
-.home-card {
-  margin: 16rpx 0;
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.home-card-title {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 32rpx;
+  padding: 0 16px;
+  height: 44px;
+  background-color: var(--color-bg-page, #FAFBFC);
+  border-bottom: 1px solid var(--color-border, #E2E8F0);
+}
+
+.home-nav-title {
+  font-size: 17px;
   font-weight: 500;
-  color: #2D3436;
-  margin-bottom: 8rpx;
+  color: var(--color-text-primary, #2D3436);
 }
 
-.home-card-hint {
-  font-size: 24rpx;
-  color: #A0AEC0;
-  margin-bottom: 12rpx;
-}
-
-.home-card-title-right {
-  font-size: 24rpx;
-  color: #718096;
-  font-weight: 400;
-}
-
-/* ─── hug-section / time-section（共享样式） ─── */
-.home-section {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin: 16rpx 0;
-  padding: 24rpx;
-  background-color: #FFFFFF;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.home-section-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 32rpx;
-  background-color: #F5E6D3;
-  color: #5A8270;
-  font-size: 32rpx;
+.home-nav-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  border-radius: 50%;
 }
 
-.home-section-text {
+/* ── 可滚动区域 ────────────────────────────────────── */
+.home-scroll {
+  height: calc(100vh - 44px - 83px); /* 扣掉 nav + tab-bar */
+  overflow-y: auto;
+  background-color: var(--color-bg-page, #FAFBFC);
+  padding-bottom: 16px;
+}
+
+/* ── P0-1: 进度区（mint 渐变背景）────────────────── */
+.home-progress-section {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #FFFFFF 0%, #FAF7F0 100%);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.home-progress-info {
   flex: 1;
   min-width: 0;
 }
 
-.home-section-title {
-  font-size: 30rpx;
+.home-progress-greet {
+  font-size: var(--font-size-heading, 18px);
   font-weight: 500;
-  color: #2D3436;
+  color: var(--color-text-primary, #2D3436);
+  margin-bottom: 4px;
 }
 
-.home-section-sub {
-  margin-top: 4rpx;
-  font-size: 24rpx;
-  color: #718096;
+.home-progress-sub {
+  font-size: var(--font-size-body, 13px);
+  color: var(--color-text-muted, #718096);
+  margin-bottom: 10px;
 }
 
-.home-section-arrow {
-  font-size: 36rpx;
-  color: #A0AEC0;
+.home-btn-checkin {
+  display: inline-block;
+  background-color: var(--color-primary-mint, #A8C5B5);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: var(--font-size-body, 13px);
+  font-weight: 500;
+  line-height: 1;
 }
 
-/* ─── 主操作条（保留现有） ─── */
-.home-cta {
-  position: fixed;
-  left: 32rpx;
-  right: 32rpx;
-  bottom: 160rpx;
+/* ── P0-3: plan-overview 卡片 ─────────────────────── */
+.home-plan-overview {
+  margin: 0 16px 16px;
+  padding: 16px;
+  background-color: var(--color-bg-card, #FFFFFF);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.home-plan-overview-head {
   display: flex;
-  gap: 16rpx;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-.home-btn {
-  flex: 1;
-  border-radius: 48rpx;
-  font-size: 30rpx;
+.home-plan-overview-title {
+  font-size: var(--font-size-body, 14px);
   font-weight: 500;
-  padding: 20rpx 0;
+  color: var(--color-text-primary, #2D3436);
 }
 
-.home-btn--primary {
-  background-color: #A8C5B5;
-  color: #FFFFFF;
+.home-plan-overview-link {
+  font-size: var(--font-size-body-sm, 12px);
+  color: var(--color-primary-mint-dark, #5A8270);
 }
 
-.home-btn--ghost {
-  background-color: #FFFFFF;
-  color: #4A5568;
-  border: 2rpx solid #E2E8F0;
+/* ── phase-bar（三阶段进度条）─────────────────────── */
+.home-phase-bar {
+  height: 4px;
+  background-color: var(--color-border, #E2E8F0);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  margin-top: 12px;
+  margin-bottom: 4px;
 }
 
-/* ─── 抽屉触发按钮（右下角浮动） ─── */
-.home-drawer-trigger {
-  position: fixed;
-  right: 32rpx;
-  bottom: 96rpx;
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  font-size: 40rpx;
+.home-phase-bar-p1 {
+  background-color: var(--color-phase-1, #A8C5B5);
+  transition: flex-basis 0.3s ease;
+}
+
+.home-phase-bar-p2 {
+  background-color: var(--color-phase-2, #C7D8B9);
+}
+
+.home-phase-bar-p3 {
+  background-color: var(--color-phase-3, #9C7AB8);
+}
+
+/* ── phase-label ─────────────────────────────────── */
+.home-phase-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-weak, #A0AEC0);
+  margin-top: 4px;
+}
+
+.home-phase-label-now {
+  color: var(--color-primary-mint-dark, #5A8270);
+  font-weight: 500;
+}
+
+/* ── task-section ──────────────────────────────── */
+.home-task-section {
+  margin: 0 16px 16px;
+}
+
+.home-task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.home-task-title {
+  font-size: var(--font-size-body, 16px);
+  font-weight: 500;
+  color: var(--color-text-primary, #2D3436);
+}
+
+.home-task-meta {
+  font-size: var(--font-size-body-sm, 12px);
+  color: var(--color-text-muted, #718096);
+}
+
+.home-task-hint {
+  font-size: var(--font-size-body-sm, 12px);
+  color: var(--color-text-weak, #A0AEC0);
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+
+.home-task-list {
+  background-color: var(--color-bg-card, #FFFFFF);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+}
+
+/* ── P1: hug-section（米色渐变）───────────────────── */
+.home-hug-section {
+  margin: 0 16px 16px;
+  padding: 16px;
+  border-radius: var(--radius-lg, 16px);
+  background: linear-gradient(135deg, var(--color-secondary-cream, #F5E6D3) 0%, #FFE5D0 100%);
+  cursor: pointer;
+}
+
+.home-hug-section.disabled {
+  background: var(--color-bg-page, #FAFBFC);
+  cursor: default;
+}
+
+.home-hug-title {
+  font-size: var(--font-size-body-lg, 15px);
+  font-weight: 500;
+  color: #6B5544;
+  margin-bottom: 4px;
+}
+
+.home-hug-section.disabled .home-hug-title {
+  color: var(--color-text-weak, #A0AEC0);
+}
+
+.home-hug-sub {
+  font-size: var(--font-size-body-sm, 12px);
+  color: var(--color-accent-earth, #A0724F);
+}
+
+.home-hug-section.disabled .home-hug-sub {
+  color: var(--color-text-weak, #A0AEC0);
+}
+
+/* ── time-section ──────────────────────────────── */
+.home-time-section {
+  margin: 0 16px 16px;
+  padding: 14px 16px;
+  background-color: var(--color-bg-card, #FFFFFF);
+  border-radius: var(--radius-lg, 16px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.home-time-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: var(--color-secondary-cream, #F5E6D3);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-  z-index: 10;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-/* ─── 抽屉管理页（drawer-card 8 个） ─── */
-.home-drawer-mask {
+.home-time-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-time-title {
+  font-size: var(--font-size-body-lg, 15px);
+  font-weight: 500;
+  color: var(--color-text-primary, #2D3436);
+  margin-bottom: 2px;
+}
+
+.home-time-sub {
+  font-size: var(--font-size-body-sm, 12px);
+  color: var(--color-text-muted, #718096);
+}
+
+.home-time-arrow {
+  color: var(--color-text-weak, #A0AEC0);
+  font-size: 18px;
+}
+
+/* ── Tab Bar 占位 ───────────────────────────────── */
+.home-tab-bar-placeholder {
+  height: 83px;
+}
+
+/* ── 右下角浮动抽屉按钮（FAB）────────────────── */
+.home-drawer-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 90px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+/* ── P1: complete-overlay（全屏打卡完成）────────── */
+.home-complete-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.4);
-  z-index: 20;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.home-drawer {
-  width: 100%;
-  max-height: 80vh;
-  background-color: #FFFFFF;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 32rpx;
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
-  box-sizing: border-box;
-  overflow-y: auto;
-}
-
-.home-drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-
-.home-drawer-title {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: #2D3436;
-}
-
-.home-drawer-close {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 28rpx;
-  background-color: #F0F2F5;
-  color: #718096;
-  font-size: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.home-drawer-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
-}
-
-.home-drawer-card {
+  z-index: 15;
+  background-color: rgba(255, 255, 255, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16rpx 8rpx;
-  background-color: #FAFBFC;
-  border-radius: 16rpx;
+  padding: 40px;
   text-align: center;
 }
 
+.home-complete-icon {
+  font-size: 60px;
+  margin-bottom: 16px;
+}
+
+.home-complete-title {
+  font-size: var(--font-size-title, 22px);
+  font-weight: 500;
+  color: var(--color-text-primary, #2D3436);
+  margin-bottom: 8px;
+}
+
+.home-complete-sub {
+  font-size: var(--font-size-body, 14px);
+  color: var(--color-text-muted, #718096);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+/* ── 抽屉内容 ──────────────────────────────────── */
+.home-drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.home-drawer-card {
+  background-color: var(--color-bg-page, #F7F8FA);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .home-drawer-card-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 32rpx;
-  background-color: #F5E6D3;
-  color: #5A8270;
-  font-size: 32rpx;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8rpx;
+  font-size: 18px;
+  margin-bottom: 4px;
 }
 
 .home-drawer-card-title {
-  font-size: 26rpx;
+  font-size: var(--font-size-body, 14px);
   font-weight: 500;
-  color: #2D3436;
+  color: var(--color-text-primary, #2D3436);
 }
 
-.home-drawer-card-subtitle {
-  font-size: 20rpx;
-  color: #A0AEC0;
-  margin-top: 4rpx;
+.home-drawer-card-sub {
+  font-size: var(--font-size-caption, 11px);
+  color: var(--color-text-weak, #A0AEC0);
+}
+
+/* ── 抽屉底部进度块 ────────────────────────────── */
+.home-drawer-progress {
+  margin-top: 18px;
+  padding: 14px;
+  background-color: var(--color-bg-page, #F7F8FA);
+  border-radius: var(--radius-md, 12px);
+}
+
+.home-drawer-progress-label {
+  font-size: var(--font-size-caption, 12px);
+  color: var(--color-text-muted, #718096);
+  margin-bottom: 4px;
+}
+
+.home-drawer-progress-num {
+  font-size: var(--font-size-title, 22px);
+  font-weight: 500;
+  color: var(--color-text-primary, #2D3436);
+}
+
+.home-drawer-progress-sub {
+  font-size: var(--font-size-caption, 12px);
+  color: var(--color-primary-mint, #A8C5B5);
+  margin-top: 4px;
 }

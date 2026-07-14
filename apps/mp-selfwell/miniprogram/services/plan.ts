@@ -25,6 +25,8 @@ export interface PreviewDay {
   title: string;
   meta: string;
   status: 'completed' | 'active' | 'pending' | 'feedback';
+  /** 阶段标识（p1/p2/p3），15h 原型专用 */
+  phase?: 'p1' | 'p2' | 'p3';
 }
 
 /** 后端 PlanDay 可能字段集合（容错：覆盖 openapi.yaml 真值 + 历史 snake_case 残留）。 */
@@ -121,7 +123,7 @@ export function mapPlanDay(
   const source = typeof raw.source === 'string' && raw.source.length > 0 ? raw.source : null;
   const meta = source ? `${baseMeta} · ${source}` : baseMeta;
   const status = normalizePlanStatus(raw.status ?? null) ?? fallbackDay.status;
-  return { day, title, meta, status };
+  return { day, title, meta, status, phase: fallbackDay.phase };
 }
 
 /** 批量映射：21 天占位 + 后端真实数据合并；缺位走 fallback。 */

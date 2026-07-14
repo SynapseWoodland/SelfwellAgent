@@ -1,30 +1,61 @@
-<view class="ring-wrap" style="width: {{size}}rpx; height: {{size}}rpx;">
+<!-- progress-ring 组件
+  PR-V2-A P1.1
+  variant="solid": SVG stroke 单色（默认，兼容旧版）
+  variant="gradient": SVG stroke 渐变色（15b 今天 Tab）
+-->
+<view
+  class="ring-wrap"
+  style="width: {{size}}px; height: {{size}}px;"
+>
   <svg
     class="ring-svg"
-    width="{{size}}rpx"
-    height="{{size}}rpx"
+    style="width: {{size}}px; height: {{size}}px;"
     viewBox="0 0 {{size}} {{size}}"
   >
+    <defs>
+      <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#A8C5B5" />
+        <stop offset="100%" stop-color="#C7D8B9" />
+      </linearGradient>
+    </defs>
+    <!-- 背景环 -->
     <circle
       class="ring-bg"
       cx="{{size / 2}}"
       cy="{{size / 2}}"
       r="{{radius}}"
-      stroke-width="{{strokeWidth}}rpx"
+      stroke-width="{{strokeWidth}}px"
     />
+    <!-- 前景环：solid variant -->
     <circle
+      wx:if="{{variant === 'solid'}}"
       class="ring-fg"
       cx="{{size / 2}}"
       cy="{{size / 2}}"
       r="{{radius}}"
-      stroke-width="{{strokeWidth}}rpx"
+      stroke-width="{{strokeWidth}}px"
+      stroke-dasharray="{{circumference}}"
+      stroke-dashoffset="{{dashOffset}}"
+      stroke-linecap="round"
+    />
+    <!-- 前景环：gradient variant -->
+    <circle
+      wx:if="{{variant === 'gradient'}}"
+      class="ring-fg"
+      cx="{{size / 2}}"
+      cy="{{size / 2}}"
+      r="{{radius}}"
+      stroke-width="{{strokeWidth}}px"
+      stroke="url(#ring-grad)"
       stroke-dasharray="{{circumference}}"
       stroke-dashoffset="{{dashOffset}}"
       stroke-linecap="round"
     />
   </svg>
+
+  <!-- 中心文字 -->
   <view class="ring-text">
-    <view class="ring-label">{{label}}</view>
-    <view class="ring-sub">{{subLabel}}</view>
+    <view class="ring-label" style="font-size: {{size * 0.22}}px;">{{label}}</view>
+    <view class="ring-sub" wx:if="{{subLabel}}" style="font-size: {{size * 0.09}}px;">{{subLabel}}</view>
   </view>
 </view>

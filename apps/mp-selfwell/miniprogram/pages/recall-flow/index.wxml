@@ -5,6 +5,18 @@
     <view class="recall-flow__header-spacer"></view>
   </view>
 
+  <!-- 工具条（15a/08b原型） -->
+  <view class="recall-flow__util-bar" wx:if="{{recall || loading}}">
+    <view class="util-btn" bindtap="onClear">
+      <text class="util-icon">🗑</text>
+      <text class="util-label">清空</text>
+    </view>
+    <view class="util-btn" bindtap="onRegenerate">
+      <text class="util-icon">🔄</text>
+      <text class="util-label">重新生成</text>
+    </view>
+  </view>
+
   <scroll-view class="recall-flow__body" scroll-y enhanced>
     <view class="recall-flow__periods" aria-label="选择回忆时段">
       <button

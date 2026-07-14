@@ -2,9 +2,17 @@
   PR-3 commit-1 · profile-new 主页（V2 11-profile.html）
   ─────────────────────────────────────────────────────────────────
   真源：docs/design/figma-pixso-spec/pages/11-profile.html
-  布局：头像渐变（mint → sky）+ 昵称 + streak + 6 列表项 + 底部"领取抱抱卡"CTA
+  布局：头像渐变（mint → sky）+ 昵称 + streak + 进度环 + 抱抱卡
+  顶部 ⋮ 按钮 → drawer-overlay（抽屉内含 6 项菜单）
+  §4.2.4 IA plan：6 列表项不直接显示在主页，放在抽屉里
 -->
 <view class="profile-new">
+  <!-- Nav Bar（15a 原型风格：白底 + 标题 + 抽屉按钮） -->
+  <view class="profile-new-nav">
+    <view class="profile-new-nav-title">我的</view>
+    <view class="profile-new-nav-more" bindtap="onOpenDrawer">⋯</view>
+  </view>
+
   <!-- 头像渐变区 -->
   <view class="profile-new-header">
     <view class="profile-new-avatar" data-test="avatar">
@@ -24,20 +32,21 @@
     />
   </view>
 
-  <!-- 6 列表项 -->
-  <view class="profile-new-list">
-    <view
-      wx:for="{{settings}}"
-      wx:key="id"
-      class="profile-new-row"
-      data-id="{{item.id}}"
-      bindtap="onTapSetting"
-      data-test="profile-new-row-{{item.id}}"
-    >
-      <text class="profile-new-row-label">{{item.label}}</text>
-      <view class="profile-new-row-right">
-        <text wx:if="{{item.rightLabel}}" class="profile-new-row-summary">{{item.rightLabel}}</text>
-        <text class="profile-new-row-arrow">›</text>
+  <!-- 抱抱卡区域（3 个 mini hug） -->
+  <view class="profile-new-hugs">
+    <view class="hugs-title">抱抱卡</view>
+    <view class="hugs-row">
+      <view class="hug-mini hug-mini--locked">
+        <text>🔒</text>
+        <view class="hug-mini-label">Day 7</view>
+      </view>
+      <view class="hug-mini hug-mini--locked">
+        <text>🔒</text>
+        <view class="hug-mini-label">Day 14</view>
+      </view>
+      <view class="hug-mini hug-mini--locked">
+        <text>🔒</text>
+        <view class="hug-mini-label">Day 21</view>
       </view>
     </view>
   </view>
@@ -46,4 +55,24 @@
   <view class="profile-new-cta">
     <view class="profile-new-cta-btn" bindtap="onGotoShare">领取抱抱卡 ›</view>
   </view>
+
+  <!-- 管理抽屉（6 项菜单） -->
+  <drawer-overlay
+    visible="{{drawerVisible}}"
+    title="更多功能"
+    bind:close="onCloseDrawer"
+  >
+    <view class="drawer-menu">
+      <view
+        wx:for="{{settings}}"
+        wx:key="id"
+        class="drawer-menu-item"
+        data-id="{{item.id}}"
+        bindtap="onDrawerNav"
+      >
+        <text class="drawer-menu-label">{{item.label}}</text>
+        <text class="drawer-menu-arrow">›</text>
+      </view>
+    </view>
+  </drawer-overlay>
 </view>

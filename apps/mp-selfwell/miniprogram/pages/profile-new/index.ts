@@ -4,14 +4,15 @@
  *
  * PR-3 commit-1 · profile-new 主页（V2 11-profile.html）
  * ─────────────────────────────────────────────────────────────────
- * - 头像渐变（mint → sky）+ 昵称 + streak
- * - 6 列表项：用户档案 / 我的时光 / 通知设置 / 隐私政策 / 联系客服 / 关于自愈
- * - 头像渐变走 PR-6 app.wxss 既有 token，不在 wxss 内硬编码 hex（与 PR-6 锁值契约一致）
+ * - 头像渐变（mint → sky）+ 昵称 + streak + 进度环
+ * - 抱抱卡 3 个 mini（锁定态，待打卡解锁）
+ * - 顶部 ⋮ → drawer-overlay（抽屉含 6 项菜单）
+ * §4.2.4 IA plan：6 列表项不直接显示在主页，放在抽屉里
  *
- * PR-5 扩展 · 5 跳转入口
+ * PR-5 扩展 · 5 跳转入口（抽屉内）
  * ─────────────────────────────────────────────────────────────────
  * - 用户档案：?mode=read（默认 read，只读视图；走 pages/profile-edit）
- * - 我的时光：/pages/record-album/index（PR-5 新建；接管 PR-3 旧的 record-album）
+ * - 我的时光：/pages/album/index（PR-5 新建；接管旧的 record-album）
  * - 通知设置：/pages/notification-settings/index（PR-5 新建）
  * - 隐私政策：/pages/privacy-policy/index（PR-5 新建）
  * - 联系客服：/pages/contact/index（PR-5 新建）
@@ -33,6 +34,7 @@ interface ProfileNewData {
   streak: number;
   currentDay: number;
   percent: number;
+  drawerVisible: boolean;
   profileFilledLabel: string;
   settings: Array<{
     id: string;
@@ -48,6 +50,7 @@ Page<ProfileNewData>({
     streak: 0,
     currentDay: 0,
     percent: 0,
+    drawerVisible: false,
     profileFilledLabel: '0/6',
     settings: [],
   },
@@ -58,7 +61,6 @@ Page<ProfileNewData>({
   },
 
   onShow() {
-    // 从子页回来时刷新档案完成度
     this.refreshSettings();
   },
 
@@ -69,7 +71,7 @@ Page<ProfileNewData>({
       profileFilledLabel: label,
       settings: [
         { id: 'profile', label: '用户档案', rightLabel: `档案 ${label}`, pagePath: '/pages/profile-edit/index?mode=read' },
-        { id: 'time', label: '我的时光', pagePath: '/pages/record-album/index' },
+        { id: 'time', label: '我的时光', pagePath: '/pages/album/index' },
         { id: 'notification', label: '通知设置', pagePath: '/pages/notification-settings/index' },
         { id: 'privacy', label: '隐私政策', pagePath: '/pages/privacy-policy/index' },
         { id: 'support', label: '联系客服', pagePath: '/pages/contact/index' },
@@ -94,21 +96,35 @@ Page<ProfileNewData>({
     }
   },
 
-  onTapSetting(e: WechatMiniprogram.BaseEvent) {
+  // ── 抽屉控制 ──
+  onOpenDrawer() {
+    this.setData({ drawerVisible: true });
+  },
+
+  onCloseDrawer() {
+    this.setData({ drawerVisible: false });
+  },
+
+  onDrawerNav(e: WechatMiniprogram.BaseEvent) {
     const id = (e.currentTarget.dataset as { id?: string }).id;
     const item = this.data.settings.find((s) => s.id === id);
     if (!item) return;
-    // profile-new 是 tabBar 页；子页不在 tabBar 内 → navigateTo（switchTab 会失败）
-    wx.navigateTo({ url: item.pagePath });
+    this.setData({ drawerVisible: false });
+    void wx.navigateTo({ url: item.pagePath });
   },
 
-  // ── PR-5 · 5 个具名跳转入口（与 data-id 一一对应；保留向后兼容） ──
+  // ── 抱抱卡跳转 ──
+  onGotoShare() {
+    wx.navigateTo({ url: '/pages/share-hug-card/index' });
+  },
+
+  // ── PR-5 · 5 个具名跳转入口（保留，路由抽屉菜单可复用） ──
   onTapProfileEdit() {
     wx.navigateTo({ url: '/pages/profile-edit/index?mode=read' });
   },
 
   onTapArchiveAlbum() {
-    wx.navigateTo({ url: '/pages/record-album/index' });
+    wx.navigateTo({ url: '/pages/album/index' });
   },
 
   onTapNotifications() {
@@ -125,9 +141,5 @@ Page<ProfileNewData>({
 
   onTapAbout() {
     wx.navigateTo({ url: '/pages/about/index' });
-  },
-
-  onGotoShare() {
-    wx.navigateTo({ url: '/pages/share-hug-card/index' });
   },
 });

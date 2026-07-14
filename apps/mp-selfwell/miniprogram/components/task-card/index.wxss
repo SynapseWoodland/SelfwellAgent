@@ -1,5 +1,6 @@
 /* ─────────────────────────────────────────────────────
  * task-card 样式（PR-A4-b 还原）
+ * v2 重构：打卡与视频解耦
  * ─────────────────────────────────────────────────────
  * Token 真源：app.wxss §13 / §17（PR-6 锁定）
  *   --mint:     #A8C5B5
@@ -25,12 +26,18 @@
   pointer-events: none;
 }
 
+/* 勾选区域（v2 新增） */
+.task-checkbox {
+  padding: 12rpx;
+  flex-shrink: 0;
+}
+
 .task-circle {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
   border: 4rpx solid #E2E8F0;
-  margin-right: 24rpx;
+  margin-right: 12rpx;
   flex-shrink: 0;
   display: flex;
   align-items: center;
