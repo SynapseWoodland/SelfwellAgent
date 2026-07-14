@@ -1,21 +1,40 @@
 /**
  * PR-V2-A · drawer-overlay 组件
- * 真源：drawer-overlay-component.test.ts AC-1~AC-7
- * 仅 stub：满足静态文件扫描断言，不依赖运行时 Component 构造。
+ * ─────────────────────────────────────────────────────────────────
+ * 真源：docs/spec/SPEC-M3-pages-v2-1to1-clone.md §3.1
+ * 真源：docs/design/figma-pixso-spec/pages-v2/15c-manage-drawer.html
+ *
+ * 功能：右侧抽屉 + 全屏遮罩
+ * - visible=true 时显示抽屉和遮罩
+ * - 点击遮罩或 close 按钮 → triggerEvent('close')
+ * - peekTab=true 时抽屉底部渲染 tabbar 提示条
  */
-export default {};
+// @property {Boolean} visible
+// @property {String} title
+// @property {Boolean} peekTab
+Component({
+  properties: {
+    visible: {
+      type: Boolean,
+      value: false,
+    },
+    title: {
+      type: String,
+      value: '',
+    },
+    peekTab: {
+      type: Boolean,
+      value: false,
+    },
+  },
 
-// AC-2
-type DrawerOverlayProps = {
-  visible: Boolean;
-  title: String;
-  peekTab: Boolean;
-};
+  methods: {
+    onCloseTap() {
+      this.triggerEvent('close');
+    },
 
-// 静态契约扫描占位（满足 component test AC-4）
-// 调用示例：triggerEvent('close')
-const triggerEvent = (eventName: 'close'): void => {
-  void eventName;
-};
-triggerEvent('close');
-void triggerEvent;
+    onMaskTap() {
+      this.triggerEvent('close');
+    },
+  },
+});
