@@ -17,7 +17,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.middleware.exception_handler import ExceptionHandlerMiddleware
@@ -117,6 +118,45 @@ app = FastAPI(
     description="Selfwell AI Health Companion Backend（Sprint 1 PR-1 入口）",
     lifespan=lifespan,
 )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# §二-a 自定义异常处理器：RequestValidationError（Pydantic v2）
+# FastAPI 内置 handler 不打 traceback，导致 400 错误无日志可查。
+# 注册到这里让所有参数校验失败都有结构化日志（field / loc / msg）。
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request: Request, exc: RequestValidationError) -> Response:  # type: ignore[type-var]
+    """记录 Pydantic 参数校验失败细节，然后返回 400。
+
+    ``logger.warning`` 附带的字段：
+        - ``path``: 请求路径
+        - ``errors``: 每条校验失败的 ``{loc, msg, type}`` 列表（最多 10 条）
+        - ``exc_type``: 固定 ``RequestValidationError``
+    """
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    errors = exc.errors()[:10]
+    logger.warning(
+        "request_validation_error",
+        path=str(request.url.path),
+        errors=errors,
+        exc_type="RequestValidationError",
+    )
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": {
+                "code": "E_GENERAL_VALIDATION_ERROR",
+                "message_zh": "请求参数校验失败",
+                "message_en": "Request validation failed",
+                "request_id": getattr(request.state, "request_id", "-") or "-",
+                "details": {"errors": errors},
+            }
+        },
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

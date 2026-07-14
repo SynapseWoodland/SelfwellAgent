@@ -88,6 +88,9 @@ async def create_checkin_endpoint(
         if body.task_ids is not None and body.plan_id is None:
             plan_data = await get_today_plan_tasks(session, user_id=user_id, day_index=body.day or 1)
             plan_id = plan_data.get("plan_id", "")
+            # 无 plan 时返回明确的业务错误
+            if not plan_id:
+                raise HTTPException(400, {"code": "E_NO_ACTIVE_PLAN", "message_zh": "请先完成诊断并获取您的21天方案"})
             task_video_map: dict[str, str] = {}
             for task in plan_data.get("tasks", []):
                 if isinstance(task, dict) and "task_id" in task and "video_id" in task:
