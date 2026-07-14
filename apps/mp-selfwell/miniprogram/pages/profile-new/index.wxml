@@ -1,78 +1,140 @@
 <!--
-  PR-3 commit-1 · profile-new 主页（V2 11-profile.html）
-  ─────────────────────────────────────────────────────────────────
-  真源：docs/design/figma-pixso-spec/pages/11-profile.html
-  布局：头像渐变（mint → sky）+ 昵称 + streak + 进度环 + 抱抱卡
-  顶部 ⋮ 按钮 → drawer-overlay（抽屉内含 6 项菜单）
-  §4.2.4 IA plan：6 列表项不直接显示在主页，放在抽屉里
+  profile-new/index.wxml
+  1:1 复刻修复方案：上绿下白两段式布局
+  - Nav Bar：白底 + 黑标题 + 齿轮按钮
+  - 绿底区：Hi 问候语 + 3 个 chips 在问候语下方 + 左侧头像 🌿 + 年龄标签
+  - 白底区：我的勋章（4 卡片网格）+ 设置区（4 项带副标题）
 -->
-<view class="profile-new">
-  <!-- Nav Bar（15a 原型风格：白底 + 标题 + 抽屉按钮） -->
-  <view class="profile-new-nav">
-    <view class="profile-new-nav-title">我的</view>
-    <view class="profile-new-nav-more" bindtap="onOpenDrawer">⋯</view>
-  </view>
-
-  <!-- 头像渐变区 -->
-  <view class="profile-new-header">
-    <view class="profile-new-avatar" data-test="avatar">
-      <text>{{nickname[0] || '我'}}</text>
-    </view>
-    <view class="profile-new-nickname">{{nickname}}</view>
-    <view class="profile-new-streak">已坚持 {{streak}} 天</view>
-  </view>
-
-  <!-- 进度环 -->
-  <view class="profile-new-progress">
-    <progress-ring
-      percent="{{percent}}"
-      size="{{160}}"
-      label="{{streak}}"
-      sub-label="天"
-    />
-  </view>
-
-  <!-- 抱抱卡区域（3 个 mini hug） -->
-  <view class="profile-new-hugs">
-    <view class="hugs-title">抱抱卡</view>
-    <view class="hugs-row">
-      <view class="hug-mini hug-mini--locked">
-        <text>🔒</text>
-        <view class="hug-mini-label">Day 7</view>
-      </view>
-      <view class="hug-mini hug-mini--locked">
-        <text>🔒</text>
-        <view class="hug-mini-label">Day 14</view>
-      </view>
-      <view class="hug-mini hug-mini--locked">
-        <text>🔒</text>
-        <view class="hug-mini-label">Day 21</view>
-      </view>
+<!-- 抽屉（保持不变）-->
+<drawer-overlay
+  visible="{{drawerVisible}}"
+  title="更多功能"
+  bind:close="onCloseDrawer"
+>
+  <view class="drawer-menu">
+    <view
+      wx:for="{{drawerItems}}"
+      wx:key="id"
+      class="drawer-menu-item"
+      data-id="{{item.id}}"
+      bindtap="onDrawerNav"
+    >
+      <text class="drawer-menu-label">{{item.label}}</text>
+      <text class="drawer-menu-arrow">›</text>
     </view>
   </view>
+</drawer-overlay>
 
-  <!-- 领取抱抱卡 CTA -->
-  <view class="profile-new-cta">
-    <view class="profile-new-cta-btn" bindtap="onGotoShare">领取抱抱卡 ›</view>
+<!-- 页面主体（白底）-->
+<view class="profile-page">
+
+  <!-- Nav Bar：白底 + 黑标题 + 齿轮按钮 -->
+  <view class="profile-nav">
+    <view class="profile-nav-title">我的</view>
+    <view class="profile-nav-icon" bindtap="onOpenDrawer">⚙️</view>
   </view>
 
-  <!-- 管理抽屉（6 项菜单） -->
-  <drawer-overlay
-    visible="{{drawerVisible}}"
-    title="更多功能"
-    bind:close="onCloseDrawer"
-  >
-    <view class="drawer-menu">
-      <view
-        wx:for="{{settings}}"
-        wx:key="id"
-        class="drawer-menu-item"
-        data-id="{{item.id}}"
-        bindtap="onDrawerNav"
-      >
-        <text class="drawer-menu-label">{{item.label}}</text>
-        <text class="drawer-menu-arrow">›</text>
+  <!-- 上半：绿底区域 -->
+  <view class="profile-green-zone">
+    <!-- 问候语 -->
+    <view class="profile-greeting">Hi, {{nickname || '用户'}}</view>
+
+    <!-- 用户标签（问候语下方，独占一行）-->
+    <view class="chips-row">
+      <view class="chip">{{ageRange || '25-30 岁'}}</view>
+      <view class="chip">{{crowd || '久坐人群'}}</view>
+      <view class="chip">{{level || '自律 C'}}</view>
+    </view>
+
+    <!-- 头像 + 年龄标签行 -->
+    <view class="profile-main-row">
+      <!-- 左侧：🌿 叶子头像 -->
+      <view class="profile-avatar">🌿</view>
+
+      <!-- 右侧：年龄标签 -->
+      <view class="profile-tags">
+        <text class="profile-tag-text">{{ageRange || '25-30 岁'}}</text>
       </view>
     </view>
-  </drawer-overlay>
+  </view>
+
+  <!-- 下半：白底区域 -->
+  <view class="profile-white-zone">
+
+    <!-- 我的勋章区 -->
+    <view class="medals-section">
+      <view class="section-header">
+        <text class="section-title">我的勋章</text>
+        <text class="section-link">查看全部 ›</text>
+      </view>
+      <view class="medals-grid">
+        <view class="medal-card">
+          <text class="medal-icon">📷</text>
+          <text class="medal-label">记录相册</text>
+        </view>
+        <view class="medal-card">
+          <text class="medal-icon">🎁</text>
+          <text class="medal-label">我的卡片</text>
+        </view>
+        <view class="medal-card">
+          <text class="medal-icon">⏰</text>
+          <text class="medal-label">我的时光</text>
+        </view>
+        <view class="medal-card">
+          <text class="medal-icon">📖</text>
+          <text class="medal-label">自我档案</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 设置区：4 项带副标题 + 彩色方块图标 -->
+    <view class="settings-section">
+      <view class="settings-row" bindtap="onTapSettings" data-id="notification">
+        <view class="settings-icon-wrap" style="background:#FFCC80;">
+          <text>🔔</text>
+        </view>
+        <view class="settings-content">
+          <text class="settings-label">通知设置</text>
+          <text class="settings-sub">打卡提醒 · 抱抱卡发放</text>
+        </view>
+        <text class="settings-arrow">›</text>
+      </view>
+
+      <view class="settings-row" bindtap="onTapSettings" data-id="privacy">
+        <view class="settings-icon-wrap" style="background:#CE93D8;">
+          <text>🔒</text>
+        </view>
+        <view class="settings-content">
+          <text class="settings-label">隐私政策</text>
+          <text class="settings-sub">数据权限</text>
+        </view>
+        <text class="settings-arrow">›</text>
+      </view>
+
+      <view class="settings-row" bindtap="onTapSettings" data-id="about">
+        <view class="settings-icon-wrap" style="background:#FFF9C4;">
+          <text>ℹ️</text>
+        </view>
+        <view class="settings-content">
+          <text class="settings-label">关于自愈</text>
+          <text class="settings-sub">产品介绍</text>
+        </view>
+        <text class="settings-arrow">›</text>
+      </view>
+
+      <view class="settings-row settings-row--last" bindtap="onTapSettings" data-id="contact">
+        <view class="settings-icon-wrap" style="background:#A5D6A7;">
+          <text>💬</text>
+        </view>
+        <view class="settings-content">
+          <text class="settings-label">联系客服</text>
+          <text class="settings-sub">在线反馈</text>
+        </view>
+        <text class="settings-arrow">›</text>
+      </view>
+    </view>
+
+  </view>
+
+  <view class="profile-bottom-spacer"></view>
 </view>

@@ -1,83 +1,56 @@
 /**
- * IA-REF: docs/design/ia-and-wireframe.md §4.6 P11 我的（V2 tabBar 主页 · PR-3 commit-1）
- * FIGMA  : docs/design/figma-pixso-spec/pages/11-profile.html
- *
- * PR-3 commit-1 · profile-new 主页（V2 11-profile.html）
- * ─────────────────────────────────────────────────────────────────
- * - 头像渐变（mint → sky）+ 昵称 + streak + 进度环
- * - 抱抱卡 3 个 mini（锁定态，待打卡解锁）
- * - 顶部 ⋮ → drawer-overlay（抽屉含 6 项菜单）
- * §4.2.4 IA plan：6 列表项不直接显示在主页，放在抽屉里
- *
- * PR-5 扩展 · 5 跳转入口（抽屉内）
- * ─────────────────────────────────────────────────────────────────
- * - 用户档案：?mode=read（默认 read，只读视图；走 pages/profile-edit）
- * - 我的时光：/pages/album/index（PR-5 新建；接管旧的 record-album）
- * - 通知设置：/pages/notification-settings/index（PR-5 新建）
- * - 隐私政策：/pages/privacy-policy/index（PR-5 新建）
- * - 联系客服：/pages/contact/index（PR-5 新建）
- * - 关于自愈：/pages/about/index（PR-5 新建）
- *
- * 数据来源：
- * - /users/me → nickname / current_streak_days（PR-2 已扩 streak_days）
- * - profile 6 字段完成度 → 本地 profile-storage 读（PR5 沿用）
- *
- * 子页跳转全部用 wx.navigateTo（profile-new 是 tabBar 页，navigateTo 不能跳 tabBar；
- * 反之 navigateTo 可从 tabBar 跳到非 tabBar 子页）。
+ * profile-new/index.ts
+ * 1:1 复刻修复方案：上绿下白两段式布局
+ * - 新增 ageRange/crowd/level（用户标签）
+ * - settings 数组每项带 subtitle（副标题）
  */
 import { get } from '../../utils/request';
-import { readUserProfile, countFilledFields } from '../../utils/profile-storage';
 import type { UserMe } from '../../types/api';
 
 interface ProfileNewData {
   nickname: string;
-  streak: number;
-  currentDay: number;
-  percent: number;
+  ageRange: string;
+  crowd: string;
+  level: string;
   drawerVisible: boolean;
-  profileFilledLabel: string;
+  drawerItems: Array<{
+    id: string;
+    label: string;
+    pagePath: string;
+  }>;
   settings: Array<{
     id: string;
     label: string;
-    rightLabel?: string;
+    subtitle: string;
     pagePath: string;
   }>;
 }
 
 Page<ProfileNewData>({
   data: {
-    nickname: '自愈用户',
-    streak: 0,
-    currentDay: 0,
-    percent: 0,
+    nickname: '',
+    ageRange: '25-30 岁',
+    crowd: '久坐人群',
+    level: '自律 C',
     drawerVisible: false,
-    profileFilledLabel: '0/6',
-    settings: [],
+    drawerItems: [
+      { id: 'profile', label: '用户档案', pagePath: '/pages/profile-edit/index?mode=read' },
+      { id: 'album', label: '我的时光', pagePath: '/pages/album/index' },
+      { id: 'notification', label: '通知设置', pagePath: '/pages/notification-settings/index' },
+      { id: 'privacy', label: '隐私政策', pagePath: '/pages/privacy-policy/index' },
+      { id: 'contact', label: '联系客服', pagePath: '/pages/contact/index' },
+      { id: 'about', label: '关于自愈', pagePath: '/pages/about/index' },
+    ],
+    settings: [
+      { id: 'notification', label: '通知设置', subtitle: '打卡提醒 · 抱抱卡发放', pagePath: '/pages/notification-settings/index' },
+      { id: 'privacy', label: '隐私政策', subtitle: '数据权限', pagePath: '/pages/privacy-policy/index' },
+      { id: 'about', label: '关于自愈', subtitle: '产品介绍', pagePath: '/pages/about/index' },
+      { id: 'contact', label: '联系客服', subtitle: '在线反馈', pagePath: '/pages/contact/index' },
+    ],
   },
 
   onLoad() {
-    this.refreshSettings();
     void this.fetchMe();
-  },
-
-  onShow() {
-    this.refreshSettings();
-  },
-
-  refreshSettings() {
-    const filled = countFilledFields(readUserProfile());
-    const label = `${filled}/6`;
-    this.setData({
-      profileFilledLabel: label,
-      settings: [
-        { id: 'profile', label: '用户档案', rightLabel: `档案 ${label}`, pagePath: '/pages/profile-edit/index?mode=read' },
-        { id: 'time', label: '我的时光', pagePath: '/pages/album/index' },
-        { id: 'notification', label: '通知设置', pagePath: '/pages/notification-settings/index' },
-        { id: 'privacy', label: '隐私政策', pagePath: '/pages/privacy-policy/index' },
-        { id: 'support', label: '联系客服', pagePath: '/pages/contact/index' },
-        { id: 'about', label: '关于自愈', pagePath: '/pages/about/index' },
-      ],
-    });
   },
 
   async fetchMe() {
@@ -85,14 +58,14 @@ Page<ProfileNewData>({
       const me = await get<UserMe>('/users/me');
       if (me) {
         this.setData({
-          nickname: me.nickname || '自愈用户',
-          streak: me.current_streak_days ?? 0,
-          currentDay: me.current_streak_days ?? 0,
-          percent: Math.min(100, Math.round(((me.current_streak_days ?? 0) / 21) * 100)),
+          nickname: me.nickname || '用户',
+          ageRange: me.age_range || '25-30 岁',
+          crowd: me.crowd || '久坐人群',
+          level: me.level || '自律 C',
         });
       }
     } catch {
-      /* 兜底 */
+      /* 兜底默认状态 */
     }
   },
 
@@ -107,39 +80,18 @@ Page<ProfileNewData>({
 
   onDrawerNav(e: WechatMiniprogram.BaseEvent) {
     const id = (e.currentTarget.dataset as { id?: string }).id;
-    const item = this.data.settings.find((s) => s.id === id);
+    const item = this.data.drawerItems.find((s) => s.id === id);
     if (!item) return;
     this.setData({ drawerVisible: false });
     void wx.navigateTo({ url: item.pagePath });
   },
 
-  // ── 抱抱卡跳转 ──
-  onGotoShare() {
-    wx.navigateTo({ url: '/pages/share-hug-card/index' });
-  },
-
-  // ── PR-5 · 5 个具名跳转入口（保留，路由抽屉菜单可复用） ──
-  onTapProfileEdit() {
-    wx.navigateTo({ url: '/pages/profile-edit/index?mode=read' });
-  },
-
-  onTapArchiveAlbum() {
-    wx.navigateTo({ url: '/pages/album/index' });
-  },
-
-  onTapNotifications() {
-    wx.navigateTo({ url: '/pages/notification-settings/index' });
-  },
-
-  onTapPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy-policy/index' });
-  },
-
-  onTapContact() {
-    wx.navigateTo({ url: '/pages/contact/index' });
-  },
-
-  onTapAbout() {
-    wx.navigateTo({ url: '/pages/about/index' });
+  // ── 设置入口（遍历 settings 数组路由分发）───
+  onTapSettings(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id?: string }).id;
+    const item = this.data.settings.find((s) => s.id === id);
+    if (item) {
+      void wx.navigateTo({ url: item.pagePath });
+    }
   },
 });
