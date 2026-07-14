@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 
@@ -154,6 +154,59 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
                 "message_en": "Request validation failed",
                 "request_id": getattr(request.state, "request_id", "-") or "-",
                 "details": {"errors": errors},
+            }
+        },
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# §二-b 自定义异常处理器：HTTPException（路由层 re-raise 兜底）
+# 部分 router 用 ``raise HTTPException(status, {"code", "message_zh"})`` 抛业务错误，
+# 走 FastAPI 内置处理器（无日志）。注册到这里补结构化日志。
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(HTTPException)
+async def _http_exception_handler(request: Request, exc: HTTPException) -> Response:  # type: ignore[type-var]
+    """记录 HTTPException 细节（4xx/5xx），然后返回原响应。
+
+    日志字段：
+        - ``path``: 请求路径
+        - ``status_code``: HTTP 状态码
+        - ``detail``: 错误描述
+    """
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    detail = exc.detail
+    # 如果 detail 已经是 dict（router 传入的 {"code", "message_zh"}），直接透出
+    if isinstance(detail, dict):
+        code = detail.get("code", "E_GENERAL_HTTP_EXCEPTION")
+        message_zh = detail.get("message_zh", "请求处理失败")
+        details = {k: v for k, v in detail.items() if k not in ("code", "message_zh")}
+    else:
+        code = "E_GENERAL_HTTP_EXCEPTION"
+        message_zh = str(detail)
+        details = None
+
+    status = exc.status_code
+    # 5xx → logger.error；4xx → logger.warning
+    log_fn = logger.error if status >= 500 else logger.warning
+    log_fn(
+        "http_exception",
+        path=str(request.url.path),
+        status_code=status,
+        code=code,
+        exc_type="HTTPException",
+    )
+    return JSONResponse(
+        status_code=status,
+        content={
+            "error": {
+                "code": code,
+                "message_zh": message_zh,
+                "message_en": "Server error, please retry later",
+                "request_id": getattr(request.state, "request_id", "-") or "-",
+                "details": details,
             }
         },
     )
