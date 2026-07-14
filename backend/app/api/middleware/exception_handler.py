@@ -7,7 +7,8 @@
 1. 捕获所有 ``SelfwellError`` 子类 → envelope 响应 + ``error.code / http_status``
 2. 兜底捕获其它异常 → E_GENERAL_INTERNAL_ERROR + 500
 3. 5xx 响应必须带 ``X-Request-ID`` / ``traceparent`` 头（TraceContextMiddleware 已注入）
-4. 日志用 ``logger.exception`` 自动抓 traceback
+4. 业务异常 (``SelfwellError``) → ``logger.warning``（不打 traceback，避免日志噪音）；
+   未预期异常 → ``logger.exception``（自动抓 traceback，便于定位）
 5. v4.1-prep：envelope 形态 ``{"error": {code, message_zh, message_en, request_id, details}}``
    取代旧 ``to_error_response()`` 形态；``error.code / message_zh / message_en`` 字段保持不变
    以兼容现有 78 个测试。
@@ -45,10 +46,10 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
         try:
             return await call_next(request)  # type: ignore[operator, no-any-return]
         except SelfwellError as exc:
-            # 用 logger.exception 而非 logger.warning：自动捕获当前 sys.exc_info() 的
-            # traceback（loguru 的 backtrace=True 会把 SelfwellError 链一路追溯到原始
-            # raise 处）。响应体继续走 make_envelope（sanitized，不含堆栈）。
-            logger.exception(
+            # 业务异常（4xx / 429 / 200 soft-tip）：不打 traceback（每条都打会污染日志），
+            # 走结构化字段，便于 Loki 按 code / severity 聚合。traceback 仅在
+            # ``unhandled_exception``（500 兜底）才需要。
+            logger.warning(
                 "selfwell_error",
                 code=exc.code,
                 http_status=exc.http_status,

@@ -13,9 +13,10 @@ PR-A2 增量（async 真 pipeline · 2026-07-08）：
 - 保留 ``GET /{report_id}/stream`` 旧 stub：原 3 个测试仍调此路径（mock
   ``get_report_status``）；本 PR 把它**改接** ``JobStateStore`` 而非硬编码 30s sleep。
 
-v4.1-prep（子任务 4）：统一错误响应 envelope —— router 内 ``raise HTTPException``
-改为 ``raise AppBusinessError(...)``，最终 envelope 形态由
-``app/errors/envelope.AppBusinessError`` + ``app/api/middleware/exception_handler`` 出。
+错误处理约定：router 不做 ``XxxError -> AppBusinessError`` 的 re-wrap，
+所有 ``SelfwellError`` 子类（``DiagnosisError`` / ``DiagnosisNotFoundError`` 等）
+冒泡到 ``app.api.middleware.ExceptionHandlerMiddleware`` 后由统一的 envelope handler
+渲染响应。仅业务校验分支直接 ``raise AppBusinessError(...)``（如 404）。
 """
 
 from __future__ import annotations
@@ -36,9 +37,7 @@ from app.core.job_state import JobStateStore
 from app.errors.codes import E_DIAGNOSIS_JOB_NOT_FOUND, E_DIAGNOSIS_NOT_FOUND
 from app.errors.envelope import AppBusinessError
 from app.services.diagnosis_service import (
-    DiagnosisError,
     DiagnosisJobInputs,
-    DiagnosisNotFoundError,
     create_diagnosis,
     get_diagnosis,
     run_diagnosis_job,
@@ -222,8 +221,7 @@ async def create_diagnosis_endpoint(
         Query(
             alias="async",
             description=(
-                "true=async 模式（202 返 job_id + stream_url）；"
-                "默认同步返 DiagnosisResponse。"
+                "true=async 模式（202 返 job_id + stream_url）；默认同步返 DiagnosisResponse。"
             ),
         ),
     ] = False,
@@ -247,20 +245,12 @@ async def create_diagnosis_endpoint(
         )
 
     # ── 同步路径：保持 100% 向后兼容 ─────────────────────────────────────────
-    try:
-        result = await create_diagnosis(
-            session,
-            user_id=user_id,
-            photos=body.resolve_photos(),
-            complaint=body.resolve_complaint(),
-        )
-    except DiagnosisError as exc:
-        raise AppBusinessError(
-            code=exc.code,
-            message_zh=exc.render_zh(),
-            http_status=exc.http_status,
-            **exc.context,
-        ) from exc
+    result = await create_diagnosis(
+        session,
+        user_id=user_id,
+        photos=body.resolve_photos(),
+        complaint=body.resolve_complaint(),
+    )
     return DiagnosisResponse(data=DiagnosisData(**result))
 
 
@@ -372,24 +362,14 @@ async def get_diagnosis_endpoint(
     user_id: str = Depends(current_user_id),
     session: AsyncSession = Depends(db_session),
 ) -> ReportGetResponse:
-    try:
-        result = await get_diagnosis(session, user_id=user_id, report_id=report_id)
-    except DiagnosisNotFoundError as exc:
-        raise AppBusinessError(
-            code=exc.code,
-            message_zh=exc.render_zh(),
-            http_status=exc.http_status,
-            **exc.context,
-        ) from exc
+    result = await get_diagnosis(session, user_id=user_id, report_id=report_id)
     return ReportGetResponse(data=result)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SSE Stream endpoint（5 阶段诊断推送，M2 修复 #4）
 # ─────────────────────────────────────────────────────────────────────────────
-async def get_report_status(
-    session: AsyncSession, *, user_id: str, report_id: str
-) -> str | None:
+async def get_report_status(session: AsyncSession, *, user_id: str, report_id: str) -> str | None:
     """获取诊断报告当前状态（``pending`` / ``ready`` / ``failed`` / ``None``）。
 
     测试通过 ``patch("app.api.routers.diagnosis_v1.get_report_status", ...)``
@@ -432,9 +412,7 @@ async def stream_diagnosis_endpoint(
         # 等待 ready（最多 30s）
         for _ in range(30):
             await asyncio.sleep(1)
-            status = await get_report_status(
-                session, user_id="", report_id=report_id
-            )
+            status = await get_report_status(session, user_id="", report_id=report_id)
             if status == "ready":
                 yield f"event: stage\ndata: {json.dumps({'stage': 'ready', 'ok': True})}\n\n"
                 return
@@ -476,20 +454,39 @@ async def _job_event_stream(
             if job_state.get_status(job_id, user_id) is None:
                 return
             continue
+        # Phase 4 批次 4 · 断点修复：SSE payload 内补 trace_id（header 在 error 时读不到）
+        try:
+            from app.core.trace import current_request_id, current_trace_id
+
+            _rid = current_request_id() or ""
+            _tid = current_trace_id() or ""
+        except Exception:
+            _rid = _tid = ""
+
+        def _with_trace(payload: dict[str, Any]) -> dict[str, Any]:
+            if _rid or _tid:
+                merged = dict(payload)
+                if _tid and "trace_id" not in merged:
+                    merged["trace_id"] = _tid
+                if _rid and "request_id" not in merged:
+                    merged["request_id"] = _rid
+                return merged
+            return payload
+
         if evt.kind == "stage":
             payload: dict[str, Any] = {"ok": True, **evt.payload}
-            yield f"event: stage\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            yield f"event: stage\ndata: {json.dumps(_with_trace(payload), ensure_ascii=False)}\n\n"
             continue
         if evt.kind == "done":
             yield (
                 f"event: done\ndata: "
-                f"{json.dumps({'report_id': evt.payload.get('report_id')}, ensure_ascii=False)}\n\n"
+                f"{json.dumps(_with_trace({'report_id': evt.payload.get('report_id')}), ensure_ascii=False)}\n\n"
             )
             return
         if evt.kind == "error":
             yield (
                 f"event: error\ndata: "
-                f"{json.dumps(evt.payload, ensure_ascii=False)}\n\n"
+                f"{json.dumps(_with_trace(evt.payload), ensure_ascii=False)}\n\n"
             )
             return
         yield ": keepalive\n\n"
@@ -519,7 +516,7 @@ async def stream_diagnosis_job_endpoint(
         )
 
     return StreamingResponse(
-        _job_event_stream(job_state, job_id, _user_id),
+        _wrap_job_stream_with_disconnect_tracking(_job_event_stream(job_state, job_id, _user_id)),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -527,6 +524,47 @@ async def stream_diagnosis_job_endpoint(
             "Connection": "keep-alive",
         },
     )
+
+
+async def _wrap_job_stream_with_disconnect_tracking(inner):
+    """Phase 4 批次 4：监测 /diagnosis/jobs/{job_id}/stream 提前断连。
+
+    与 assistant_v1 同步：SSE 流式响应最容易在 stage 流还没结束时就断（mobile
+    切后台 / 用户切页面），需要单独维度计数以便告警。
+    """
+    saw_done = False
+    saw_error = False
+    try:
+        async for chunk in inner:
+            try:
+                head = chunk.split("\n", 1)[0]
+            except Exception:
+                head = ""
+            if head.startswith("event: done"):
+                saw_done = True
+            elif head.startswith("event: error"):
+                saw_error = True
+            yield chunk
+    except GeneratorExit:
+        if not saw_done and not saw_error:
+            try:
+                from app.core.observability import observe_sse_disconnect
+
+                observe_sse_disconnect(endpoint="diagnosis.job_stream", reason="client_closed")
+            except Exception:
+                pass
+        raise
+    except Exception:
+        if not saw_done and not saw_error:
+            try:
+                from app.core.observability import observe_sse_disconnect
+
+                observe_sse_disconnect(
+                    endpoint="diagnosis.job_stream", reason="generator_exception"
+                )
+            except Exception:
+                pass
+        raise
 
 
 __all__ = ["get_report_status", "router"]  # re-exported for tests
