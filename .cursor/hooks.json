@@ -15,8 +15,10 @@
     ],
     "beforeShellExecution": [
       {
-        "command": "D:\\agent-project\\SelfwellAgent\\.cursor\\hooks\\guard-shell.ps1",
-        "failClosed": true
+        "command": "D:\\agent-project\\SelfwellAgent\\.cursor\\hooks\\guard-shell.cmd",
+        "timeout": 5,
+        "failClosed": true,
+        "matcher": "(?i)(cat\\s|head\\s|tail\\s|more\\s|less\\s|sed\\s|awk\\s|perl\\s|echo\\s[^|]*>|printf\\s[^|]*>|\\btee\\s|rm\\s-rf|cmd\\s/c|powershell\\s-Command|Get-Content)"
       }
     ],
     "stop": [

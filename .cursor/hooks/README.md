@@ -25,10 +25,13 @@
 ├── rules/
 │   └── file-operation-stability.mdc          # 规则源文件 (alwaysApply=true)
 ├── hooks/                                    # 本目录
-│   ├── guard-shell.ps1                       # ⭐ 硬阻塞违规 shell (exit 2)
+│   ├── guard-shell.cmd                       # Windows 入口垫片（探测 Python）
+│   ├── guard-shell.py                        # v4 硬阻塞违规 shell (Python 主逻辑)
+│   ├── guard-shell.ps1                       # v3 兜底（无 Python 时降级放行）
 │   ├── session-inject.ps1                    # 软提醒: sessionStart 注入规则摘要
 │   ├── subagent-rules-inject.ps1             # 强制: subagentStart 注入规则指针
 │   ├── audit-violations.ps1                  # 审计: stop 阶段追加日志
+│   ├── tests/test_guard_shell.py             # v4 单元测试（pytest）
 │   └── README.md                             # 本文件
 └── logs/
     └── audit.log                             # 审计日志 (gitignored)
@@ -42,8 +45,11 @@
 |------|------|----------|------|
 | `sessionStart` | `session-inject.ps1` | failClosed=false | 会话开始时向 agent context 注入 5 条铁则的浓缩摘要，作为软提醒 |
 | `subagentStart` | `subagent-rules-inject.ps1` | failClosed=true | **Task 出去的子 agent 必须 Read 两份 rules 才允许启动** |
-| `beforeShellExecution` | `guard-shell.ps1` | failClosed=true | **核心**：违规 shell 直接 exit 2 拒绝执行 |
+| `beforeShellExecution` | `guard-shell.cmd` → `guard-shell.py` (v4) | failClosed=true + matcher | **核心**：违规 shell 直接 exit 2 拒绝执行 |
 | `stop` | `audit-violations.ps1` | failClosed=false | 兜底: 每轮结束追加一条审计日志 |
+
+**v4 matcher 设计**：只匹配"违规嫌疑命令"（cat/head/sed/awk/echo>/tee/rm -rf/cmd/powershell 等），
+**不**触发普通命令（git/ls/curl/python）。这避免 hook 自递归死锁（测 hook 时不会触发自己）。
 
 ---
 
@@ -53,16 +59,17 @@
 
 | 模式 | 原因 | 用什么工具替代 |
 |------|------|---------------|
-| `cat file.{md,txt,py,...}` | shell 读文件 | **Read** |
+| `cat ...` / `Get-Content ...` | shell 读文件 | **Read** |
 | `head ...` / `tail ...` / `more ...` / `less ...` | shell 读文件 | **Read** |
-| `sed -i ...` / `sed ...` | shell 修改文件 | **StrReplace / Write** |
-| `awk ...` | shell 处理文件 | **StrReplace / Write** |
-| `perl -pi ...` | shell 修改文件 | **StrReplace / Write** |
-| `echo ... > file` / `printf ... > file` | shell 写文件 | **Write** |
-| `cat ... > file` / `tee ...` | shell 写文件 | **Write** |
+| `type ...` (cmd) | shell 读文件 | **Read** |
+| `sed -i ...` / `sed ...` / `awk ...` / `perl -pi ...` | shell 修改文件 | **StrReplace / Write** |
+| `echo ... > file` / `printf ... > file` / `cat ... > file` / `tee ...` | shell 写文件 | **Write** |
 | `rm -rf /` | 高危 | 需用户书面授权 |
 | `cmd /c "dir ..."` | 跨盘列目录 | **Glob** |
 | `powershell -Command ...[IO.File]...` | 用 PS 读字节 | **Read** |
+
+> **v4 改进点**：违规模式不再限制文件扩展名——任何 `cat <path>` 都视为违规（包括
+> `.cursorrules`、`.gitignore`、无扩展名等），避免漏检。
 
 ---
 
@@ -76,10 +83,8 @@
 # 1. 确认 .cursor/hooks 完整
 Get-ChildItem -Path '.cursor\hooks' -Recurse
 
-# 2. 确认 PowerShell 执行策略允许 .ps1
-# Cursor 在 Windows 默认使用 powershell.exe。如果策略限制，
-# 需在 User 范围允许:
-# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+# 2. 确认 Python 3 在 PATH 上（v4 主逻辑依赖）
+python --version   # 或 py --version
 
 # 3. 重启 Cursor，让 hooks.json 重新加载
 ```
@@ -100,6 +105,23 @@ Get-ChildItem -Path '.cursor\hooks' -Recurse
 - Cursor IDE → **Settings** → **Hooks** 查看加载状态
 - Cursor IDE → **Output** → 选 "Hooks" channel 看每次触发日志
 - 仓库内日志：`.cursor/logs/audit.log`
+
+### 5.4 单元测试
+
+```bash
+# 跑 v4 全部测试
+python -m pytest .cursor/hooks/tests/test_guard_shell.py -v
+
+# 或 unittest（不依赖 pytest）
+python -m unittest discover .cursor/hooks/tests
+```
+
+测试覆盖：
+- 8 类违规命令 → 必须 deny
+- 18 类正常命令 → 必须 allow
+- 4 类异常输入（空 stdin / 坏 JSON / 空 command / 缺 command 字段）→ fail-open allow
+- 白名单快速通道
+- 垫片文件存在性
 
 ---
 
@@ -123,3 +145,15 @@ Get-ChildItem -Path '.cursor\hooks' -Recurse
 - 主规则文件: `.cursor/rules/file-operation-stability.mdc`
 - Cursor Hooks 文档: <https://cursor.com/docs/hooks>
 - 本次故障复盘: <待补 — docs/cursor_experience/file-operation-stability-hooks-fix.md>
+
+---
+
+## 八、版本演进
+
+| 版本 | 日期 | 变更 | 状态 |
+|------|------|------|------|
+| v1 | 2026-07-15 初版 | PowerShell + stdin JSON | 已废弃（Cursor 沙箱 "no output" 错判） |
+| v2 | 同日 | `[Console]::Out.WriteLine` 写 stdout | 已废弃（同上问题） |
+| v3 | 同日 | 临时降级为 fail-open 放行版 | 备份保留（v4 无 Python 时降级） |
+| **v4** | **同日** | **Python 重写 + stdin/stdout JSON + matcher 精准触发** | **当前使用** |
+| v5 (待) | — | 加 `cursor-hook-bypass` 注释前缀支持 | 规划中 |
