@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/session-inject.ps1",
+        "failClosed": false
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": ".cursor/hooks/subagent-rules-inject.ps1",
+        "failClosed": true
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "D:\\agent-project\\SelfwellAgent\\.cursor\\hooks\\guard-shell.ps1",
+        "failClosed": true
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/audit-violations.ps1",
+        "failClosed": false
+      }
+    ]
+  }
+}

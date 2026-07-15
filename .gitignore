@@ -23,10 +23,15 @@ docs/
 # 团队规范文档（Coding-Conventions-Commit）已改为根 CONTRIBUTING.md
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. 个人 AI 协作工具配置（不入 git）
+# 2. 个人 AI 协作工具配置（仅 specs/ 不入 git；其余 hooks/、rules/、skills/
+#    均入 git，因为团队需要共享 hook 守门脚本与 rules 规范）
 # ─────────────────────────────────────────────────────────────────────────────
 .cursorrules
-.cursor/
+.cursor/specs/
+.cursor/plans/        # Agent 内部 plan，不入 git
+# 例外已 tracked（不入 ignore）：.cursor/hooks/、.cursor/hooks.json、
+# .cursor/rules/、.cursor/skills/
+# 例外外的其余文件（debug-*.log / commit_msg_*.txt 等）不入 git
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. Python 工具缓存（标准做法）
