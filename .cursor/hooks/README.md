@@ -54,6 +54,11 @@
 | `file-operation-stability.mdc` | **工具铁则**：Read / StrReplace / Write / Glob 优先，shell 只许跑 ls/find/tree | **本 hooks (`guard-shell.py` v4.1)** exit 2 硬阻塞 |
 | `skills.mdc` | **Skill 导航**：哪些场景读哪个 skill | 无（导航性，靠 agent 自调用） |
 
+![file-operation-stability 规则 → hook 工程化兜底流程图](../../assets/file-operation-stability-rule-to-hook-flow.png)
+
+> 图示基于 v4 架构。v4.1 在 v4 基础上修了 3 个漏检 bug（less 正则 / tee pipe / dir /b 跨盘），架构本身不变。
+> 完整对照：v4 = `a13c31e`，v4.1 = `d664bf0`（详见"七、版本演进"）。
+
 > ⚠️ **没有"主规则文件"**——4 条规则角色不同、互补。
 > 4 条全部 alwaysApply=true，agent 每条消息都看到全部 4 条。
 >
