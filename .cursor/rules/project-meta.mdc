@@ -1,0 +1,159 @@
+---
+description: >
+  SelfwellAgent 项目元信息（V3 架构对齐）。alwaysApply=true 每条消息注入，
+  让 Cursor 在 system prompt 摘要层就知道这是 FastAPI + LangGraph + MCP + Qdrant
+  + PostgreSQL + Volcengine 网关增量化 的 AI Agent 项目（Python 3.12+ / uv）。
+  详细技术架构见 docs/architecture/tech-architecture-design-v3.md（V3 真源）。
+alwaysApply: true
+---
+
+# SelfwellAgent 项目元信息（V3 架构对齐）
+
+> 这是项目级"自我介绍"，**所有规范约束详见对应 root rule / skill**，本文件只列技术栈、目录结构和 V3 核心事实。
+> 完整技术架构图、Agent 编排、合规四层纵深、NFR 见 [`docs/architecture/tech-architecture-design-v3.md`](../../docs/architecture/tech-architecture-design-v3.md)（V3 真源）。
+
+## 一、技术栈（V3 对齐 §2.1）
+
+| 维度 | 选型 | V3 变化 |
+|------|------|---------|
+| **后端框架** | FastAPI + LangGraph + SQLAlchemy | Agent 全链路编排 |
+| **后端运行时** | Python >= 3.12（PEP 695 type / `\|` / `list[T]`） | 强制 3.12+ |
+| **包管理** | uv（不用 pip / poetry） | — |
+| **主数据库** | **PostgreSQL** | 从 MySQL 切换 |
+| **缓存 / 队列** | Redis | — |
+| **向量存储** | **Qdrant**（Namespace: `selfwell`） | 新增，三层记忆长期 |
+| **对象存储** | MinIO dev / **腾讯云点播 + CDN** prod（视频另走） | 双形态 |
+| **LLM 网关** | **Volcengine 增量化**（`https://ark.cn-beijing.volces.com/api/plan/v3`） | 增量化 + 多模型路由 |
+| **LLM 模型路由** | 诊断 `doubao-seedream-5.0-lite` (T=0.3) / 对话 `glm-5.2` (T=0.7) / 分类 `deepseek-v4-flash` (T=0.1) | ADR-0003 |
+| **LLM 月预算** | ¥700（`LLM_MONTHLY_BUDGET_YUAN=700`） | 硬阈值 |
+| **工具桥接** | **MCP（Streamable HTTP，异步）** | 替代直连 LangChain |
+| **网关层** | **Safety Gateway**（JWT/UnionID + 限流 + 路由 + 合规输入拦截） | 独立网关 |
+| **客户端** | Flutter App (iOS/Android) + 微信小程序 + **HarmonyOS（被动上架）** | ADR-0010 |
+| **视频播放器** | 腾讯云点播 + 三态降级（低清 → 截图 → 文案） | 新增 |
+| **监控可观测** | **Prometheus + Grafana**（LLM 成本 / 延迟 SLO） | 9.5 |
+| **测试** | pytest + pytest-asyncio + VCR.py + fakeredis；Playwright（小程序 / web） | — |
+
+## 二、后端目录结构（V3 对齐 §2.3）
+
+| 路径 | 用途 | V3 子目录 |
+|------|------|-----------|
+| `backend/app/api/` | API 路由 + middleware（exception_handler） | routers / middleware |
+| `backend/app/core/` | 基础设施（errors / log / config） | — |
+| `backend/app/services/` | 业务服务层 | **6 个：user / diagnosis / checkin / video / community / notification** |
+| `backend/app/agents/` | Agent 编排（仅放图，**业务规则禁入此目录**） | 拆 5 子目录见下 |
+| ├─ `agents/llm_factory.py` | LLM 多模型工厂 | — |
+| ├─ `agents/mcp/` | MCP 工具桥接（bridge / registry） | V3 新增 |
+| ├─ `agents/memory/` | **三层记忆**（short_term / medium_term / long_term） | V3 新增 |
+| ├─ `agents/safety/` | 合规四层（guard / audit） | V3 强化 |
+| ├─ `agents/scheduler/` | 推送 / 任务调度（jobs.py） | V3 新增 |
+| └─ `agents/graph/` | LangGraph 主图 + 子图（assistant / diagnosis / recall / community） | V3 全量重写 |
+| `backend/app/db/` | DB session / 模型基类 | — |
+| `backend/app/utils/` | 通用工具 | — |
+| `backend/app/main.py` | FastAPI 入口 | — |
+| `backend/services/` | 通用基础服务（无业务编排），如合规检查器 | V3 拆分 |
+| `backend/tests/` | pytest 测试（unit / contracts / nodes / integration / e2e / smoke / state） | QA |
+| `backend/eval/` | Golden Set（YAML + Runner + baseline） | QA |
+
+## 三、前端目录结构（V3 对齐 §2.4）
+
+| 路径 | 用途 |
+|------|------|
+| `apps/mp-selfwell/miniprogram/pages/{home,diagnosis,task-detail,profile}/` | 小程序页面（新增 task-detail） |
+| `apps/mp-selfwell/miniprogram/components/task-card/` | 共享任务卡组件 |
+| `apps/mp-selfwell/miniprogram/styles/v2-tokens.wxss` | V2 设计 token |
+| `apps/mp-selfwell/miniprogram/utils/video-url.ts` | 视频 URL 处理 |
+| `apps/flutter_app/lib/pages/{splash,onboard,home,butler,diagnosis,profile}/` | Flutter 页面（onboard = 冷启动 4 屏） |
+| `apps/flutter_app/lib/widgets/video_player_fallback.dart` | 视频三态降级播放组件 |
+| `apps/flutter_app/lib/services/video_embed_service.dart` | 视频内嵌服务 |
+| `packages/` | 前端共享类型 / utils |
+| `docs/` | 文档（PRD / SPEC / scenarios / ADR / architecture） |
+| `.cursor/` | Cursor rules + skills + hooks |
+
+> 详细角色分配见 `AGENTS.md`。
+
+## 四、V3 核心事实（Agent 必须内化）
+
+> 本节是 V3 架构给 Coding Agent 的**速记卡**，高频决策会用到。
+
+### 4.1 三层记忆体系（§4.2）
+
+| 记忆 | 存储 | TTL | 写入时机 |
+|------|------|-----|----------|
+| 短期 | Redis | 7 天 | 会话结束 |
+| 中期 | PostgreSQL | 持久化 | 打卡 / 反馈 |
+| 长期 | Qdrant | 永久（可删） | 摘要向量化 |
+
+### 4.2 合规四层纵深（§5.1）
+
+| 层 | 名称 | 触发 |
+|----|------|------|
+| L1 | **输入拦截** | 关键词 + 微信 sec |
+| L2 | **LLM 约束** | Prompt 模板 + JSON Schema + temperature |
+| L3 | **输出流式网关** | 逐 chunk 关键词 + 采样 LLM 分类 |
+| L4 | **异步复审** | 社区 + 微信 sec + LLM 抽样 + 人工队列 |
+
+### 4.3 数据生命周期（§4.4）
+
+| 数据 | 保留 | 删除触发 |
+|------|------|----------|
+| 诊断原图 | 7 天 | 原图清除 |
+| 导出文件 URL | 7 天 | 导出任务 TTL |
+| 账号注销冷静期 | 15 天 | 可恢复 |
+| 注销后数据 | 永久删除 | 15 天过期 |
+
+### 4.4 数据导出异步化（§5.6 / §5.7）
+
+- `POST /export` → 202 + `job_id`（秒回） → Redis 队列 → Worker 异步打包 → 写 `export_jobs.status=ready` + 签名 URL（7 天 TTL）
+- 用户 `GET /export/{id}` → 200 + `download_url` → CDN 直下
+
+### 4.5 NFR 性能目标（§10.2）
+
+| 指标 | 目标 |
+|------|------|
+| 诊断 P95 | ≤ 20s（异步） |
+| 首页接口 P95 | ≤ 200ms |
+| 对话首 token | ≤ 1s |
+| LLM 月预算 | ¥700（超出熔断） |
+
+### 4.6 Agent 子图（§3.1-3.5）
+
+| 子图 | 职责 |
+|------|------|
+| Assistant Agent | 主调度（意图分类 + Persona + 上下文压缩） |
+| Diagnosis Agent | 诊断任务状态机（upload → preprocess → analyzing → suggestion → ready） |
+| Recall Agent | Day 7/14/21 主动回忆 + 用户主动入口 |
+| Community Agent | 三段式审核（关键词 → 采样 LLM → 人工队列） |
+
+### 4.7 Persona 态机（§3.9 / ADR-0015）
+
+| 状态 | 触发 |
+|------|------|
+| `warm` | 默认 |
+| `neutral` | 医疗关键词 |
+| `slightHug` | 连续 7 天无反馈 |
+| `medicalGuarded` | 诊断 / 症状词 |
+
+## 五、工具使用规则
+
+### 5.1 阅读工具说明
+
+使用工具前必需要读 `D:\agent-project\SelfwellAgent\docs\harness\tools` 下面的说明文档。
+
+### 5.2 工具优先级铁则（唯一真源）
+
+**文件读取 / 改文件 / 列目录的工具优先级以 `.cursor/rules/file-operation-stability.mdc` 为唯一真源**，违规 shell 会被 `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞。本文件不重复定义。
+
+### 5.3 最高优先级禁止项（唯一真源）
+
+**5 条工程红线**以 `.cursor/rules/project-prohibitions.mdc` 为唯一真源（`pyproject.toml` 依赖声明 / `agents/` 业务规则禁区 / L0-L6 门禁 / Prompt + Golden Set 回归 / 工具跳级）。特别强调：`agents/` 子目录内**仍不许写业务规则**（R-2 红线覆盖所有 5 个子目录 mcp/memory/safety/scheduler/graph）。
+
+## 六、参考
+
+- 入口元信息（本文件）：`.cursor/rules/project-meta.mdc`
+- V3 技术架构真源：[`docs/architecture/tech-architecture-design-v3.md`](../../docs/architecture/tech-architecture-design-v3.md)
+- Skill 索引：`.cursor/rules/skills.mdc`
+- 工程红线：`.cursor/rules/project-prohibitions.mdc`
+- 工具铁则：`.cursor/rules/file-operation-stability.mdc`
+- 多 Agent 协作编排：`AGENTS.md`
+- 19 份 ADR 索引：`docs/adr/README.md`
+- 16 份 SPEC 索引：`docs/spec/SPEC-A0-MASTER-IA.md`

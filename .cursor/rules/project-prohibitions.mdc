@@ -1,0 +1,94 @@
+---
+description: >
+  5 条最高优先级禁止项（违反任意一条即 FAIL）。
+  alwaysApply=true 每条消息注入，Coding Agent 在 system prompt 摘要层就看到红线。
+  配套工程化兜底：R-5 工具跳级会被 .cursor/hooks/guard-shell.ps1 exit 2 硬阻塞；
+  R-1~R-4 由 pre-commit / CI / PR-Gate / Eval Runner 兜底。
+alwaysApply: true
+---
+
+# 最高优先级禁止项（工程红线）
+
+> 5 条红线，违反任意一条即 FAIL。本文件是**唯一真源**，不要在 skill 或文档里复制。
+> 与 `.cursor/hooks/guard-shell.ps1` 配合：R-5（工具跳级）会被脚本在 `beforeShellExecution` 阶段 exit 2 硬阻塞；R-1~R-4 由 CI / pre-commit / PR-Gate / Eval Runner 兜底。
+
+## 红线速查表
+
+| # | 禁止 | 正确做法 | 谁来兜底 |
+|---|------|----------|----------|
+| **R-1** | 不在 `pyproject.toml` 声明依赖 | 用 `uv add <pkg>` 或手动 `pyproject.toml` 编辑后 `uv lock` | CI pip check |
+| **R-2** | 在 `agents/` 目录（含 5 个子目录 `mcp/memory/safety/scheduler/graph`）内编写业务规则 | 业务规则必须放 `rules/`（YAML + 纯 Python 解释器）；`agents/` 仅放图编排 / 节点 / 工具桥接 / 记忆 / 安全 | Backend Agent + 目录扫描 |
+| **R-3** | 提交前未跑通 `coding-standards` 的 L0-L6 质量门禁 | commit 前必须 ruff / mypy / pytest / coverage 全 PASS；详见 `.cursor/skills/coding-standards/GATES.md` | pre-commit hook + CI |
+| **R-4** | 修改 Prompt 但未跑对应版本 Golden Set 回归 | 改 prompt → 跑 `python -m eval.runner --mode pr` → baseline 跌幅 ≤ 5%；详见 `.cursor/skills/golden-set/SKILL.md` §5 §6 | PR-Gate + Eval Runner |
+| **R-5** | 改文件 / 列目录跳级用 shell（绕过 `file-operation-stability.mdc`） | 文件用 Read / StrReplace / Write；目录用 Glob；详见 `.cursor/rules/file-operation-stability.mdc` | `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞 |
+
+> 5 条红线，**R-5** 由 hooks 在 `beforeShellExecution` 阶段 exit 2 硬阻塞（最严）；**R-1~R-4** 由 CI / pre-commit / PR-Gate / Eval Runner 兜底。本文件是**唯一真源**，不要在 skill 或文档里复制。
+
+## 详情 / 触发场景
+
+### R-1：`pyproject.toml` 依赖声明
+
+**禁止**：
+- `import xxx` 后没在 `pyproject.toml` 里加（报 `ModuleNotFoundError` 进 production）
+- 用 `pip install <pkg>` 而不是 `uv add <pkg>` 临时绕开 lockfile
+
+**正确做法**：
+```bash
+cd backend && uv add <package>
+# 同步到 pnpm-lock.yaml / package-lock.json（前端的也必须一致）
+git add pyproject.toml uv.lock
+```
+
+### R-2：`agents/` 仅编排，业务规则放 `rules/`
+
+**禁止**：在 `backend/app/agents/` 任意子目录（`mcp/ memory/ safety/ scheduler/ graph/` 及子文件如 `llm_factory.py`）内写 `if score > 0.8: ...` 这类业务判断。
+
+**正确做法**：
+- `agents/` — 节点图编排 + 工具桥接 + 记忆 + 安全调度（V3 §3.1-3.9）
+- `rules/` — 业务规则（YAML + 解释器，可被多 agent 复用、可热更）
+- `nodes/` — 节点实现（具体业务逻辑，但**不写**业务规则）
+- `services/` — 业务服务层（user / diagnosis / checkin / video / community / notification），调用 `rules/` 获取规则判定
+
+> 详见 V3 §2.3 目录树。`agents/graph/` 4 个子图（assistant / diagnosis / recall / community）的业务判断全部走 `rules/`，**节点内不留硬编码 if 业务阈值**。
+
+### R-3：L0-L6 质量门禁
+
+| 级别 | 工具 | 命令 |
+|------|------|------|
+| L0 | ruff format + check | `uv run ruff check . --fix && uv run ruff format .` |
+| L1 | pytest unit | `uv run pytest tests/unit -x -q` |
+| L2 | Eval Runner (Prompt 改) | `python -m eval.runner --mode pr` |
+| L3 | pytest integration | `uv run pytest tests/integration -x -q` |
+| L4 | ruff 安全检查 | `uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003` |
+| L6 | coverage ≥ 60% | `uv run pytest --cov=app --cov-report=term-missing` |
+
+**禁止**：跳过任一级别直接 commit。详见 `.cursor/skills/coding-standards/GATES.md`。
+
+### R-4：Prompt 改动 + Golden Set 回归
+
+**禁止**：改了 `*.prompt` 文件 / `prompts/*.md` 后只跑 pytest 不跑 Eval Runner。
+
+**正确流程**：
+1. 改 Prompt 文件
+2. 跑 Eval Runner → `python -m eval.runner --mode pr`
+3. 比对 `baseline.json` —— 任何指标跌幅 > 5% → PR 守门拒绝合入
+4. 必要时用 `tuner.py` 优化 prompt（禁止直接调 confidence 阈值绕过 LLM）
+
+详见 `.cursor/skills/golden-set/SKILL.md` §5 §6。
+
+### R-5：工具跳级（已被 hooks 兜底）
+
+**禁止**：用 `cat / sed / echo > ` 等 shell 操作文件。详见 `.cursor/rules/file-operation-stability.mdc`。
+
+**硬约束**：`.cursor/hooks/guard-shell.ps1` 会在 `beforeShellExecution` 阶段 exit 2 拒绝违规 shell，**靠自觉遵守兜不住**。
+
+## 一句话总结
+
+> **依赖声明、目录边界、门禁跑通、Prompt 回归、工具不跳级** —— 这 5 条不破，工程就能稳。
+
+## 参考
+
+- 项目元信息：`.cursor/rules/project-meta.mdc`
+- 工具铁则：`.cursor/rules/file-operation-stability.mdc`
+- Skill 索引：`.cursor/rules/skills.mdc`
+- Hooks 工程化约束：`.cursor/hooks/README.md`

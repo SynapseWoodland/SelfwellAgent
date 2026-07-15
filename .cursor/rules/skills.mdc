@@ -1,0 +1,90 @@
+---
+description: >
+  Skill 触发导航表（必读索引）。当代码编写、改 prompt、提 PR、设计 SPEC 时，
+  必须按本表精确 Read 对应 skill。本文件只做"什么时候读哪个 skill"的导航,
+  完整规范在 skill 自身 SKILL.md,不要在本文件里复制规则。
+alwaysApply: true
+globs:
+  - "**/*"
+---
+
+# Skill 触发导航（必读索引）
+
+> **本文件只是索引**。每条 Skill 的完整规范在它自己的 `SKILL.md`，按需 Read。
+> 不要在本文件里复制 Skill 的规则——以 Skill 自身为准（避免规则漂移）。
+>
+> **强约定**：读完 Skill → 优先用 Skill 提供的命令 / 模板 / Check List。
+> 规则冲突时以 Skill `SKILL.md` 为**唯一真源**，本索引不重复定义阈值。
+
+---
+
+## 一、Skill 触发矩阵
+
+按"我正在做的事"对号入座，找到要读的 Skill：
+
+| 触发场景（用户消息 / 行为特征） | 必须读的 Skill |
+|-------------------------------|---------------|
+| 编写 / 审查 / 重构 Python 代码（含后端 LangGraph 节点、middleware、tools、rules、contracts、entities、prompts） | `coding-standards/SKILL.md` |
+| Python 安全（SQL 注入 / LLM 可观测性 / Async / 合规审计 / 日志 PII） | `coding-standards/RULES.md` |
+| Python 质量门禁（L0-L6 命令 / Pre-commit / 四点清单 / AI 自审） | `coding-standards/GATES.md` |
+| Python 设计模式 / 反模式速查 / Result 类型 / Interrupt 幂等性 | `coding-standards/PATTERNS.md` |
+| Python 测试代码示例（Pydantic 契约 / Mock / VCR.py / Async） | `coding-standards/EXAMPLES.md` |
+| 编写 / 审查 / 重构 Flutter 或 微信小程序代码（`.dart` / `.wxml` / `.wxss` / `.ts`） | `frontend-standards/SKILL.md` |
+| 维护 Golden Set / 跑 Eval Runner / 调 prompt / tuner.py | `golden-set/SKILL.md` |
+| 提交 PR / MR 前自检（FR 关联 / 验收测试 / ADR 冲突 / 覆盖率 / CI） | `pr-gate/SKILL.md` |
+| 基于 SDD 设计方案做 TDD 开发（生成 SPEC → RED → GREEN → REFACTOR） | `sdd-tdd/SKILL.md` |
+| 创建 / 修订项目 SPEC（如 `docs/spec/SPEC-M*.md`） | `sdd-tdd/SKILL.md`（Phase 1） + `.cursor/rules/spec-header.md` |
+
+> **路径别名速查**：Skill 根目录统一是 `.cursor/skills/<name>/SKILL.md`（**name 拼写勿错**：是 `sdd-tdd`，**不是 `ssdd-tdd`**，不是 `sdd_tdd`）。
+
+---
+
+## 二、路径速查表（防止拼错）
+
+| Skill 真实路径 | 说明 | 关联文件 |
+|----------------|------|----------|
+| `.cursor/skills/coding-standards/SKILL.md` | Python 编码规范主入口 | 子文件 RULES / GATES / PATTERNS / EXAMPLES |
+| `.cursor/skills/frontend-standards/SKILL.md` | Flutter + 微信小程序规范 | （无子文件，单文件） |
+| `.cursor/skills/golden-set/SKILL.md` | Golden Set + Eval Runner | 子目录 `backend/eval/` |
+| `.cursor/skills/pr-gate/SKILL.md` | PR 守门 | （无子文件，单文件） |
+| `.cursor/skills/sdd-tdd/SKILL.md` | SDD → TDD 开发流 | 子文件 SPEC-TEMPLATE / TDD-WORKFLOW |
+
+---
+
+## 三、根级规则（与 Skill 并列的硬约束）
+
+下面不是 Skill，而是 Cursor 加载到 system prompt 的根级规则，**任何时候都要遵守**。每条都标了唯一真源，**不要在 skill 里复制**。
+
+| 规则文件 | 作用域 | 触发条件 |
+|----------|--------|----------|
+| `.cursor/rules/project-meta.mdc` | 项目元信息（技术栈 / 目录结构 / 工具入口） | alwaysApply，每条消息注入 |
+| `.cursor/rules/project-prohibitions.mdc` | 5 条工程红线（依赖 / agents/禁区 / 门禁 / Prompt / 工具跳级） | alwaysApply，每条消息注入；R-5 配套 hooks 兜底 |
+| `.cursor/rules/file-operation-stability.mdc` | 文件与目录操作工具优先级铁则（Read / StrReplace / Write / Glob 优先，shell 只允许 ls/find/tree） | alwaysApply，每条消息注入；违规 shell 会被 `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞 |
+| `.cursor/rules/skills.mdc` | Skill 触发导航（本文件） | alwaysApply，每条消息注入 |
+| `AGENTS.md` | 多 Agent 角色分工（Backend / Frontend / QA / DevOps / Security） | 项目级，按需引用 |
+
+> **历史说明**：本项目原本使用 `.cursorrules`（项目根目录老式 Cursor 规则）作为入口，已于 2026-07-15 拆分至 4 个 `.cursor/rules/*.mdc`，**`.cursorrules` 已废弃删除**，不要再创建。
+
+---
+
+## 四、违反 Skill 触发的代价
+
+| 漏读 Skill 后果 | 表现 |
+|------------------|------|
+| 改 Python 不读 `coding-standards/SKILL.md` | L0-L6 门禁失败 / ruff mypy 报错 / commit 被 PR-Gate 拒绝 |
+| 改 Prompt 不读 `golden-set/SKILL.md` | Eval 回归 baseline 跌 > 5%，触发 PR-Gate 红线 |
+| 提 PR 不读 `pr-gate/SKILL.md` | 缺 FR 编号 / 缺验收测试 / 缺 ADR 合规，被 CI 卡 |
+| SDD 设计不读 `sdd-tdd/SKILL.md` | 跳 RED 直接 GREEN，验收标准无 Given/When/Then |
+| 跑 shell 不读 `file-operation-stability.mdc` | 被 `.cursor/hooks/guard-shell.ps1` exit 2 拒绝 |
+
+---
+
+## 五、参考
+
+- 项目元信息（技术栈 / 目录）：`.cursor/rules/project-meta.mdc`
+- 工程红线（5 条禁止项）：`.cursor/rules/project-prohibitions.mdc`
+- 文件与目录操作铁则：`.cursor/rules/file-operation-stability.mdc`
+- Cursor Hooks 工程化约束：`.cursor/hooks/README.md`
+- Skill 自身位置：`.cursor/skills/<name>/SKILL.md`
+- 项目架构文档：`docs/architecture/`（按需）
+- ADR 决策记录：`docs/adr/`（按需）
