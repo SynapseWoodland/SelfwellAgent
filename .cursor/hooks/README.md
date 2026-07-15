@@ -1,8 +1,12 @@
 # SelfwellAgent — Cursor Hooks 工程化约束
 
-> 本目录（`.cursor/hooks/`）用 Cursor Hooks 把 `.cursor/rules/file-operation-stability.mdc`
-> 从「模型自觉遵守」升级为「钩子硬阻塞」。违背规则的 shell 命令会被 exit 2 直接拦截，
-> 不需要依赖 agent 自觉 — 工程约束级别的"无法绕过"。
+> 本目录（`.cursor/hooks/`）用 Cursor Hooks 把 `.cursor/rules/` 下 4 条 alwaysApply 规则中的
+> **R-5 工具跳级**（对应 `file-operation-stability.mdc`）从「模型自觉遵守」升级为「钩子硬阻塞」。
+> 违背规则的 shell 命令会被 exit 2 直接拦截，不需要依赖 agent 自觉 — 工程约束级别的"无法绕过"。
+>
+> ⚠️ `file-operation-stability.mdc` **不是**主规则文件——它是 4 条规则中**唯一被 hooks 工程化兜底**的那条。
+> 其余 3 条规则（`project-meta` / `project-prohibitions` / `skills`）靠 CI / pre-commit / PR-Gate /
+> Eval Runner 兜底，详见 `.cursor/rules/README.md`（待补）或各自文件内"谁兜底"一栏。
 
 ---
 
@@ -41,27 +45,26 @@
 
 ### 关系总览
 
-```
-┌──────────────────────────────────────┐
-│  .cursor/rules/                      │  ← agent 看（prompt 注入）
-│  └── file-operation-stability.mdc    │
-│       (rules: 怎么写 / 为什么)       │
-└──────────────────────────────────────┘
-                ↓ 对应实现
-┌──────────────────────────────────────┐
-│  .cursor/hooks/                      │  ← Cursor 看（hook 拦截）
-│  └── guard-shell.py (v4)             │
-│       (code: 违规检测 + 拦截)        │
-└──────────────────────────────────────┘
-                ↓ 引用
-┌──────────────────────────────────────┐
-│  .cursor/hooks.json                  │  ← 注册到 Cursor
-│       注册事件 + command + matcher   │
-└──────────────────────────────────────┘
-```
+`.cursor/rules/` 下有 4 条 alwaysApply=true 规则（**全部注入到 system prompt，agent 每条消息都看到**）：
 
-**职责边界**：rules 文件给 agent 看（"为什么不能 cat"），hooks 文件给 Cursor 看（"实际拦截"）。
-新增违规模式必须**两边同步更新**，否则 agent 不会自觉遵守。
+| 规则文件 | 主题 | 谁兜底 |
+|----------|------|--------|
+| `project-meta.mdc` | **入口元信息**：V3 架构对齐（技术栈 / 目录 / 4 个核心事实） | 无（信息性，靠 agent 自调用） |
+| `project-prohibitions.mdc` | **5 条工程红线**：R-1~R-5（依赖声明 / agents 禁区 / L0-L6 门禁 / Prompt 回归 / 工具跳级） | R-1~R-4 由 CI / pre-commit / PR-Gate / Eval Runner 兜底；**R-5 由本 hooks 兜底** |
+| `file-operation-stability.mdc` | **工具铁则**：Read / StrReplace / Write / Glob 优先，shell 只许跑 ls/find/tree | **本 hooks (`guard-shell.py` v4.1)** exit 2 硬阻塞 |
+| `skills.mdc` | **Skill 导航**：哪些场景读哪个 skill | 无（导航性，靠 agent 自调用） |
+
+> ⚠️ **没有"主规则文件"**——4 条规则角色不同、互补。
+> 4 条全部 alwaysApply=true，agent 每条消息都看到全部 4 条。
+>
+> **新增违规模式的同步规则**：本 hooks 只兜底 `file-operation-stability.mdc`，对应 R-5；
+> R-1~R-4 由 CI / pre-commit / PR-Gate / Eval Runner 兜底——修改任一条规则时务必同步它指向的兜底实现。
+> `project-meta.mdc` 第 5.2 / 5.3 节有"唯一真源"指向，**不要在 hook README 里复制真源内容**。
+
+**职责边界**：
+- `rules/` 给 agent 看（"为什么不能 cat"）
+- `hooks/` 给 Cursor 看（"实际拦截"）
+- 新增违规模式必须**两边同步更新**——hook 的违规检测表（"四、违规模式清单"）和 `file-operation-stability.mdc` 的"红线速查"必须保持一致
 
 ---
 
