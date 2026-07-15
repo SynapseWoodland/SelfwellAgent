@@ -39,22 +39,20 @@ from typing import Final
 # ---------------------------------------------------------------------------
 
 # 白名单：这些命令不修改文件、不删根、不读文件 → 快速放行
+# 注意：dir 不在白名单（dir /b 跨盘列目录违规，被 dir /[a-z] 模式拦截）
 WHITELIST: Final[frozenset[str]] = frozenset(
     {
         "git",
         "ls",
-        "dir",          # Windows cmd 内置列目录
         "pwd",
         "cd",
-        "echo",         # 仅 echo 不带 > 才安全；带 > 走违规检查
-        "pwd",
-        "cd",
+        "echo",        # 仅 echo 不带 > 才安全；带 > 走违规检查
         "whoami",
         "date",
         "hostname",
         "clear",
         "cls",
-        "where",        # Windows cmd 内置
+        "where",        # Windows cmd 内置 which
         "which",        # unix
         "Get-ChildItem",
         "Get-Item",
@@ -101,7 +99,9 @@ VIOLATIONS: Final[tuple[tuple[re.Pattern[str], str, str], ...]] = (
         "Read",
     ),
     (
-        re.compile(r"(?<![\w/])\ble\s+\S"),
+        # less 命令：必须用 \bless\s 而不是 \ble\s（避免被 alexsneed 这类词误匹配）
+        # 同时 (?<![\w/]) 保证前面是非字母字符（避免 needless 的 le 误匹配）
+        re.compile(r"(?<![\w/])\bless\s+\S"),
         "shell less 读文件 — 应改用 Read 工具",
         "Read",
     ),
@@ -284,8 +284,13 @@ def main() -> None:
     first = _first_token(command)
     if first in WHITELIST:
         # echo 不带 > 才安全（带 > 走违规检查）
+        # tee 即便通过 pipe（echo ... | tee）也是违规写文件 → 必须走违规检查
+        # 这里把白名单"放行"窄化为两个豁免：echo 不带 redirect / tee 不命中
         if first == "echo" and _is_safe_redirect_echo(command):
-            # echo 带重定向 → 违规
+            # echo 带重定向 → 违规（继续往下违规检测）
+            pass
+        elif re.search(r"\btee\s+", command):
+            # tee 通过任何位置（包括 pipe）调用都是违规 → 走违规检测
             pass
         else:
             _emit({"permission": "allow"})
