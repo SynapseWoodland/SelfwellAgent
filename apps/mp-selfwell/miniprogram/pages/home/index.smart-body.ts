@@ -20,7 +20,7 @@
  *  - 隐私政策  → /pages/privacy-policy/index（PR-5）
  *  - 联系客服  → /pages/contact/index（PR-5）
  *  - 关于自愈  → /pages/about/index（PR-5）
- *  - 反馈日记  → /pages/feedback-diary/index（已存在）
+ *  - 心情日记  → /pages/feedback-diary/index（已存在）
  *  - 21 天方案  → /pages/plan-delivery/index（v2）
  */
 export interface DrawerCard {
@@ -81,7 +81,7 @@ export function getDrawCards(): DrawerCard[] {
     },
     {
       id: 'feedback',
-      title: '反馈日记',
+      title: '心情日记',
       subtitle: '记录当下',
       iconText: '✎',
       pagePath: '/pages/feedback-diary/index',
