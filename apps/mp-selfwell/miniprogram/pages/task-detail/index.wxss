@@ -1,0 +1,251 @@
+/* ─────────────────────────────────────────────────────
+ * task-detail 页面样式
+ * 视频详情页：视频播放器 + 任务信息 + 打卡按钮
+ * ─────────────────────────────────────────────────────
+ * Token 真源：app.wxss
+ *   --mint:     #A8C5B5
+ *   --ink-900:  #2D3436
+ *   --ink-500:  #718096
+ *   --ink-300:  #A0AEC0
+ *   --ink-100:  #E2E8F0
+ */
+
+.task-detail {
+  min-height: 100vh;
+  background-color: #FAFBFC;
+}
+
+/* 视频播放器 */
+.video-player {
+  width: 100%;
+  height: 480rpx;
+  background-color: #000;
+}
+
+/* 任务信息 */
+.task-info {
+  padding: 32rpx;
+  background-color: #FFFFFF;
+}
+
+.task-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #2D3436;
+  line-height: 1.3;
+  margin-bottom: 16rpx;
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16rpx;
+}
+
+.meta-duration {
+  font-size: 28rpx;
+  color: #718096;
+}
+
+.meta-sep {
+  font-size: 28rpx;
+  color: #A0AEC0;
+  margin: 0 12rpx;
+}
+
+.meta-tag {
+  font-size: 24rpx;
+  color: #A8C5B5;
+  background-color: rgba(168, 197, 181, 0.15);
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.task-desc {
+  font-size: 28rpx;
+  color: #718096;
+  line-height: 1.6;
+}
+
+/* 分割线 */
+.divider {
+  height: 16rpx;
+  background-color: #F7FAFC;
+}
+
+/* 打卡区域 */
+.checkin-section {
+  padding: 40rpx 32rpx;
+  background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.checkin-hint {
+  font-size: 26rpx;
+  color: #A0AEC0;
+  margin-bottom: 24rpx;
+}
+
+.btn-checkin {
+  width: 320rpx;
+  height: 88rpx;
+  border-radius: 44rpx;
+  background-color: #A8C5B5;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.btn-checkin::after {
+  border: none;
+}
+
+.btn-checkin.checked {
+  background-color: #E8F5E9;
+}
+
+.btn-checkin[disabled] {
+  background-color: #E8F5E9;
+}
+
+.checkin-icon {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-right: 12rpx;
+}
+
+.btn-checkin.checked .checkin-icon {
+  color: #A8C5B5;
+}
+
+.checkin-text {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #FFFFFF;
+}
+
+.btn-checkin.checked .checkin-text {
+  color: #A8C5B5;
+}
+
+.streak-info {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #A8C5B5;
+}
+
+/* 底部占位 */
+.bottom-placeholder {
+  height: 100rpx;
+}
+
+/* ─────────────────────────────────────────────────────
+ * v1.1 新增：外链引导卡片（isExternal 分支）
+ * ───────────────────────────────────────────────────── */
+
+.external-video-card {
+  width: 100%;
+  background: linear-gradient(135deg, #2D3436 0%, #4A5568 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64rpx 32rpx 48rpx;
+  box-sizing: border-box;
+  border-radius: 16rpx;
+}
+
+.external-icon {
+  font-size: 80rpx;
+  color: #A8C5B5;
+  margin-bottom: 16rpx;
+  line-height: 1;
+}
+
+.external-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-bottom: 8rpx;
+  text-align: center;
+}
+
+.external-desc {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 16rpx;
+  text-align: center;
+  max-width: 600rpx;
+}
+
+.external-tip {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 32rpx;
+  text-align: center;
+  line-height: 1.6;
+  max-width: 560rpx;
+}
+
+.external-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16rpx;
+  width: 100%;
+}
+
+.btn-primary {
+  font-size: 30rpx;
+  font-weight: 500;
+  padding: 20rpx 64rpx;
+  border-radius: 44rpx;
+  border: none;
+  line-height: 1;
+  background-color: #A8C5B5;
+  color: #FFFFFF;
+  min-width: 320rpx;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.external-note {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8rpx;
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────────────
+ * v1.1 新增：空占位（isEmpty 分支）
+ * ───────────────────────────────────────────────────── */
+
+.video-empty {
+  width: 100%;
+  height: 480rpx;
+  background-color: #F7FAFC;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  color: #A0AEC0;
+  margin-bottom: 16rpx;
+  line-height: 1;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #718096;
+}

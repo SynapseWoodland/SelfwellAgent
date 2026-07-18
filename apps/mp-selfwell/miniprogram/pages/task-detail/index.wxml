@@ -1,0 +1,80 @@
+<!--
+  视频详情页（v1.1）
+  - playable：直链 / 白名单 CDN → <video> 直接播放
+  - external：xhslink / bilibili / 小红书等 → 渲染「复制到浏览器」引导卡片
+  - empty   ：空链接 → 仅占位
+  - 打卡流程与看视频解耦（沿用原设计）
+-->
+<view class="task-detail">
+  <!-- 分支 1：可播放（直链 / 白名单 CDN） -->
+  <block wx:if="{{isPlayable}}">
+    <video
+      class="video-player"
+      src="{{videoUrl}}"
+      poster="{{coverUrl}}"
+      controls
+      show-center-play-btn
+      enable-progress-gesture
+      object-fit="contain"
+      show-fullscreen-btn
+      show-play-btn
+    />
+  </block>
+
+  <!-- 分支 2：外链引导卡片（v1.1 新增） -->
+  <block wx:elif="{{isExternal}}">
+    <view class="external-video-card">
+      <view class="external-icon">▶</view>
+      <view class="external-title">视频来自外部平台</view>
+      <view class="external-desc">{{title}}</view>
+      <view class="external-tip">微信内无法直接播放，点击复制后到手机浏览器打开</view>
+      <view class="external-actions">
+        <button class="btn-primary" bindtap="onCopyToBrowser">复制到浏览器</button>
+      </view>
+      <view class="external-note">💡 看完后记得回来打卡哦～</view>
+    </view>
+  </block>
+
+  <!-- 分支 3：空占位 -->
+  <block wx:else>
+    <view class="video-empty">
+      <view class="empty-icon">○</view>
+      <view class="empty-text">暂无视频素材</view>
+    </view>
+  </block>
+
+  <!-- 任务信息 -->
+  <view class="task-info">
+    <view class="task-title">{{title}}</view>
+    <view class="task-meta">
+      <text class="meta-duration">{{duration}}</text>
+      <block wx:for="{{bodyPartTags}}" wx:key="*this">
+        <text class="meta-sep">·</text>
+        <text class="meta-tag">{{item}}</text>
+      </block>
+    </view>
+    <view class="task-desc">{{subtitle}}</view>
+  </view>
+
+  <!-- 分割线 -->
+  <view class="divider" />
+
+  <!-- 独立打卡区域（与看视频解耦） -->
+  <view class="checkin-section">
+    <view class="checkin-hint">完成训练后记得打卡哦</view>
+    <button
+      class="btn-checkin {{isCheckedIn ? 'checked' : ''}}"
+      bindtap="onToggleCheckin"
+      disabled="{{isCheckedIn}}"
+    >
+      <text class="checkin-icon">{{isCheckedIn ? '✓' : '+'}}</text>
+      <text class="checkin-text">{{isCheckedIn ? '已打卡' : '打卡今天'}}</text>
+    </button>
+    <view wx:if="{{isCheckedIn && streakDays > 0}}" class="streak-info">
+      已连续 {{streakDays}} 天
+    </view>
+  </view>
+
+  <!-- 底部占位 -->
+  <view class="bottom-placeholder" />
+</view>

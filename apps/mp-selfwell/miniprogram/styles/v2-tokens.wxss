@@ -1,0 +1,126 @@
+/* styles/v2-tokens.wxss — V2 Design Tokens 独立文件
+ * ─────────────────────────────────────────────────────────
+ * 目的：从 app.wxss 中抽离 V2 token，让 V2 页面 @import 引用，
+ *       避免污染旧 V1 页面（V1 仍用 app.wxss 内的 --mint / --ink-* rpx 体系）。
+ *
+ * 命名规则：Selfwell 扁平命名 --{category}-{role}-{name}
+ * 锁值策略：vitest snapshot（apps/mp-selfwell/tests/v2-tokens-snapshot.test.ts）
+ * 变更原则：数值变更必须新增变量，不删旧变量（向下兼容）
+ *
+ * 真源：
+ *   - docs/spec/TDS-A6-V2-STYLE-TOKENS.md（PR-6 锁定）
+ *   - docs/spec/TDS-M3-pages-v2-1to1-clone.md §2.2 design token
+ *   - docs/design/figma-pixso-spec/pages-v2/*.html（原型 CSS 值）
+ *
+ * 与 app.wxss 的关系：
+ *   - app.wxss 保留 V1 rpx token（--mint / --ink-* 等），V1 页面引用
+ *   - 本文件为 V2 px token，V2 页面 @import 引用
+ *   - 两套并存，app.wxss 先解析（V2 token 在 :root,page 块覆盖同名旧值）
+ *
+ * PR-V2-A · styles/v2-tokens.wxss 新建
+ * 真源：docs/spec/TDS-A6-V2-STYLE-TOKENS.md + 原型 15b / 15c / 15h / 15i
+ */
+
+/* ── 8 颜色 token（品牌 + 辅助 + 强调）────────────────── */
+:root,
+page {
+  /* 主色 */
+  --color-primary-mint: #A8C5B5;         /* 薄荷绿（品牌色） */
+  --color-primary-mint-dark: #5A8270;     /* 主色深 */
+  --color-primary-mint-light: #C7D8B9;    /* 主色浅（阶段 2 绿） */
+
+  /* 辅助色 */
+  --color-secondary-cream: #F5E6D3;       /* 奶油杏 */
+  --color-secondary-lavender: #D4C5E2;    /* 薰衣草紫 */
+  --color-secondary-peach: #F0D9C4;       /* 蜜桃粉 */
+  --color-secondary-sky: #B8D4E3;         /* 天空蓝 */
+
+  /* 强调色 */
+  --color-accent-warm: #9C7AB8;           /* 薰衣草紫深（反馈紫） */
+  --color-accent-earth: #A0724F;          /* 赭石 */
+
+  /* 中性色 */
+  --color-text-primary: #2D3436;          /* 文字主色 */
+  --color-text-secondary: #4A5568;        /* 文字次色 */
+  --color-text-muted: #718096;            /* 文字弱 */
+  --color-text-weak: #A0AEC0;            /* 文字更弱 */
+  --color-border: #E2E8F0;               /* 边框 / 分隔线 */
+  --color-bg-page: #FAFBFC;              /* 页面背景 */
+  --color-bg-card: #FFFFFF;              /* 卡片背景 */
+  --color-bg-warm: #F5E6D3;              /* 暖色背景 */
+
+  /* 语义色 */
+  --color-success: #9DB5A0;              /* 鼓励提示 */
+  --color-warning: #E8B87A;              /* 温和提示 */
+
+  /* ── 状态色（day-strip-5state / 阶段进度条专用）────────── */
+  --color-state-completed: #A8C5B5;      /* 已完成（mint 填充） */
+  --color-state-today: #FFFFFF;           /* 今天（白底） */
+  --color-state-today-border: #A8C5B5;   /* 今天描边 */
+  --color-state-missed: #F0F2F5;          /* 未完成 */
+  --color-state-future: #FAFBFC;          /* 未来（虚线） */
+  --color-state-future-border: #E2E8F0;  /* 未来虚线边框 */
+  --color-state-feedback: #D4C5E2;        /* 有反馈（lavender） */
+
+  /* ── 阶段色（21 天方案三阶段进度条）───────────────────── */
+  --color-phase-1: #A8C5B5;              /* 阶段 1（1-7 天）mint */
+  --color-phase-2: #C7D8B9;              /* 阶段 2（8-14 天）淡绿 */
+  --color-phase-3: #9C7AB8;              /* 阶段 3（15-21 天）紫 */
+
+  /* ── 7 字号 token ──────────────────────────────────── */
+  --font-size-caption: 10px;
+  --font-size-body-sm: 12px;
+  --font-size-body: 14px;
+  --font-size-body-lg: 16px;
+  --font-size-heading: 18px;
+  --font-size-title: 22px;
+  --font-size-display: 28px;
+
+  /* ── 7 圆角 token ──────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ── 间距 token（9 阶梯）──────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── 阴影 token ──────────────────────────────────── */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.10);
+
+  /* ── 进度环 token（3 档尺寸）────────────────────────
+   * 15b 今天 Tab  : 90px（外径）/ r=39 / stroke=6 / 内圈 74px
+   * 15c 抽屉进度  : 60px（外径）/ r=24 / stroke=6 / 内圈 48px
+   * 11 profile   : 160px（外径）/ r=72 / stroke=8 / 内圈 144px
+   */
+  --ring-size-sm: 60px;
+  --ring-size-md: 90px;
+  --ring-size-lg: 160px;
+  --ring-stroke: 6px;
+  --ring-stroke-lg: 8px;
+  --ring-fg: #A8C5B5;
+  --ring-bg: #E2E8F0;
+
+  /* ── 动画 token ──────────────────────────────────── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-slow: 0.35s ease;
+
+  /* ── 字体回退 ────────────────────────────────────── */
+  --font-family-cn: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family-num: 'SF Pro Display', 'Inter', sans-serif;
+}
