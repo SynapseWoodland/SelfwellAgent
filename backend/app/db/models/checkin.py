@@ -1,6 +1,6 @@
 """Checkin ORM（M4 每日打卡）。
 
-真源：``db/init/01-schema.sql`` §1.5 ``checkins`` + ``docs/spec/SPEC-M4-checkin-loop.md``。
+真源：``db/init/01-schema.sql`` §1.5 ``checkins`` + ``docs/spec/TDS-M4-checkin-loop.md``。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)

@@ -17,7 +17,7 @@
 输出格式（与 SemanticMind 对齐）：
     <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> |
     <magenta>request_id - {extra[request_id]}</magenta> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> -
-    <level>{message}</level>
+    <level>{message}</level> | <level>{extra}</level>
 """
 
 from __future__ import annotations
@@ -112,7 +112,8 @@ LOG_FORMAT: str = (
     "<level>{level: <8}</level> | "
     "<magenta>request_id - {extra[request_id]}</magenta> | "
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-    "<level>{message}</level>\n{exception}"
+    "<level>{message}</level> | "
+    "<level>{extra}</level>\n{exception}"
 )
 
 

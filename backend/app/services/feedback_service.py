@@ -1,6 +1,6 @@
 """M7 心情日记 / 多部位反馈 service。
 
-真源：``docs/spec/SPEC-M7-feedback.md`` + ADR-0016 + ``docs/data/body-parts.yaml``。
+真源：``docs/spec/TDS-M7-feedback.md`` + ADR-0016 + ``docs/data/body-parts.yaml``。
 - 4 种 feedback_type：mood_text / mood_photo / period_photo / plan_compare_photo
 - 30 条 ACK 池（``docs/data/ack-pool.yaml``）
 - 合规审查

@@ -1,6 +1,6 @@
 """草稿用户 24h 自动转正 job（M1-FR-06 / AC-M1-03）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §5.1。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §5.1。
 
 转正条件（任一满足）：
 - 至少 1 条 ``feedback`` 记录

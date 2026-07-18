@@ -113,6 +113,8 @@ async def update_notification_prefs(
             )
 
         # PostgreSQL upsert via ON CONFLICT (user_id, pref_key)
+        # Use index_elements (not constraint="...") so the upsert is portable
+        # and does not depend on the PK constraint's exact DB-side name.
         stmt = (
             pg_insert(UserNotificationPref)
             .values(
@@ -126,7 +128,7 @@ async def update_notification_prefs(
                 last_updated_by=str(user_id),
             )
             .on_conflict_do_update(
-                constraint="pk_user_notification_prefs",
+                index_elements=["user_id", "pref_key"],
                 set_={
                     "pref_value": value,
                     "updated_at": now_ts,
@@ -164,6 +166,8 @@ async def seed_default_prefs(
         if key in existing_keys:
             continue
         default_value = DEFAULT_PREF_VALUES.get(key, {"enabled": True})
+        # Use index_elements (not constraint="...") so the upsert is portable
+        # and does not depend on the PK constraint's exact DB-side name.
         stmt = (
             pg_insert(UserNotificationPref)
             .values(
@@ -177,7 +181,7 @@ async def seed_default_prefs(
                 last_updated_by=str(user_id),
             )
             .on_conflict_do_update(
-                constraint="pk_user_notification_prefs",
+                index_elements=["user_id", "pref_key"],
                 set_={"updated_at": now_ts},
             )
         )

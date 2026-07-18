@@ -1,6 +1,6 @@
 """微信客户端（httpx 异步实现 · Sprint 0 骨架）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` + ``.env`` WX_MP_APPID/SECRET。
+真源：``docs/spec/TDS-M1-wechat-login.md`` + ``.env`` WX_MP_APPID/SECRET。
 httpx ≥ 0.27.0 已在 pyproject.toml 声明。
 """
 

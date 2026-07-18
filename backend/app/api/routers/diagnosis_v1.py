@@ -62,7 +62,7 @@ class DiagnosisPhotoItem(BaseModel):
     - ``format``：jpg | png | webp | heic
     - ``size_bytes``：字节
 
-    真源：``docs/spec/SPEC-M2-multimodal-diagnosis.md`` + openapi.yaml tag=diagnosis。
+    真源：``docs/spec/TDS-M2-multimodal-diagnosis.md`` + openapi.yaml tag=diagnosis。
 
     """
 

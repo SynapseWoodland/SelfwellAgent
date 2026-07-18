@@ -1,6 +1,6 @@
 """M5 智能管家 service（4 态 FSM + SmartRouter A/B）。
 
-真源：``docs/spec/SPEC-M5-persona-chat.md`` + ADR-0015。
+真源：``docs/spec/TDS-M5-persona-chat.md`` + ADR-0015。
 - 4 态 FSM：warm / neutral / slight_hug / medical_guarded
 - SmartRouter A：内容路由（fast / slow / medical_guarded / out_of_scope）
 - SmartRouter B：状态切换触发器

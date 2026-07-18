@@ -1,6 +1,6 @@
 """Plan ORM（M3 21 天方案）。
 
-真源：``db/init/01-schema.sql`` §1.4 ``plans`` + ``docs/spec/SPEC-M3-21day-plan.md``。
+真源：``db/init/01-schema.sql`` §1.4 ``plans`` + ``docs/spec/TDS-M3-21day-plan.md``。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)

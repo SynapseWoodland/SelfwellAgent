@@ -1,6 +1,6 @@
 """M5 智能管家路由（``/api/v1/assistant``）。
 
-真源：``docs/spec/SPEC-M5-persona-chat.md`` + ADR-0015。
+真源：``docs/spec/TDS-M5-persona-chat.md`` + ADR-0015。
 
 PR-A2（worker C）增量：``POST /sessions/{id}/messages`` 切换为 ``StreamingResponse``，
 事件序列见 ``assistant_service.send_message_stream`` 注释（start/progress/report/end/error）。

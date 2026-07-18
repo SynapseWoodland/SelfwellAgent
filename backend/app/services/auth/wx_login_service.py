@@ -1,6 +1,6 @@
 """微信登录业务服务层（M1-FR-01 / M1-FR-02 / M1-FR-03 / M1-FR-05 / M1-FR-06）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` V1.1 §2 + §5。
+真源：``docs/spec/TDS-M1-wechat-login.md`` V1.1 §2 + §5。
 
 核心流程：
 1. ``code`` -> 微信 ``jscode2session`` 换 openid + session_key（可能含 unionid）

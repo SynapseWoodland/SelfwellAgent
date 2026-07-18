@@ -1,6 +1,6 @@
 """Post ORM（M6 蜕变广场动态）。
 
-真源：``db/init/01-schema.sql`` §1.6 ``posts`` + ``docs/spec/SPEC-M6-plaza-community.md``。
+真源：``db/init/01-schema.sql`` §1.6 ``posts`` + ``docs/spec/TDS-M6-plaza-community.md``。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)

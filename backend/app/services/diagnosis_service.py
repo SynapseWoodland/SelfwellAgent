@@ -1,6 +1,6 @@
 """M2 diagnosis business service（M2 多模态诊断）。
 
-真源：``docs/spec/SPEC-M2-multimodal-diagnosis.md`` + ADR-0003。
+真源：``docs/spec/TDS-M2-multimodal-diagnosis.md`` + ADR-0003。
 - 6 节点子图：upload → validate → compliance → llm_diagnose → format → cache
 - 7 天 Redis 缓存（按 user_id key）
 - 多模态主备链 + 规则引擎兜底

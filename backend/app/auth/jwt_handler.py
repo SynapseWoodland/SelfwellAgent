@@ -1,6 +1,6 @@
 """JWT 签发与校验（Sprint 0 骨架）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` + ``app.conf.app_config.JWTConfig`` + ADR-0007。
+真源：``docs/spec/TDS-M1-wechat-login.md`` + ``app.conf.app_config.JWTConfig`` + ADR-0007。
 """
 
 from __future__ import annotations

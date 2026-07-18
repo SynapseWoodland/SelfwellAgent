@@ -1,6 +1,6 @@
 """M1 草稿转正常驻 job（小时级）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §5.1 + §8 数据流图底部 cron。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §5.1 + §8 数据流图底部 cron。
 """
 
 from __future__ import annotations

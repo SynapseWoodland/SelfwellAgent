@@ -1,6 +1,6 @@
 """手机号验证码登录业务服务层（M1 §4.2，APP 端回退）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4.2。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4.2。
 
 MVP 阶段策略：
 - 验证码固定为开发态 ``0000``（.env DEV_SMS_CODE 控制）

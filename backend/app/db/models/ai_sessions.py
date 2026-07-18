@@ -1,11 +1,11 @@
 """AISession ORM（M5 智能管家会话生命周期）。
 
-真源：``db/init/01-schema.sql`` §1.10 ``ai_sessions`` + ``docs/spec/SPEC-M5-persona-chat.md``。
+真源：``db/init/01-schema.sql`` §1.10 ``ai_sessions`` + ``docs/spec/TDS-M5-persona-chat.md``。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)
 - user_id (UUID, FK -> users.id)
-- entry_card (VARCHAR(32), nullable) — 入口卡 id，见 ``docs/spec/SPEC-M5``
+- entry_card (VARCHAR(32), nullable) — 入口卡 id，见 ``docs/spec/TDS-M5``
 - primary_intent (VARCHAR(32), NOT NULL)
 - persona_state_start (VARCHAR(32), NOT NULL, DEFAULT 'warm')
 - persona_state_end (VARCHAR(32), nullable)

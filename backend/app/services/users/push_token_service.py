@@ -1,6 +1,6 @@
 """推送 Token 注册服务（M1-FR-05 / M9 推送门面共用）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4.4 + §5.3
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4.4 + §5.3
 + ``docs/api/openapi.yaml`` ``#/components/schemas/PushTokenPayload``。
 """
 

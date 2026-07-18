@@ -1,6 +1,6 @@
 # Assistant 文案集中常量（v1.1.1）
 # ─────────────────────────────────────────────────────────────────
-# 真源：docs/adr/0017-recall-safety.md + docs/spec/SPEC-M5-persona-chat.md §3.5.1 + PRD §3.5.4
+# 真源：docs/adr/0017-recall-safety.md + docs/spec/TDS-M5-persona-chat.md §3.5.1 + PRD §3.5.4
 # 设计意图：所有用户可见的副文案/问候集中在此；service 层只读、不写。
 # ADR-0017 约束：不评判坚持时长、不前后对比、不效果承诺。
 

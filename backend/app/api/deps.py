@@ -1,6 +1,6 @@
 """FastAPI Depends 工厂。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4.3
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4.3
 + ``docs/api/openapi.yaml`` ``#/components/securitySchemes/bearerAuth``。
 """
 

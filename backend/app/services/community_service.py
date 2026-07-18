@@ -1,6 +1,6 @@
 """M6 蜕变广场 service。
 
-真源：``docs/spec/SPEC-M6-plaza-community.md``。
+真源：``docs/spec/TDS-M6-plaza-community.md``。
 - post 状态机：pending → approved / rejected
 - Redis 审核队列（async push）
 - 24h ≤ 3 条限流

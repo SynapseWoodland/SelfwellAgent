@@ -51,6 +51,7 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
             # ``unhandled_exception``（500 兜底）才需要。
             logger.warning(
                 "selfwell_error",
+                message=exc.message,
                 code=exc.code,
                 http_status=exc.http_status,
                 severity=exc.severity,

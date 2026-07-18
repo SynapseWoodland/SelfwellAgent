@@ -2,7 +2,7 @@
 
 真源：V5.2.1 §3.5 T15：profile 6 字段含 ``skin_type`` 必填对应 User 模型。
 - 新增 ``users.skin_type`` VARCHAR(10) nullable 字段。
-- V5.2.1 §3.5 枚举待 SPEC-M(用户档案) 拍板；本迁移仅建可空列，PR5 前端档案页落档后回填枚举与 CHECK。
+- V5.2.1 §3.5 枚举待 TDS-M(用户档案) 拍板；本迁移仅建可空列，PR5 前端档案页落档后回填枚举与 CHECK。
 - 幂等：与 0005 同（alembic 版本表）。
 
 向下兼容：

@@ -1,7 +1,7 @@
 """RecallSession ORM（M8 主动回忆业务事件）。
 
 真源：``db/init/01-schema.sql`` §1.9 ``recall_sessions`` +
-``docs/spec/SPEC-M8-recall.md`` + ADR-0017 Recall Safety。
+``docs/spec/TDS-M8-recall.md`` + ADR-0017 Recall Safety。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)

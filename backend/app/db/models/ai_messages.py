@@ -1,6 +1,6 @@
 """AIMessage ORM（M5 会话内单条消息）。
 
-真源：``db/init/01-schema.sql`` §1.11 ``ai_messages`` + ``docs/spec/SPEC-M5-persona-chat.md``。
+真源：``db/init/01-schema.sql`` §1.11 ``ai_messages`` + ``docs/spec/TDS-M5-persona-chat.md``。
 
 字段（与 DDL 1:1）：
 - id (UUID, PK)

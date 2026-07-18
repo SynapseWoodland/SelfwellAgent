@@ -1,6 +1,6 @@
 """M10 抱抱卡 / 分享海报 service。
 
-真源：``docs/spec/SPEC-M10-share-card.md``。
+真源：``docs/spec/TDS-M10-share-card.md``。
 - 3 模板：day7 / day14 / day21
 - PIL 生成 750x1000 海报
 - 上传 COS，返回公网 URL

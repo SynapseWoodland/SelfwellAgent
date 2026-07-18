@@ -1,6 +1,6 @@
 """M1 草稿用户 24h 转正 cron（手动可调用 / 也可被 scheduler 周期执行）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §5.1 + AC-M1-03。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §5.1 + AC-M1-03。
 
 调用方式：
 1. ``python -m backend.app.cron.promote_drafts`` （一次性）

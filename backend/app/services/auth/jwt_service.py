@@ -5,7 +5,7 @@
 - 业务上下文（platform / openid_mp / openid_app）注入到 claims
 - 用户级「主动失效」机制（M8/M10/M1 共用 Redis 黑名单 key prefix）
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4 + §5。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4 + §5。
 """
 
 from __future__ import annotations

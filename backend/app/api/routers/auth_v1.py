@@ -1,6 +1,6 @@
 """M1 认证路由（``/api/v1/auth``）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4.1 + §4.2
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4.1 + §4.2
 + ``docs/api/openapi.yaml`` tag ``auth``。
 """
 

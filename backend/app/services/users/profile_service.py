@@ -1,6 +1,6 @@
 """用户档案服务（首登补全 + 通用 get_me / update_me）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §3.1 + §4.3。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §3.1 + §4.3。
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ from app.core.log import logger
 from app.db.models.user import User
 from app.errors.codes import E_USER_INVALID_ENUM, E_USER_INVALID_INPUT, E_USER_NOT_FOUND
 
-# 5 个 age_range 档位（与 SPEC-M1 §3.1 + User ORM CHECK 对齐）
+# 5 个 age_range 档位（与 TDS-M1 §3.1 + User ORM CHECK 对齐）
 _AGE_RANGES: frozenset[str] = frozenset({"18-22", "23-28", "29-35", "36-45", "45+"})
-# intensity 枚举（SPEC-M1 §3.1 中文值）
+# intensity 枚举（TDS-M1 §3.1 中文值）
 _INTENSITIES: frozenset[str] = frozenset({"轻柔", "适中", "进阶"})
-# preferred_time 枚举（SPEC-M1 §3.1 中文值）
+# preferred_time 枚举（TDS-M1 §3.1 中文值）
 _PREFERRED_TIMES: frozenset[str] = frozenset({"早", "中", "晚", "不固定"})
 # sitting_hours 范围 0-24（小时）
 _SITTING_HOURS_MIN = 0

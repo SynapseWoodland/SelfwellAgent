@@ -1,6 +1,6 @@
 """M3 21 天方案生成服务。
 
-真源：``docs/spec/SPEC-M3-21day-plan.md`` + facts-anchor §5。
+真源：``docs/spec/TDS-M3-21day-plan.md`` + facts-anchor §5。
 
 约束：
 - 3 阶段配比：phase 1（1-7 天）1 任务 / phase 2（8-14 天）1-2 / phase 3（15-21 天）2-3

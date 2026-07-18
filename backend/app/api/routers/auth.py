@@ -1,6 +1,6 @@
 """微信小程序登录（Sprint 1 M1）。
 
-真源：``docs/spec/SPEC-M1-wechat-login.md``。
+真源：``docs/spec/TDS-M1-wechat-login.md``。
 
 流程：``wx.login()`` code → code2session(openid) → 查询/创建 user → JWT。
 

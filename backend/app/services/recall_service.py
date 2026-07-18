@@ -1,6 +1,6 @@
 """M8 主动回忆 service（RecallSafetyGuard + 3 层防线）。
 
-真源：``docs/spec/SPEC-M8-recall.md`` + ADR-0017 + ``docs/data/recall-forbidden-words.yaml``。
+真源：``docs/spec/TDS-M8-recall.md`` + ADR-0017 + ``docs/data/recall-forbidden-words.yaml``。
 - 触发器：auto_day7 / auto_day14 / auto_day21 / user_manual
 - 3 层防线：关键词过滤 / 情感评分 / 输出兜底文案
 - 每日 ≤ 1 次
