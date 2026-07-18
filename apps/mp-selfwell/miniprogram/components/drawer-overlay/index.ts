@@ -1,7 +1,7 @@
 /**
  * PR-V2-A · drawer-overlay 组件
  * ─────────────────────────────────────────────────────────────────
- * 真源：docs/spec/SPEC-M3-pages-v2-1to1-clone.md §3.1
+ * 真源：docs/spec/TDS-M3-pages-v2-1to1-clone.md §3.1
  * 真源：docs/design/figma-pixso-spec/pages-v2/15c-manage-drawer.html
  *
  * 功能：右侧抽屉 + 全屏遮罩

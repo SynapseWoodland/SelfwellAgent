@@ -252,7 +252,7 @@ export async function presignAndUploadPhotosForAssistant(
   return await Promise.all(tasks);
 }
 
-/** photos 数校验（按 SPEC-M2 §2.1：1-3 张） */
+/** photos 数校验（按 TDS-M2 §2.1：1-3 张） */
 export function validatePhotoCount(items: ReadonlyArray<unknown>): {
   ok: boolean;
   message?: string;

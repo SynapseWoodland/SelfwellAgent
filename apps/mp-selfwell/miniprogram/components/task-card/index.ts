@@ -19,8 +19,8 @@ Component({
   },
 
   properties: {
-    /** 任务 ID */
-    id: {
+    /** 任务 ID（用 taskId 避免和 DOM id 属性冲突） */
+    taskId: {
       type: String,
       value: '',
     },
@@ -49,6 +49,11 @@ Component({
       type: String,
       value: '',
     },
+    /** 右侧操作文字：已完成="回看"，未完成="开始" */
+    actionText: {
+      type: String,
+      value: '',
+    },
   },
 
   data: {},
@@ -58,11 +63,11 @@ Component({
    * 勾选框点击 → 触发 toggle 事件（打卡）
    */
   onCheckboxTap() {
-    console.log('[task-card] onCheckboxTap called', { id: this.data.id, done: this.data.done });
+    console.log('[task-card] onCheckboxTap called', { id: this.data.taskId, done: this.data.done });
     if (this.data.disabled) return;
     const next = !this.data.done;
     this.setData({ done: next });
-    this.triggerEvent('toggle', { id: this.data.id, done: next });
+    this.triggerEvent('toggle', { id: this.data.taskId, done: next });
   },
 
   /**
@@ -70,12 +75,12 @@ Component({
    */
   onCardTap() {
     console.log('[task-card] onCardTap called', {
-      id: this.data.id,
+      id: this.data.taskId,
       videoUrl: this.data.videoUrl,
       disabled: this.data.disabled,
     });
     if (this.data.disabled) return;
-    this.triggerEvent('tap', { id: this.data.id, videoUrl: this.data.videoUrl });
+    this.triggerEvent('tap', { id: this.data.taskId, videoUrl: this.data.videoUrl });
   },
   },
 });

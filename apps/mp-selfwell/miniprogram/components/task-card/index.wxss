@@ -69,7 +69,7 @@
 }
 
 .task-title.is-done {
-  color: #A0AEC0;
+  color: var(--color-text-weak, #A0AEC0);
   text-decoration: line-through;
 }
 
@@ -79,9 +79,18 @@
   color: #718096;
 }
 
-.task-arrow {
-  color: #A0AEC0;
-  font-size: 40rpx;
-  margin-left: 16rpx;
-  line-height: 1;
+.task-action {
+  min-width: 80rpx;
+  font-size: 26rpx;
+  color: var(--color-primary-mint, #A8C5B5);
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.task-action.is-done {
+  color: var(--color-text-weak, #A0AEC0);
+  font-weight: 400;
+  text-decoration: none;
 }

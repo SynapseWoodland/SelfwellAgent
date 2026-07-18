@@ -6,7 +6,7 @@
 ///
 /// M2 spec rules:
 ///   - 3 张照片 (正面脸 / 侧面体态 / 发质特写)
-///   - 每张图片必须 ≤ 1024px (§17 强约束 + SPEC-M2)
+///   - 每张图片必须 ≤ 1024px (§17 强约束 + TDS-M2)
 ///   - 压缩工具 lib/core/utils/image_compress.dart
 library;
 

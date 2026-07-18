@@ -10,7 +10,7 @@ import '../core/theme/spacing.dart';
 /// Image uploader with built-in compression to <= 1024px max-edge.
 ///
 /// Wraps `image_picker` so the parent page just receives a `Uint8List`.
-/// Per `docs/spec/SPEC-M2-multimodal-diagnosis.md`, uploaded images
+/// Per `docs/spec/TDS-M2-multimodal-diagnosis.md`, uploaded images
 /// must be <= 1024px (server-side validator in `services/diagnosis/image_validator.py`).
 class ImageUploader extends StatefulWidget {
   const ImageUploader({

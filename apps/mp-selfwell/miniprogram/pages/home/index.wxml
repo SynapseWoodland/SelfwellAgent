@@ -8,14 +8,7 @@
   <!-- ── 顶部 Nav Bar ────────────────────────────────── -->
   <view class="home-nav">
     <view class="home-nav-title">今天</view>
-    <view class="home-nav-btn" bindtap="onOpenDrawer" data-test="nav-drawer-btn">
-      <!-- SVG 三点图标 -->
-      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-        <circle cx="5" cy="12" r="1.5" fill="#2D3436"/>
-        <circle cx="12" cy="12" r="1.5" fill="#2D3436"/>
-        <circle cx="19" cy="12" r="1.5" fill="#2D3436"/>
-      </svg>
-    </view>
+    <view style="width:32px"></view>
   </view>
 
   <!-- ── 可滚动内容 ────────────────────────────────── -->
@@ -34,7 +27,24 @@
       <view class="home-progress-info">
         <view class="home-progress-greet">{{greeting}}{{nickname ? '，' + nickname : ''}}</view>
         <view class="home-progress-sub">已坚持 {{streak}} 天 · 慢慢来</view>
-        <button class="home-btn-checkin" bindtap="onToggleCheckin">今日打卡</button>
+        <!-- 未打卡状态 -->
+        <button
+          wx:if="{{!checkinComplete}}"
+          class="home-btn-checkin {{checkinLoading ? 'loading' : ''}}"
+          bindtap="onToggleCheckin"
+          disabled="{{checkinLoading}}"
+        >
+          <text wx:if="{{checkinLoading}}">打卡中...</text>
+          <text wx:else>✓ 打卡今天</text>
+        </button>
+        <!-- 已打卡状态 -->
+        <button
+          wx:else
+          class="home-btn-checkin done"
+          disabled
+        >
+          <text>✓ 已打卡</text>
+        </button>
       </view>
     </view>
 
@@ -44,12 +54,18 @@
         <view class="home-plan-overview-title">21 天方案 · 你走过 {{streak}} 天</view>
         <view class="home-plan-overview-link">查看完整方案 ›</view>
       </view>
-      <!-- 21 天 day-strip（5 态） -->
-      <day-strip-5state
-        days="{{dayStrip}}"
-        activeIndex="{{currentDayIndex}}"
-        bind:select="onDayStripSelect"
-      />
+      <!-- 7 天 strip（前后各 3 天 + 今天） -->
+      <view class="home-day-strip-m">
+        <view
+          wx:for="{{dayStrip7}}"
+          wx:key="dayNumber"
+          class="home-day-strip-item-m {{item.state}}"
+          data-state="{{item.state}}"
+        >
+          <view class="home-day-strip-num">{{item.dayNumber}}</view>
+          <view class="home-day-strip-sub">{{item.weekdayLabel}}</view>
+        </view>
+      </view>
       <!-- phase-bar（三阶段进度条） -->
       <view class="home-phase-bar">
         <view class="home-phase-bar-p1" style="flex: {{currentDay <= 7 ? currentDay : 7}};"></view>
@@ -75,11 +91,12 @@
         <task-card
           wx:for="{{taskCards}}"
           wx:key="id"
-          id="{{item.id}}"
+          task-id="{{item.id}}"
           title="{{item.title}}"
           subtitle="{{item.subtitle}}"
           done="{{item.done}}"
           video-url="{{item.videoUrl}}"
+          action-text="{{item.actionText}}"
           bind:toggle="onTaskToggle"
           bind:tap="onTaskTap"
         />
@@ -107,13 +124,14 @@
     </view>
   </scroll-view>
 
+  <!-- ── 右下角浮动抽屉 FAB 按钮 ────────────────────── -->
+  <view class="home-drawer-fab" bindtap="onOpenDrawer" data-test="drawer-fab-btn">
+    <view class="home-drawer-fab-icon">≡</view>
+    <view class="home-drawer-fab-tooltip">管理</view>
+  </view>
+
   <!-- ── 底部 Tab Bar 占位（由 app.json tabBar 渲染，此处占位 83px）── -->
   <view class="home-tab-bar-placeholder"></view>
-
-  <!-- 右下角浮动抽屉按钮（FAB） -->
-  <view class="home-drawer-fab" bindtap="onOpenDrawer" data-test="drawer-fab">
-    <text>⋯</text>
-  </view>
 
   <!-- P1: 打卡完成全屏遮罩（打卡完成后显示） -->
   <view

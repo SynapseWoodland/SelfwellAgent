@@ -105,9 +105,10 @@ export interface CreateCheckinReq {
   mood_text?: string;
 }
 export interface CreateCheckinResp {
-  checkin_id: string;
+  checkin_ids: string[];
   new_streak: number;
-  ack_text: string; // 来自 ack-pool.yaml
+  ack_text: string;
+  all_done_task_ids: string[];
 }
 
 /* ─────────── M2 智能分析 / SSE ─────────── */

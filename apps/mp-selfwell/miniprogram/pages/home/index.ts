@@ -62,12 +62,21 @@ interface TodayTaskView {
   duration?: number;
   /** v2 新增：身体部位标签 */
   bodyPartTags?: string[];
+  /** v2 新增：右侧操作文字（已完成="回看"，未完成="开始"） */
+  actionText: string;
 }
 
 /** 21 天方案 day-strip 单格状态（PR-V2-C 扩展为 5 态）。 */
 interface DayStripCell {
   dayNumber: number;
   state: 'completed' | 'today' | 'missed' | 'future' | 'feedback';
+}
+
+/** 7 天紧凑 strip 单格（前后各 3 天 + 今天）。 */
+interface DayStrip7Cell {
+  dayNumber: number;
+  state: 'completed' | 'today' | 'missed' | 'future' | 'feedback';
+  weekdayLabel: string;
 }
 
 interface DrawerCardView {
@@ -92,6 +101,8 @@ interface HomeData {
   totalMinutes: number;
   /** PR-V2-C · 21-day strip（5 态）。 */
   dayStrip: DayStripCell[];
+  /** PR-V2-C · 7 天紧凑 strip（前后各 3 天 + 今天）。 */
+  dayStrip7: DayStrip7Cell[];
   currentDayIndex: number;
   currentDay: number;
   phaseIndex: number;
@@ -99,6 +110,8 @@ interface HomeData {
   phaseDayEnd: number;
   /** 打卡完成全屏遮罩可见性。 */
   checkinComplete: boolean;
+  /** 打卡请求中。 */
+  checkinLoading: boolean;
   /** 抽屉管理页可见性。 */
   drawerOpen: boolean;
   /** 抽屉管理卡片（含 iconBg）。 */
@@ -126,12 +139,14 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
     done: 0,
     totalMinutes: 0,
     dayStrip: [],
+    dayStrip7: [],
     currentDayIndex: 0,
     currentDay: 1,
     phaseIndex: 1,
     phaseDayStart: 1,
     phaseDayEnd: 7,
     checkinComplete: false,
+    checkinLoading: false,
     drawerOpen: false,
     drawerCards: buildDrawerCardsWithBg(),
     hugDisabled: true,
@@ -197,6 +212,8 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
         coverUrl: t.cover_url || '',
         duration: t.duration_sec,
         bodyPartTags: t.body_part_tags || [],
+        // 右侧操作文字：已完成="回看"，未完成="开始"
+        actionText: doneIds.has(t.task_id) ? '回看' : '开始',
       }));
       console.log('[home] taskCards loaded:', taskCards.map(t => ({ id: t.id, videoUrl: t.videoUrl })));
       const total = today?.total ?? taskCards.length;
@@ -224,6 +241,30 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
         if (dayNum === currentDay) return { dayNumber: dayNum, state: 'today' };
         return { dayNumber: dayNum, state: 'future' };
       });
+
+      // PR-V2-C · 7 天紧凑 strip（前后各 3 天 + 今天）
+      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      const todayDate = new Date();
+      const todayDow = todayDate.getDay(); // 0=周日
+      const dayStrip7Start = Math.max(1, currentDay - 3);
+      const dayStrip7End = Math.min(21, currentDay + 3);
+      const dayStrip7: DayStrip7Cell[] = Array.from(
+        { length: dayStrip7End - dayStrip7Start + 1 },
+        (_, i) => {
+          const dayNum = dayStrip7Start + i;
+          const offsetFromToday = dayNum - currentDay;
+          const dow = (todayDow + offsetFromToday + 7) % 7;
+          let state: DayStrip7Cell['state'];
+          if (dayNum < currentDay) state = 'completed';
+          else if (dayNum === currentDay) state = 'today';
+          else state = 'future';
+          return {
+            dayNumber: dayNum,
+            state,
+            weekdayLabel: dayNum === currentDay ? '今天' : weekdays[dow],
+          };
+        },
+      );
 
       // 阶段计算（1-7 天→阶段1，8-14 天→阶段2，15-21 天→阶段3）
       const phaseIndex = currentDay <= 7 ? 1 : currentDay <= 14 ? 2 : 3;
@@ -256,6 +297,7 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
         percent,
         taskCards,
         dayStrip,
+        dayStrip7,
         currentDayIndex: currentDay - 1,
         currentDay,
         phaseIndex,
@@ -293,7 +335,11 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
    */
   onTaskToggle(e: WechatMiniprogram.CustomEvent<{ id: string; done: boolean }>) {
     const { id, done } = e.detail;
-    const list = this.data.taskCards.map((t) => (t.id === id ? { ...t, done } : t));
+    const list = this.data.taskCards.map((t) =>
+      t.id === id
+        ? { ...t, done, actionText: done ? '回看' : '开始' }
+        : t,
+    );
     const completed = list.filter((t) => t.done).length;
     this.setData({
       taskCards: list,
@@ -315,17 +361,18 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
     // 如果有视频 URL，跳转到视频详情页
     if (videoUrl) {
       console.log('[home] navigating to video detail', { taskId: id, videoUrl });
-      const params = new URLSearchParams({
-        taskId: id,
-        title: encodeURIComponent(task.title),
-        subtitle: encodeURIComponent(task.subtitle || ''),
-        videoUrl: encodeURIComponent(videoUrl),
-        coverUrl: encodeURIComponent(task.coverUrl || ''),
-        duration: encodeURIComponent(task.duration ? `${Math.floor(task.duration / 60)} 分钟` : ''),
-        tags: encodeURIComponent((task.bodyPartTags || []).join(',')),
-      });
+      // 微信小程序不支持 URLSearchParams，手动拼接 query string
+      const qs = [
+        `taskId=${encodeURIComponent(id)}`,
+        `title=${encodeURIComponent(task.title)}`,
+        `subtitle=${encodeURIComponent(task.subtitle || '')}`,
+        `videoUrl=${encodeURIComponent(videoUrl)}`,
+        `coverUrl=${encodeURIComponent(task.coverUrl || '')}`,
+        `duration=${encodeURIComponent(task.duration ? `${Math.floor(task.duration / 60)} 分钟` : '')}`,
+        `tags=${encodeURIComponent((task.bodyPartTags || []).join(','))}`,
+      ].join('&');
       wx.navigateTo({
-        url: `/pages/task-detail/index?${params.toString()}`,
+        url: `/pages/task-detail/index?${qs}`,
       });
     } else {
       // 没有视频 URL 时，显示提示
@@ -375,34 +422,39 @@ Page<HomeData, Record<string, never>, HomeCustomState>({
   },
 
   /**
-   * 顶部「今日打卡」按钮 → 调用 POST /checkins 提交当天所有已完成任务
-   * 语义：每日整体打卡（vs 勾选框仅本地标记）
+   * 顶部「今日打卡」按钮 → 一键打卡（task_ids=[]），标记所有任务完成
    */
-  onToggleCheckin() {
-    // 如果已完成打卡，则取消（允许撤回）
-    if (this.data.checkinComplete) {
-      this.setData({ checkinComplete: false });
-      return;
-    }
+  async onToggleCheckin() {
+    if (this.data.checkinComplete) return;
 
-    const doneIds = this.data.taskCards.filter((t) => t.done).map((t) => t.id);
-    if (doneIds.length === 0) {
-      wx.showToast({ title: '请先勾选已完成的动作', icon: 'none' });
-      return;
-    }
+    this.setData({ checkinLoading: true });
 
-    const today = new Date().toISOString().slice(0, 10);
-    post<CreateCheckinResp>('/checkins', { date: today, task_ids: doneIds })
-      .then((res) => {
-        this.setData({ checkinComplete: true });
-        wx.showToast({ title: res.ack_text || '打卡成功', icon: 'success' });
-        console.log('[home] checkin success, new streak:', res.new_streak);
-      })
-      .catch((err) => {
-        console.warn('[home] checkin fail', err);
-        const msg = err instanceof ApiException ? err.message : '打卡失败';
-        wx.showToast({ title: msg, icon: 'none' });
+    try {
+      const resp = await post<CreateCheckinResp>('/checkins', {
+        date: new Date().toISOString().slice(0, 10),
+        task_ids: [],
       });
+
+      const allDone = this.data.taskCards.map((t) => ({ ...t, done: true }));
+
+      this.setData({
+        taskCards: allDone,
+        checkinComplete: true,
+        checkinLoading: false,
+        done: allDone.length,
+        percent: 100,
+        streak: resp.new_streak,
+      });
+
+      wx.showToast({
+        title: resp.ack_text || '打卡成功',
+        icon: 'success',
+        duration: 2500,
+      });
+    } catch (err) {
+      this.setData({ checkinLoading: false });
+      wx.showToast({ title: err.message || '打卡失败', icon: 'none' });
+    }
   },
 
   /**

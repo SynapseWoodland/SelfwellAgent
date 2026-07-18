@@ -17,6 +17,9 @@
     <view wx:if="{{subtitle}}" class="task-subtitle">{{subtitle}}</view>
   </view>
 
-  <!-- 右侧：箭头（点击 → tap 事件） -->
-  <view class="task-arrow" bindtap="onCardTap">›</view>
+  <!-- 右侧：操作文字（已完成="回看"，未完成="开始"，点击 → tap 事件） -->
+  <view
+    class="task-action {{done ? 'is-done' : ''}}"
+    bindtap="onCardTap"
+  >{{actionText || '开始'}}</view>
 </view>

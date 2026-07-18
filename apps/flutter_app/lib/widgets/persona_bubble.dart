@@ -4,7 +4,7 @@ import '../core/theme/color_tokens.dart';
 import '../core/theme/spacing.dart';
 
 /// M5 persona 4-state FSM widget — maps to the backend
-/// `assistant.persona_state` field. See `docs/spec/SPEC-M5-*.md`.
+/// `assistant.persona_state` field. See `docs/spec/TDS-M5-*.md`.
 enum PersonaState { warm, neutral, slightHug, medicalGuarded }
 
 extension PersonaStateX on PersonaState {

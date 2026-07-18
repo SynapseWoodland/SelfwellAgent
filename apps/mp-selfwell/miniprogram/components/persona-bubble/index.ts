@@ -4,7 +4,7 @@
  * 设计稿：docs/design/figma-pixso-spec/pages/04a-smart-analyze-dialog.html
  *        docs/design/figma-pixso-spec/pages/07-butler-home.html
  *
- * 7 个 persona_state（与 docs/spec/SPEC-M5-persona-chat.md §3.5 对齐）：
+ * 7 个 persona_state（与 docs/spec/TDS-M5-persona-chat.md §3.5 对齐）：
  *   - greeting        入口问候气泡（白色卡片）
  *   - listening       对话倾听气泡（左侧薄荷绿）
  *   - thinking        AI 思考气泡（带动态三点）

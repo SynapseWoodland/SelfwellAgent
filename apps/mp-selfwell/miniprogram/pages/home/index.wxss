@@ -28,15 +28,6 @@
   color: var(--color-text-primary, #2D3436);
 }
 
-.home-nav-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
 /* ── 可滚动区域 ────────────────────────────────────── */
 .home-scroll {
   height: calc(100vh - 44px - 83px); /* 扣掉 nav + tab-bar */
@@ -112,6 +103,69 @@
 .home-plan-overview-link {
   font-size: var(--font-size-body-sm, 12px);
   color: var(--color-primary-mint-dark, #5A8270);
+}
+
+/* ── 7 天紧凑 strip（PR-V2-C · 原型 15b）─────────── */
+.home-day-strip-m {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.home-day-strip-item-m {
+  flex: 1;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-day-strip-item-m .home-day-strip-num {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1;
+  color: inherit;
+}
+
+.home-day-strip-item-m .home-day-strip-sub {
+  font-size: 8px;
+  margin-top: 2px;
+  opacity: 0.85;
+  line-height: 1;
+  color: inherit;
+}
+
+.home-day-strip-item-m.completed {
+  background-color: var(--color-state-completed, #A8C5B5);
+  color: #FFFFFF;
+}
+
+.home-day-strip-item-m.today-m {
+  background-color: var(--color-bg-card, #FFFFFF);
+  border: 2px solid var(--color-state-today-border, #A8C5B5);
+  color: var(--color-text-primary, #2D3436);
+}
+
+.home-day-strip-item-m.today-m .home-day-strip-sub {
+  font-weight: 600;
+}
+
+.home-day-strip-item-m.missed {
+  background-color: var(--color-state-missed, #F0F2F5);
+  color: var(--color-text-weak, #A0AEC0);
+}
+
+.home-day-strip-item-m.future {
+  background-color: var(--color-state-future, #FAFBFC);
+  border: 1px dashed var(--color-state-future-border, #E2E8F0);
+  color: var(--color-text-weak, #A0AEC0);
+}
+
+.home-day-strip-item-m.feedback {
+  background-color: var(--color-state-feedback, #D4C5E2);
+  color: #FFFFFF;
 }
 
 /* ── phase-bar（三阶段进度条）─────────────────────── */
@@ -275,22 +329,51 @@
   height: 83px;
 }
 
-/* ── 右下角浮动抽屉按钮（FAB）────────────────── */
+/* ── 右下角浮动抽屉 FAB 按钮 ───────────────────── */
 .home-drawer-fab {
   position: fixed;
   right: 16px;
   bottom: 90px;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  background-color: #A8C5B5;
-  color: #FFFFFF;
-  font-size: 22px;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
-  z-index: 100;
+}
+
+.home-drawer-fab-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #A8C5B5, #94B59E);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(168, 197, 181, 0.5);
+}
+
+.home-drawer-fab-tooltip {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.75);
+  color: #FFFFFF;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.home-drawer-fab:active .home-drawer-fab-tooltip {
+  opacity: 1;
 }
 
 /* ── P1: complete-overlay（全屏打卡完成）────────── */
