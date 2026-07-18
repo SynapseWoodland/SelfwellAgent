@@ -1,7 +1,7 @@
 /**
  * PR-V2-A · action-card 组件契约锁
  * ─────────────────────────────────────────────────────────────────
- * 真源：docs/spec/SPEC-M3-pages-v2-1to1-clone.md §3.1
+ * 真源：docs/spec/TDS-M3-pages-v2-1to1-clone.md §3.1
  * 真源：docs/design/figma-pixso-spec/pages-v2/15i-butler-analyze-report-revised.html · .action-item
  *
  * 组件用途：

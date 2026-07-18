@@ -1,7 +1,7 @@
 /**
  * PR-V2-A · day-strip-5state 组件契约锁
  * ─────────────────────────────────────────────────────────────────
- * 真源：docs/spec/SPEC-M3-pages-v2-1to1-clone.md §3.1
+ * 真源：docs/spec/TDS-M3-pages-v2-1to1-clone.md §3.1
  * 真源：docs/design/figma-pixso-spec/pages-v2/15b-today-tab2.html · .day-strip-item
  * 真源：docs/design/figma-pixso-spec/pages-v2/15f-plan-tabs-5state.html · .day-cell
  *
@@ -9,7 +9,7 @@
  *  - 5 态日条 / 日格：completed / today / missed / future / feedback
  *  - 复用页面：home (15b)、plan-tabs (15f)、profile-new
  *
- * 验收标准（与 SPEC-M3 FR-V2-A-02 对齐）：
+ * 验收标准（与 TDS-M3 FR-V2-A-02 对齐）：
  *  AC-1 组件 4 文件齐全（index.ts / index.wxml / index.wxss / index.json）
  *  AC-2 WXML 含 data-state 属性绑定
  *  AC-3 5 状态对应 5 个 CSS class（completed / today / missed / future / feedback）
