@@ -1,7 +1,7 @@
 # SelfwellAgent 多 Agent 协作编排
 
 > 本文件定义 Cursor AI Agent 的角色分工、触发条件和调用规范。
-> 所有 Agent 均以本文件为调度依据，遵循 `.cursorrules` 入口规则的最高优先级禁止项。
+> 所有 Agent 均以本文件为调度依据，遵循 `.cursor/rules/project-prohibitions.mdc` 工程红线的最高优先级禁止项。
 
 ---
 
@@ -21,28 +21,25 @@
 
 ```
 Backend Agent
-  ├── 必须读: .cursor/skills/coding-standards/SKILL.md
-  ├── 必须读: .cursor/skills/coding-standards/RULES.md
-  ├── 必须读: .cursor/skills/coding-standards/GATES.md
-  ├── 必须读: .cursor/skills/coding-standards/PATTERNS.md
-  ├── 必须读: .cursor/skills/coding-standards/EXAMPLES.md
+  ├── 必须读: .cursor/rules/coding-standards.mdc（alwaysApply 速查表，完整规范已全部内联）
+  ├── 必须读: .cursor/rules/python-patterns.mdc（alwaysApply 速查表，设计模式/Async 安全/SQL 安全已内联）
   └── 可选读: .cursor/skills/golden-set/SKILL.md（涉及 Prompt 修改时）
 
 Frontend Agent
-  ├── 必须读: .cursor/skills/frontend-standards/SKILL.md
-  └── 可选读: .cursor/skills/sdd-tdd/SKILL.md（涉及设计方案时）
+  ├── 必须读: .cursor/rules/frontend-standards.mdc（alwaysApply 速查表，WXSS 规范/审核标准已内联）
+  └── 可选读: .cursor/skills/ad-tdd/SKILL.md（涉及设计方案时）
 
 QA Agent
-  ├── 必须读: .cursor/skills/coding-standards/GATES.md
+  ├── 必须读: .cursor/rules/coding-standards.mdc（alwaysApply，L0-L6 命令）
   ├── 必须读: .cursor/skills/golden-set/SKILL.md
-  └── 可选读: coding-standards/EXAMPLES.md
+  └── 可选读: .cursor/rules/coding-standards.mdc（测试规范示例）
 
 DevOps Agent
   ├── 必须读: README.md（docker compose 部分）
   └── 必须读: .cursor/skills/pr-gate/SKILL.md（提交流前）
 
 Security Agent
-  └── 必须读: .cursor/skills/coding-standards/RULES.md（安全规则部分）
+  └── 必须读: .cursor/rules/python-patterns.mdc（alwaysApply，安全规则已内联）
 ```
 
 ---
@@ -57,10 +54,10 @@ Security Agent
 - 用户请求涉及 `agents/`、`rules/`、`prompts/` 目录
 
 **工作流程**：
-1. 读取 `.cursor/skills/coding-standards/SKILL.md`
-2. 读取 `.cursor/skills/coding-standards/GATES.md`
+1. 读取 `.cursor/rules/coding-standards.mdc`（alwaysApply 速查表）
+2. 读取 `.cursor/rules/python-patterns.mdc`（alwaysApply 速查表）
 3. 编写 / 审查 / 重构代码
-4. 提交前执行 L0-L6 质量门禁（见 GATES.md）
+4. 提交前执行 L0-L6 质量门禁（见 coding-standards.mdc §L0-L6）
 5. 如涉及 Prompt 修改，启动 Golden Set 回归（读 golden-set SKILL.md）
 
 ---
@@ -73,7 +70,7 @@ Security Agent
 - 用户请求涉及 `components/`、`pages/`、`utils/` 目录
 
 **工作流程**：
-1. 读取 `.cursor/skills/frontend-standards/SKILL.md`
+1. 读取 `.cursor/rules/frontend-standards.mdc`（alwaysApply 速查表）
 2. 编写 / 审查 / 重构 Flutter / 微信小程序代码
 3. 遵循组件规范、状态管理规范、国际化规范
 4. 提交前执行 lint 检查
@@ -88,7 +85,7 @@ Security Agent
 - 用户请求涉及 `golden_set_v*.yaml`、`run_eval.py`、`conftest.py`
 
 **工作流程**：
-1. 读取 `.cursor/skills/coding-standards/GATES.md`
+1. 读取 `.cursor/rules/coding-standards.mdc`（alwaysApply，L0-L6 命令）
 2. 读取 `.cursor/skills/golden-set/SKILL.md`
 3. 设计 / 执行测试用例
 4. 运行覆盖率检查（目标 ≥ 60%）
@@ -120,7 +117,7 @@ Security Agent
 - 用户请求涉及权限审计、依赖漏洞检测
 
 **工作流程**：
-1. 读取 `.cursor/skills/coding-standards/RULES.md`
+1. 读取 `.cursor/rules/python-patterns.mdc`（alwaysApply，SQL 安全五层防线、Async 安全已内联）
 2. 运行 `bandit -r backend/app` 安全扫描
 3. 检查敏感信息泄露（API Key、JWT Secret、密码）
 4. 审查依赖漏洞（`pip audit` 或 `safety check`）
@@ -141,7 +138,7 @@ Security Agent
 
 ### Agent 冲突解决
 
-- **规范冲突**：以 `.cursor/skills/coding-standards/SKILL.md` 为唯一真源
+- **规范冲突**：以 `.cursor/rules/coding-standards.mdc` 为 alwaysApply 速查真源
 - **技术选型冲突**：查阅 `docs/adr/` 目录的 ADR 决策记录
 - **测试与实现冲突**：以测试用例（QA Agent 输出）为准，Backend Agent 修复实现
 

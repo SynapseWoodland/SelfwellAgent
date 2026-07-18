@@ -99,6 +99,14 @@ jobs:
           uv run pytest backend/tests/intercept/ -v
 
       # ──────────────────────────────────────────────
+      # ACK 池合规扫描 (V1.1 合规修复)
+      # PRD §3.2 红线 — 每次修改 ack-pool.yaml 必须通过
+      # ──────────────────────────────────────────────
+      - name: ACK Pool — 合规红线扫描
+        run: |
+          uv run pytest backend/tests/unit/test_ack_pool_compliance.py -v
+
+      # ──────────────────────────────────────────────
       # 上传 coverage 到 Codecov
       # ──────────────────────────────────────────────
       - name: Upload coverage
