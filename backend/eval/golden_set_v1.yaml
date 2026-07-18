@@ -5,7 +5,7 @@ updated_at: '2026-07-10'
 updated_by: SelfwellAgent AI 架构师（v4.1-prep 子任务 2 · 三层 Golden Set 合并：L1 baseline 21 + L2 vision/chat 11 + L3 error-contract 8）
 source:
 - D:\agent-project\SemanticMind\backend\eval (格式样板)
-- 本项目 docs/重构设计方案 + SPEC-M5/M7/M8 三份 SPEC（2026-07-05 落地）
+- 本项目 docs/重构设计方案 + TDS-M5/M7/M8 三份 TDS（2026-07-05 落地）
 - v4.1-prep V4 主方案 doc/plan/assistant-smart-analyze-vision-pipeline_4_cursor-exec-plan.md（VISION/CHAT/CROSS 用例蓝本）
 - v4.1-prep 子任务 4 doc/plan/v4.1-prep/04-error-envelope.md（E_CODE 契约层蓝本）
 metadata:
@@ -97,7 +97,7 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.85
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=module_redirect
+  - docs/SPEC/TDS-M5-persona-chat.md §4.5 primary_intent=module_redirect
   - backend/app/routes/assistant_node.py（待 exist）
   llm_capability: text
 - id: GN-M5-002
@@ -112,7 +112,7 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=read_query
+  - docs/SPEC/TDS-M5-persona-chat.md §4.5 primary_intent=read_query
   llm_capability: text
 - id: GN-M5-003
   layer: L1-baseline
@@ -126,7 +126,7 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=unknown
+  - docs/SPEC/TDS-M5-persona-chat.md §4.5 primary_intent=unknown
   llm_capability: text
 - id: GN-M5-004
   layer: L1-baseline
@@ -140,8 +140,8 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §4.5 primary_intent=recall
-  - docs/SPEC/SPEC-M8-recall.md §5.1 trigger=user_query
+  - docs/SPEC/TDS-M5-persona-chat.md §4.5 primary_intent=recall
+  - docs/SPEC/TDS-M8-recall.md §5.1 trigger=user_query
   llm_capability: text
 - id: GN-M5-005
   layer: L1-baseline
@@ -155,7 +155,7 @@ cases:
     intercept_expectation: critical_block
     confidence_min: 0.0
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §3 C1 + §4.5 primary_intent=medical_reject
+  - docs/SPEC/TDS-M5-persona-chat.md §3 C1 + §4.5 primary_intent=medical_reject
   llm_capability: text
 - id: GN-M5-006
   layer: L1-baseline
@@ -169,7 +169,7 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.0
   real_data_anchors:
-  - docs/SPEC/SPEC-M5-persona-chat.md §4.1 降级策略
+  - docs/SPEC/TDS-M5-persona-chat.md §4.1 降级策略
   llm_capability: text
 - id: GN-M7-001
   layer: L1-baseline
@@ -185,7 +185,7 @@ cases:
   real_data_anchors:
   - docs/data/ack-pool.yaml ack_pool（30 条规则模板）
   - docs/data/ack-pool.yaml ack_pool.forbidden_tokens
-  - docs/SPEC/SPEC-M7-feedback.md §4.3 ACK_POOL + §3 R4
+  - docs/SPEC/TDS-M7-feedback.md §4.3 ACK_POOL + §3 R4
   llm_capability: text
 - id: GN-M7-002
   layer: L1-baseline
@@ -200,7 +200,7 @@ cases:
     confidence_min: 0.7
   real_data_anchors:
   - docs/data/ack-pool.yaml ack_pool（30 条规则模板）
-  - docs/SPEC/SPEC-M7-feedback.md §3 mood_photo 字段约束
+  - docs/SPEC/TDS-M7-feedback.md §3 mood_photo 字段约束
   llm_capability: text
 - id: GN-M7-003
   layer: L1-baseline
@@ -215,7 +215,7 @@ cases:
     confidence_min: 0.7
   real_data_anchors:
   - docs/data/body-parts.yaml parts[code=shoulder_neck]
-  - docs/SPEC/SPEC-M8-recall.md §5.1 空态 soft-tip buttons[0]
+  - docs/SPEC/TDS-M8-recall.md §5.1 空态 soft-tip buttons[0]
   llm_capability: text
 - id: GN-M7-004
   layer: L1-baseline
@@ -245,7 +245,7 @@ cases:
     intercept_expectation: critical_block
     confidence_min: 0.0
   real_data_anchors:
-  - docs/SPEC/SPEC-M7-feedback.md §3 R2 + R3 服务层白名单
+  - docs/SPEC/TDS-M7-feedback.md §3 R2 + R3 服务层白名单
   - backend/services/compliance/checker.py check_input（白名单校验）
   llm_capability: text
 - id: GN-M7-006
@@ -262,7 +262,7 @@ cases:
   real_data_anchors:
   - docs/data/ack-pool.yaml ack_pool[*].valid=true
   - docs/data/ack-pool.yaml forbidden_tokens
-  - docs/SPEC/SPEC-M7-feedback.md §4.3 _check_ack_safe
+  - docs/SPEC/TDS-M7-feedback.md §4.3 _check_ack_safe
   llm_capability: text
 - id: GN-M8-001
   layer: L1-baseline
@@ -276,8 +276,8 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M8-recall.md §5.1 trigger=auto_day7
-  - docs/SPEC/SPEC-M8-recall.md §4.2 RECALL_PROMPT
+  - docs/SPEC/TDS-M8-recall.md §5.1 trigger=auto_day7
+  - docs/SPEC/TDS-M8-recall.md §4.2 RECALL_PROMPT
   llm_capability: text
 - id: GN-M8-002
   layer: L1-baseline
@@ -291,7 +291,7 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M8-recall.md §5.1 trigger=auto_day14
+  - docs/SPEC/TDS-M8-recall.md §5.1 trigger=auto_day14
   llm_capability: text
 - id: GN-M8-003
   layer: L1-baseline
@@ -305,8 +305,8 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M8-recall.md §5.1 trigger=user_query
-  - docs/SPEC/SPEC-M8-recall.md §2.2 trigger 枚举
+  - docs/SPEC/TDS-M8-recall.md §5.1 trigger=user_query
+  - docs/SPEC/TDS-M8-recall.md §2.2 trigger 枚举
   llm_capability: text
 - id: GN-M8-004
   layer: L1-baseline
@@ -320,8 +320,8 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M8-recall.md §5.1 空态 Response.soft_tip.buttons
-  - docs/SPEC/SPEC-M8-recall.md §2.2 Step 2 空态检查
+  - docs/SPEC/TDS-M8-recall.md §5.1 空态 Response.soft_tip.buttons
+  - docs/SPEC/TDS-M8-recall.md §2.2 Step 2 空态检查
   llm_capability: text
 - id: GN-M8-005
   layer: L1-baseline
@@ -336,7 +336,7 @@ cases:
     confidence_min: 0.0
   real_data_anchors:
   - docs/data/recall-forbidden-words.yaml groups.before_after_judge.tokens（样本：进步了/改善了/变好了/比 7 天前...）
-  - docs/SPEC/SPEC-M8-recall.md §3.1 J1 + §3.3 + §4.1 Layer 2
+  - docs/SPEC/TDS-M8-recall.md §3.1 J1 + §3.3 + §4.1 Layer 2
   - backend/services/compliance/checker.py RecallSafetyGuard（待 exist）
   llm_capability: text
 - id: GN-M8-006
@@ -351,9 +351,9 @@ cases:
     intercept_expectation: pass
     confidence_min: 0.7
   real_data_anchors:
-  - docs/SPEC/SPEC-M8-recall.md §4.5 ALLOWED_RETRIEVAL_SOURCES
-  - docs/SPEC/SPEC-M8-recall.md §4.5 DENIED_RETRIEVAL_SOURCES
-  - docs/SPEC/SPEC-M8-recall.md §6 Feature 召回数据源规范
+  - docs/SPEC/TDS-M8-recall.md §4.5 ALLOWED_RETRIEVAL_SOURCES
+  - docs/SPEC/TDS-M8-recall.md §4.5 DENIED_RETRIEVAL_SOURCES
+  - docs/SPEC/TDS-M8-recall.md §6 Feature 召回数据源规范
   llm_capability: text
 - id: GN-ERR-001
   layer: L3-error-contract

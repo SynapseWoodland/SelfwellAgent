@@ -1,7 +1,7 @@
 """Unit tests for ``assistant_service.compute_entry_state`` — M5 入口卡 4 状态机。
 
 真源：
-- ``docs/spec/SPEC-M5-persona-chat.md`` §3.5.1 入口卡 4 状态
+- ``docs/spec/TDS-M5-persona-chat.md`` §3.5.1 入口卡 4 状态
 - PRD-0017 §3.5.4 基线问候
 - ADR-0017 §3.6 不评判坚持时长
 

@@ -1,6 +1,6 @@
 """Unit tests for ``app.services.auth.jwt_service``.
 
-真源：``docs/spec/SPEC-M1-wechat-login.md`` §4。
+真源：``docs/spec/TDS-M1-wechat-login.md`` §4。
 """
 
 from __future__ import annotations

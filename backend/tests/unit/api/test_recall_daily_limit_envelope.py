@@ -12,7 +12,7 @@ router 不再做 re-wrap，让 ``SelfwellError`` 子类直接冒泡到
 修法 D（删 re-wrap）+ 修法 C（SelfwellError 分支 logger.warning 而非 exception）
 后 envelope 行为正确。
 
-真源：``docs/spec/SPEC-M8-recall.md`` §3.6 每日 ≤ 1 次；
+真源：``docs/spec/TDS-M8-recall.md`` §3.6 每日 ≤ 1 次；
 ``backend/app/services/recall_service.py`` RecallDailyLimitError 定义。
 """
 

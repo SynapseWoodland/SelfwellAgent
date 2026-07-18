@@ -297,7 +297,7 @@ COMMENT ON TABLE user_self_tags IS '用户自标签（V2 IA · PR-2）；4 类�
 COMMENT ON COLUMN user_self_tags.id                  IS '主键（PG 18 原生 uuidv7()；PG 15 需 uuid-ossp 扩展）';
 COMMENT ON COLUMN user_self_tags.user_id             IS '关联 users.id（FK ON DELETE CASCADE）';
 COMMENT ON COLUMN user_self_tags.tag_category        IS '4 类枚举：body_part / concern / lifestyle / intensity（CHECK 约束）';
-COMMENT ON COLUMN user_self_tags.tag_value           IS '标签值（VARCHAR(64)）；具体值待 SPEC-M 拍板；GIN 索引加速值搜索';
+COMMENT ON COLUMN user_self_tags.tag_value           IS '标签值（VARCHAR(64)）；具体值待 TDS-M 拍板；GIN 索引加速值搜索';
 COMMENT ON COLUMN user_self_tags.is_selected         IS '是否在 profile 页面显示（boolean，默认 TRUE；profile 渲染时 WHERE is_selected=TRUE 走部分索引）';
 COMMENT ON COLUMN user_self_tags.source              IS '标签来源：manual（用户主动加）/ inferred_from_feedback（AI 从 feedback 推断）（CHECK 约束；默认 manual）';
 COMMENT ON COLUMN user_self_tags.created_at          IS '创建时间';

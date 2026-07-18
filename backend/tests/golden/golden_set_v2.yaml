@@ -31,15 +31,15 @@ created_at: "2026-07-06"
 # ── 真源清单 ────────────────────────────────────────────────────────────────
 real_data_anchors:
   - docs/spec/facts-anchor.md
-  - docs/spec/SPEC-M1-wechat-login.md
-  - docs/spec/SPEC-M2-multimodal-diagnosis.md
-  - docs/spec/SPEC-M3-21day-plan.md
-  - docs/spec/SPEC-M4-checkin-loop.md
-  - docs/spec/SPEC-M5-persona-chat.md
-  - docs/spec/SPEC-M6-plaza-community.md
-  - docs/spec/SPEC-M7-feedback.md
-  - docs/spec/SPEC-M8-recall.md
-  - docs/spec/SPEC-M10-share-card.md
+  - docs/spec/TDS-M1-wechat-login.md
+  - docs/spec/TDS-M2-multimodal-diagnosis.md
+  - docs/spec/TDS-M3-21day-plan.md
+  - docs/spec/TDS-M4-checkin-loop.md
+  - docs/spec/TDS-M5-persona-chat.md
+  - docs/spec/TDS-M6-plaza-community.md
+  - docs/spec/TDS-M7-feedback.md
+  - docs/spec/TDS-M8-recall.md
+  - docs/spec/TDS-M10-share-card.md
   - docs/data/ack-pool.yaml
   - docs/data/body-parts.yaml
   - docs/data/medical-reject-words.yaml

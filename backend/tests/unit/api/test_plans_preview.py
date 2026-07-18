@@ -1,6 +1,6 @@
 """C-3 契约修复 · ``GET /plans/{plan_id}/preview?days=N`` 端点新增。
 
-真源:docs/spec/SPEC-M4-PR-Contract-Fix.md §C-3。
+真源:docs/spec/TDS-M4-PR-Contract-Fix.md §C-3。
 
 前端 plan-delivery/index.ts:loadPreview 调用契约:
 - Path: ``/plans/{plan_id}/preview``
