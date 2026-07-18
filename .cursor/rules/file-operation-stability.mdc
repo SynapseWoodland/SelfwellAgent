@@ -9,10 +9,11 @@ globs:
 ---
 
 # 文件与目录操作工具优先级铁则
-本规则为最高优先级约束，必须严格遵守，不得自主选择其他工具。
 
-> **自动化兜底**：本规则由 `.cursor/hooks/guard-shell.ps1` 在 `beforeShellExecution` 阶段强制执行。
-> 任何命中违规模式的 shell 命令会被 exit 2 硬阻塞，模型自觉遵守只作为第一道防线。
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
+
+本规则为最高优先级约束，必须严格遵守，不得自主选择其他工具。
 
 ## 工具优先级排序（必须从高到低选用，禁止跳级）
 1. 原生文件读取工具（Read File）—— 所有文件读取场景

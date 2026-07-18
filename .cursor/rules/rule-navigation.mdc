@@ -1,0 +1,119 @@
+---
+description: >
+  Rule 触发导航表（必读索引）。当代码编写、改 prompt、提 PR、设计 SPEC 时，
+  必须按本表精确 Read 对应 Rule 或 Skill 文件。
+  本文件只做"什么时候读哪个文件"的导航，完整规范在文件自身，不要在本文件里复制规则。
+alwaysApply: false
+---
+
+# Rule 触发导航（必读索引）
+
+> 本文件不是 alwaysApply 速查表，仅在需要选择 Rule 或 Skill 时按需读取。
+> 本文件由 Cursor 规则系统根据 frontmatter 的配置选择性注入。
+
+---
+
+## 一、Rule 触发矩阵
+
+按"我正在做的事"对号入座，找到要读的文件：
+
+| 触发场景（用户消息 / 行为特征） | 必须读的文件 |
+|-------------------------------|-------------|
+| 编写 / 审查 / 重构 Python 代码（含后端 LangGraph 节点、middleware、tools、rules、contracts、entities、prompts） | `.cursor/rules/coding-standards.mdc`（alwaysApply，编码规范速查） |
+| Python 安全（SQL 注入 / LLM 可观测性 / Async / 合规审计 / 日志 PII） | `.cursor/rules/python-patterns.mdc`（alwaysApply，设计模式速查） |
+| Python 质量门禁（L0-L6 命令 / Pre-commit / 四点清单 / AI 自审） | `.cursor/rules/coding-standards.mdc`（alwaysApply，L0-L6 命令、14 条 Checklist） |
+| Python 设计模式 / 反模式速查 / Result 类型 / Interrupt 幂等性 | `.cursor/rules/python-patterns.mdc`（alwaysApply，PATTERNS.md 全部内容已内联） |
+| Python 测试代码示例（Pydantic 契约 / Mock / VCR.py / Async） | `.cursor/rules/coding-standards.mdc`（alwaysApply，测试规范、TDD 循环、Fixture 示例已内联） |
+| 编写 / 审查 / 重构 Flutter 或 微信小程序代码（`.dart` / `.wxml` / `.wxss` / `.ts`） | `.cursor/rules/frontend-standards.mdc`（alwaysApply，状态管理/WXSS 规范/审核标准速查） |
+| 维护 Golden Set / 跑 Eval Runner / 调 prompt / tuner.py | `.cursor/skills/golden-set/SKILL.md` |
+| 提交 PR / MR 前自检（FR 关联 / 验收测试 / ADR 冲突 / 覆盖率 / CI） | `.cursor/skills/pr-gate/SKILL.md` |
+| 基于 SDD 设计方案做 TDD 开发（生成 TDS → ATDD → RED → GREEN → REFACTOR） | `.cursor/skills/ad-tdd/SKILL.md` |
+| 创建 / 修订项目 TDS（如 `docs/spec/TDS-M*.md`） | `.cursor/skills/ad-tdd/SKILL.md`（Phase 1） |
+| AI 一人开发模式 / 用户说「按 Harness 跑」「走流水线」「进入 harness」 | `.cursor/skills/harness-dispatcher/SKILL.md` |
+
+> **路径别名速查**：
+> - Rule 速查表统一在 `.cursor/rules/*.mdc`（alwaysApply）
+> - Skill 入口统一在 `.cursor/skills/<name>/SKILL.md`（**name 拼写勿错**：是 `ad-tdd`，**不是 `sad-tdd`**，不是 `sdd_tdd`）
+
+---
+
+## 二、路径速查表（防止拼错）
+
+### 2.1 Rule 速查表（alwaysApply，内容已内联，无需读 skills/ 下的同名文件）
+
+| 真实路径 | 说明 | 内容来源 |
+|----------|------|---------|
+| `.cursor/rules/coding-standards.mdc` | Python 编码规范速查 | 来自已删除的 `skills/coding-standards/SKILL.md` / `RULES.md` / `GATES.md` / `EXAMPLES.md` |
+| `.cursor/rules/python-patterns.mdc` | Python 设计模式与反模式速查 | 来自已删除的 `skills/coding-standards/PATTERNS.md` / `RULES.md` §一/§三 |
+| `.cursor/rules/frontend-standards.mdc` | Flutter + 微信小程序规范速查 | 来自已删除的 `skills/frontend-standards/SKILL.md` |
+
+### 2.2 Skill 文件（按需 Read，不是 alwaysApply）
+
+| 真实路径 | 说明 | 关联文件 |
+|----------|------|---------|
+| `.cursor/skills/golden-set/SKILL.md` | Golden Set + Eval Runner | 子目录 `backend/eval/` |
+| `.cursor/skills/pr-gate/SKILL.md` | PR 守门 | （无子文件，单文件） |
+| `.cursor/skills/ad-tdd/SKILL.md` | SDD → TDD 开发流（现在包含 ATDD） | 子文件 `TDS-TEMPLATE.md` / `TDD-WORKFLOW.md` |
+| `.cursor/skills/harness-dispatcher/SKILL.md` | Harness 调度入口 | `agents/harness/DISPATCHER.md` |
+| `.cursor/skills/harness-review/SKILL.md` | Harness 评审证据 | `docs/harness/evidence/README.md` |
+| `.cursor/skills/harness-evidence/SKILL.md` | Harness evidence 规范 | `docs/harness/evidence/README.md` |
+| `.cursor/skills/harness-autolearn/SKILL.md` | Harness 经验沉淀 | `docs/harness/lessons/` |
+
+---
+
+## 三、rules 目录速查（alwaysApply 速查表）
+
+| 文件 | 用途 | 注入方式 |
+|------|------|---------|
+| `rules/coding-standards.mdc` | L0-L6 命令、复杂度约束、命名规范、禁止项速查 | alwaysApply，每条消息注入 |
+| `rules/python-patterns.mdc` | 反模式速查、Result 类型、Async 安全、SQL 安全五层防线 | alwaysApply，每条消息注入 |
+| `rules/project-prohibitions.mdc` | 5 条工程红线 | alwaysApply，每条消息注入 |
+| `rules/project-meta.mdc` | 项目元信息（技术栈 / 目录结构） | alwaysApply，每条消息注入 |
+| `rules/file-operation-stability.mdc` | 文件与目录操作工具优先级铁则 | alwaysApply，每条消息注入 |
+| `rules/frontend-standards.mdc` | Flutter / 微信小程序规范速查（WXSS 中文禁止 / 审核标准） | alwaysApply，每条消息注入 |
+
+---
+
+## 四、根级规则（与 Skill 并列的硬约束）
+
+下面不是 Skill，而是 Cursor 加载到 system prompt 的根级规则，**任何时候都要遵守**。每条都标了唯一真源，**不要在 rule 里复制**。
+
+| 规则文件 | 作用域 | 触发条件 |
+|----------|--------|---------|
+| `.cursor/rules/project-meta.mdc` | 项目元信息（技术栈 / 目录结构 / 工具入口） | alwaysApply，每条消息注入 |
+| `.cursor/rules/project-prohibitions.mdc` | 5 条工程红线（依赖 / agents/禁区 / 门禁 / Prompt / 工具跳级） | alwaysApply，每条消息注入；R-5 配套 hooks 兜底 |
+| `.cursor/rules/file-operation-stability.mdc` | 文件与目录操作工具优先级铁则（Read / StrReplace / Write / Glob 优先，shell 只允许 ls/find/tree） | alwaysApply，每条消息注入；违规 shell 会被 `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞 |
+| `.cursor/rules/rule-navigation.mdc` | Rule 触发导航（本文件） | 按需注入（不是 alwaysApply） |
+| `AGENTS.md` | 多 Agent 角色分工（Backend / Frontend / QA / DevOps / Security） | 项目级，按需引用 |
+
+> **历史说明**：本项目原本使用 `.cursorrules`（项目根目录老式 Cursor 规则）作为入口，已于 2026-07-15 拆分至 4 个 `.cursor/rules/*.mdc`，**`.cursorrules` 已废弃删除**，不要再创建。
+
+---
+
+## 五、违反触发规则的代价
+
+| 漏读后果 | 表现 |
+|----------|------|
+| 改 Python 不读 `rules/coding-standards.mdc` | L0-L6 门禁失败 / ruff mypy 报错 / commit 被 PR-Gate 拒绝 |
+| 改 Prompt 不读 `skills/golden-set/SKILL.md` | Eval 回归 baseline 跌 > 5%，触发 PR-Gate 红线 |
+| 提 PR 不读 `skills/pr-gate/SKILL.md` | 缺 FR 编号 / 缺验收测试 / 缺 ADR 合规，被 CI 卡 |
+| SDD 设计不读 `skills/ad-tdd/SKILL.md` | 跳 RED 直接 GREEN，验收标准无 Given/When/Then |
+| 跑 shell 不读 `rules/file-operation-stability.mdc` | 被 `.cursor/hooks/guard-shell.ps1` exit 2 拒绝 |
+
+---
+
+## 六、参考
+
+- **alwaysApply 速查表**：
+  - [rules/coding-standards.mdc](./coding-standards.mdc)（L0-L6 命令、复杂度约束、命名规范、禁止项、节点规范、错误处理、API 错误码、测试规范、14 条 Checklist）
+  - [rules/python-patterns.mdc](./python-patterns.mdc)（反模式速查、Result 类型、Async 安全、SQL 安全五层防线、Interrupt 幂等性、Persona 状态机、Feedback 白名单、SSE 契约、分页规范、DB 规范）
+  - [rules/frontend-standards.mdc](./frontend-standards.mdc)（Flutter 状态管理、WXSS 中文禁止、微信小程序审核标准）
+- 项目元信息（技术栈 / 目录）：[rules/project-meta.mdc](./project-meta.mdc)
+- 工程红线（5 条禁止项）：[rules/project-prohibitions.mdc](./project-prohibitions.mdc)
+- 文件与目录操作铁则：[rules/file-operation-stability.mdc](./file-operation-stability.mdc)
+- Cursor Hooks 工程化约束：`.cursor/hooks/README.md`
+- Golden Set 维护：`.cursor/skills/golden-set/SKILL.md`
+- PR 守门：`.cursor/skills/pr-gate/SKILL.md`
+- AD-TDD：`.cursor/skills/ad-tdd/SKILL.md`
+- 项目架构文档：`docs/architecture/`（按需）
+- ADR 决策记录：`docs/adr/`（按需）

@@ -1,0 +1,1060 @@
+---
+description: >
+  Python 编码规范速查（alwaysApply，每条消息注入）。
+  覆盖：L0-L6 质量门禁命令、复杂度约束、命名规范、禁止项速查表、节点规范、契约规范、
+  错误处理与日志、API 错误码规范、测试规范、工程纪律 14 条 Checklist。
+alwaysApply: true
+---
+
+# Python 编码规范速查
+
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
+
+---
+
+## 一、项目基本信息
+
+| 维度 | 值 |
+|---|-----|
+| 运行时 | Python >= 3.12（PEP 695 type / `\|` / `list[T]`） |
+| 包管理 | uv（不用 pip / poetry） |
+| 行长度 | `line-length = 100`（pyproject.toml） |
+| 框架 | FastAPI + LangGraph + SQLAlchemy |
+
+---
+
+## 二、L0-L6 质量门禁命令速查
+
+> **强制**：commit 前必须全部 PASS。
+> 
+> **执行上下文**：所有 `uv run` 命令必须从**项目根目录**执行（因为 `pyproject.toml` 在根目录）。
+> `cd backend` 仅用于需要切换工作目录的工具（如 `python -m py_compile`）。
+
+### L0 — 语法 & 导入（秒级）
+
+```bash
+cd backend && python -m py_compile app/xxx.py
+python -c "import backend.app.xxx; print('OK')"
+```
+
+### L1 — 风格 & 格式化
+
+```bash
+uv run ruff check . --fix
+uv run ruff format --check .
+```
+
+### L2 — 静态类型
+
+```bash
+uv run mypy --strict backend/app/
+```
+
+### L3 — 单元测试
+
+```bash
+uv run pytest backend/tests/unit -x -q
+```
+
+### L4 — 代码质量扫描
+
+| 检查项 | 工具 | 阈值 |
+|--------|------|------|
+| 圈复杂度 | `radon -a -i A` | 单函数 max A（<=10） |
+| 圈复杂度均分 | `radon -a` | 平均 <= 5 |
+| 代码行数 | `radon -l` | 单函数 <= 50 行 |
+| 未使用导入 | `ruff --select=F401` | 0 |
+| 死代码 | `ruff --select=F811,F401` | 0 |
+| SQL 注入 | `ruff --select=S608` | 0 |
+| 危险 eval | `ruff --select=S307` | 0 |
+| 硬编码密钥 | `ruff --select=SEC` | 0 |
+| 安全风险 | `ruff --select=B,S` | 0 |
+| 可变默认参数 | `ruff --select=B003` | 0 |
+| pickle 反序列化 | `ruff --select=S301` | 0 |
+| docstring | `ruff --select=D` | 公开 API 禁止 D100/D104/D105（见 pyproject.toml ignore 列表） |
+
+```bash
+uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003
+uv run ruff format --check .
+uv run mypy --strict backend/app/
+uv run radon -a -i A backend/app/ | grep -v ": A$"
+# 注意：jscpd 仅支持 Python 3.15+，本项目锁定 3.12，使用 ruff --select=F401,F811 替代重复率检查
+```
+
+### L5 — 架构 & 安全（人工审查）
+
+> ⚠️ 以下命令需从**项目根目录**执行（不是 backend/）。
+
+```bash
+# 禁止从 loguru 直接 import（仅 backend/app/core/log.py 豁免）
+grep -rn "from loguru import logger" backend/app/ && echo "FAIL" || echo "PASS"
+
+# 禁止 stdlib logging 绕开管道
+grep -rn "logging\.getLogger\|logging\.basicConfig" backend/app/ | grep -v "backend/app/core/log.py" && echo "FAIL" || echo "PASS"
+
+# PII 字段明文进日志
+grep -rnE "\.(password|email|phone|card_number|diagnosis)\s*=" backend/app/ \
+  | grep -v "REDACTED" | grep -v "tests/" && echo "FAIL" || echo "PASS"
+
+# 吞 traceback 反模式
+grep -rnE "except Exception.*logger\.warning\(\s*(str\(|e)" backend/app/ \
+  && echo "FAIL" || echo "PASS"
+
+# 裸 except
+grep -rn "except:" backend/app/
+
+# print() 残留
+grep -rn "print(" backend/app/
+
+# 调试代码残留
+grep -rn "pdb.set_trace\|breakpoint()\|TODO\|XXX\|FIXME" backend/app/
+
+# LLM 参数硬编码
+grep -rn "temperature=" backend/app/
+grep -rn "model=" backend/app/
+```
+
+### L6 — 覆盖率
+
+```bash
+uv run pytest --cov=backend/app --cov-report=term-missing
+# 目标：≥ 80%（与 §十七覆盖率门槛保持一致）
+```
+
+---
+
+## 三、Pre-commit Hook
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check . --fix
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: ^backend/.*\.py$  # 过滤：只检查 backend/ 下的 Python 文件
+      - id: ruff-format
+        name: ruff format check
+        entry: uv run ruff format --check .
+        language: system
+        types: [python]
+        files: ^backend/.*\.py$
+      - id: mypy
+        name: mypy type check
+        entry: uv run mypy --strict backend/app/
+        language: system
+        types: [python]
+        files: ^backend/.*\.py$
+```
+
+---
+
+## 四、复杂度约束速查
+
+| 约束 | 推荐值 | 硬限 | 检查工具 |
+|------|--------|------|----------|
+| 单函数代码行 | ≤ 20 行 | <= 50 行 | `radon -l` |
+| 函数参数 | ≤ 3 个 | ≤ 5 个 | `ruff --select=PLR0913` |
+| if 嵌套深度 | ≤ 2 层 | ≤ 4 层 | `ruff --select=PLR1702` |
+| 圈复杂度 | <= 5 | <= 10 | `radon -a -i A` |
+| 函数语句数 | — | ≤ 50 | `ruff --select=PLR0915` |
+| 函数分支数 | — | ≤ 12 | `ruff --select=PLR0912` |
+| 代码重复率 | — | ≤ 4% | `jscpd` |
+| 单文件函数/类数 | — | ≤ 20 | `radon -l` |
+| 单节点代码行 | — | ≤ 150 行 | `radon -l` |
+
+---
+
+## 五、命名规范速查
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| 文件 | `snake_case.py` | `process_node.py` |
+| 类 | `PascalCase` | `AgentContext` |
+| 函数/变量 | `snake_case` | `process_node` |
+| 常量 | `UPPER_SNAKE_CASE` | `CONNECTION_ERROR` |
+| 类型别名 | `PascalCase` | `RouteName = Literal["a", "b"]` |
+| 私有变量 | `_snake_case` | `_routing_config` |
+
+**禁止的命名**：
+- 神秘命名：`x1`、`tmp2`、`get_it`
+- 单字母变量（除 `i/j/k` 循环计数、`T/U/V` 泛型外）
+- 匈牙利命名：`str_name`、`int_count`
+
+---
+
+## 六、禁止项速查表
+
+| 禁止 | 正确做法 |
+|------|----------|
+| 裸 `except:` | `except ValidationError as e:` |
+| `print()` | `logger.info()` |
+| `from loguru import logger` / stdlib `logging.getLogger` | `from app.core.log import logger`（统一工厂） |
+| `except Exception: logger.warning(str(e))` 吞 traceback | `except Exception: logger.exception("event_failed")` |
+| agents/ 写业务规则 | 写到 rules/ |
+| 硬编码 LLM 参数 | 从 `app_config.llm.*` 读取 |
+| 硬编码 Prompt 字符串 | 用 `load_prompt("name")` |
+| 节点内直接修改 state | 返回状态增量 `dict` |
+| 多处重复定义 Schema | 统一放 `contracts/` |
+| 并行分支写同 key 不加 reducer | 加 `Annotated[T, ...]` 或拆 key |
+| `except Exception` 吞 `CancelledError` | 先 `except asyncio.CancelledError` 再 raise |
+| Prompt 改了但没跑 Golden Set | 改 prompt 必须跑对应版本 golden 回归 |
+| 字符串拼接 SQL | sqlglot AST 解析 + 参数化绑定 |
+| 装饰器未用 `@wraps` | 必须用 `@functools.wraps` 保留元信息 |
+
+---
+
+## 七、Commit 与 PR 规范
+
+### Commit 格式（Conventional Commits）
+
+```
+<type>(<scope>): <subject>
+```
+
+| 字段 | 约束 |
+|------|------|
+| type | feat / fix / refactor / test / docs / chore / perf |
+| scope | agents / middleware / tools / rules / api / frontend / i18n / ci |
+| subject | 中文，≤30 字，祈使句，首字母小写 |
+
+**CI 强制检查**：`pr-gate.yml` Gate 1 使用 commitlint 验证。
+
+> 注意：实际使用的 `.commitlintrc.json` 位于项目根目录，scope-enum 已移除（scope 列表太长且不实用）。
+
+### PR 大小
+
+- 单 PR diff ≤ 300 行（不含 fixture / cassette / lockfile）
+- 超过 300 行应拆分为多个小 PR（推荐每个 PR 关联 1 个 FR）
+
+**CI 强制检查**：`pr-gate.yml` Gate 6 限制 600 行上限。
+
+### Commit 豁免条件
+
+以下情况可豁免 FR 关联检查：
+- `chore(deps): ...`
+- `docs(readme): ...`
+- `ci(workflow): ...`
+
+---
+
+## 八、核心目录边界
+
+| 职责 | 路径 | 约束 |
+|------|------|------|
+| State / Schema | `schemas/` | 统一用 Pydantic v2，禁止多处重复定义 |
+| Agent 编排 | `agents/` | 仅放图编排，业务逻辑抽离到 nodes/tools |
+| 节点实现 | `nodes/` | 单一职责，禁止超级节点 |
+| 工具 | `tools/` | 继承 BaseTool，统一 retry/fallback |
+| 硬规则 | `rules/` | 声明式 YAML + 纯 Python 解释器 |
+| Prompt 模板 | `prompts/` | `.prompt` 文件，禁止在节点内拼接 |
+| 配置 | `conf/` | YAML + dataclass，禁止硬编码 |
+| 实体模型 | `entities/` | `@dataclass` 或 Pydantic |
+| 节点契约 | `contracts/` | 继承 `NodeInput`/`NodeOutput` |
+
+**禁止**：agents/ 目录内不得写业务规则（必须写在 rules/）。
+
+---
+
+## 九、类型注解
+
+```python
+# ✅ 必须：所有函数/类/公开变量标注类型
+async def process_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+    ...
+
+# ✅ 复杂结构用 Pydantic（不要用裸 dict）
+class ToolInput(NodeInput):
+    query: str
+    options: list[str] = []
+    is_followup: bool = False
+
+# ✅ TypedDict（仅限 Agent State）
+class AgentState(TypedDict):
+    query: Required[str]
+    keywords: Required[list[str]]
+    results: Annotated[Required[list], operator.add]  # 累加归约
+
+# ✅ 用 | 而非 Union（Python 3.10+）
+result: list[str] | None
+
+# ✅ Python 3.12+ type 语句（推荐）
+type RouteName = Literal["general_chat", "data_query"]
+type SqlList = list[str]
+```
+
+### Python 3.12+ PEP 695 语法（推荐）
+
+```python
+def first[T](items: list[T]) -> T | None:
+    return items[0] if items else None
+
+def traced[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        with tracer.start_as_current_span(func.__name__):
+            return func(*args, **kwargs)
+    return wrapper
+```
+
+**禁止**：
+- 装饰器未使用 `@functools.wraps` 保留元信息
+- 混用绝对导入和相对导入（统一使用绝对导入，从项目根路径写 `from app.xxx`）
+- 滥用海象运算符 `:=`（仅在推导式/条件表达式中合理使用时允许）
+
+---
+
+## 十、State 定义（Agent）
+
+> **铁律**：Agent State **必须用 `TypedDict`**（不要用 `dict`，不要用 Pydantic BaseModel 作为 State）。
+
+```python
+from typing import TypedDict, Required, NotRequired, Annotated
+import operator
+
+
+class AgentState(TypedDict):
+    query: Required[str]
+    keywords: Required[list[str]]
+    retrieved_items: Annotated[Required[list], operator.add]  # 累加归约
+    error: Required[Optional[str]]
+    previous_result: NotRequired[str]
+    retry_count: Annotated[NotRequired[int], lambda old, new: old + new]  # 增量归约
+```
+
+### Accumulator vs Overwrite 语义
+
+| 字段类型 | 语义 | Annotated | 示例 |
+|----------|------|-----------|------|
+| 累加型 list | 跨节点追加，不覆盖 | `Annotated[list, operator.add]` | `messages`, `results` |
+| 累加型 list(去重) | messages、findings | `Annotated[list, add_messages]` | 同上 |
+| 标量 | 单分支写入 | 不加 Annotated | `current_step`, `approved` |
+| 标量 | 多分支求和(cost/token) | `Annotated[int, operator.add]` | `total_cost` |
+| 不可交换 reducer | 严格顺序 | `Annotated[int, lambda old, new: max(old, new)]` | `retry_count` |
+
+### 三大硬约束
+
+1. **禁止单 super-step 多分支写同 key 不加 reducer**（会抛 `InvalidUpdateError`）
+2. **禁止在节点内 `state["key"] = ...`**（必须返回 dict 增量）
+3. **自定义 reducer 必须满足交换律**（除明确标注）
+
+**禁止**：
+- 在 State 中存储原始 LLM 响应（含 usage metadata），序列化成本极高
+- 用 `dict` 作为 State 类型
+- 在节点内直接修改 state 变量
+
+---
+
+## 十一、节点规范（LangGraph）
+
+```python
+# ✅ 标准节点签名
+async def process_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+    writer = runtime.stream_writer
+    writer({"type": "thinking", "content": "正在处理..."})
+    writer({"type": "progress", "step": "处理中", "status": "running"})
+
+    # --- 入口校验 ---
+    try:
+        ToolInput.model_validate({"query": state["query"]})
+    except ValidationError as e:
+        logger.warning(f"process_node input validation failed: {e}")
+        return {"error": str(e), "results": []}
+
+    # ... 业务逻辑 ...
+
+    # --- 出口校验 ---
+    try:
+        output = ToolOutput.model_validate({"results": [...]})
+        return output.model_dump()
+    except ValidationError as e:
+        logger.warning(f"process_node output validation failed: {e}")
+        return {"error": str(e), "results": []}
+```
+
+节点规则：
+- 入口/出口用 Pydantic contract 校验
+- 通过 `runtime.stream_writer` 输出 SSE 事件
+- 返回**状态增量**（`dict`），禁止返回整个 state
+- 单一职责，单节点 <= 150 行
+- 禁止在节点内硬编码 Prompt（用 `load_prompt()`）
+
+---
+
+## 十二、节点契约（contracts/）
+
+```python
+# ✅ app/contracts/example.py
+"""example contract."""
+from app.contracts.common import NodeInput, NodeOutput
+
+
+class ToolInput(NodeInput):
+    """Extra fields are forbidden by parent ConfigDict(extra="forbid")."""
+    query: str
+    options: list[str] = []
+
+
+class ToolOutput(NodeOutput):
+    results: list[dict] = []
+    error: str | None = None
+
+
+__all__ = ["ToolInput", "ToolOutput"]
+```
+
+```python
+# ✅ app/contracts/common.py
+"""Node contract base classes."""
+from pydantic import BaseModel, ConfigDict
+
+
+class NodeInput(BaseModel):
+    """Base class for all node input contracts. Extra fields are forbidden."""
+    model_config = ConfigDict(extra="forbid")
+
+
+class NodeOutput(BaseOutput):
+    """Base class for all node output contracts. Extra fields are forbidden."""
+    model_config = ConfigDict(extra="forbid")
+```
+
+**禁止**：禁止在 `agents/` 内直接定义 Pydantic Model（必须抽到 contracts/）。
+
+---
+
+## 十三、工具规范（tools/）
+
+```python
+from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
+
+
+class QueryArgs(BaseModel):
+    query: str = Field(..., description="待执行的查询语句")
+
+
+class QueryTool(BaseTool):
+    name: str = "run_query"
+    description: str = "执行查询并返回结果"
+    args_schema: type[BaseModel] = QueryArgs
+
+    def _run(self, query: str) -> str:
+        ...
+
+    async def _arun(self, query: str) -> str:
+        ...
+```
+
+- `name`/`description` 精准清晰
+- 入参严格 Schema 校验
+- 所有工具调用必须幂等
+- 统一 retry/fallback（tenacity）
+- 禁止硬编码 LLM 参数（从 config 读取）
+
+---
+
+## 十四、错误处理与日志
+
+### 异常处理规范
+
+```python
+# ✅ 捕获明确异常，记录日志（用 logger.exception 自动抓 traceback）
+try:
+    result = await chain.ainvoke({"query": query})
+except ValidationError as e:
+    logger.exception("input_validation_failed", error_code="E_GENERAL_INVALID_REQUEST")
+    return {"error": str(e)}
+except httpx.TimeoutException as e:
+    raise TransientError("LLM 调用超时") from e  # 保留 __cause__
+
+# ❌ 禁止裸 except
+# except:
+
+# ❌ 禁止 except Exception 吞没 CancelledError
+# 必须先捕获 asyncio.CancelledError
+```
+
+### 日志规范（Loguru + JSON sink + trace_id）
+
+**唯一合法 import**：
+
+```python
+# ✅ 唯一合法写法
+from app.core.log import logger
+
+# ✅ 工厂函数
+from app.core.log import get_logger
+log = get_logger(__name__)
+
+# ❌ 禁止：直接 import loguru
+# from loguru import logger
+
+# ❌ 禁止：stdlib logging
+# import logging
+# logger = logging.getLogger(__name__)
+```
+
+**调用模式**：
+
+```python
+# ✅ 业务事件：永远用 kwargs，不用 f-string
+logger.info("llm_invoked", model="gpt-4o", prompt_tokens=812, latency_ms=230)
+
+# ✅ Request-scoped 上下文传播
+with logger.contextualize(user_id=pseudo_id):
+    await process(state, runtime)
+
+# ✅ except 块一律 logger.exception（自动抓 traceback）
+try:
+    await chain.ainvoke(inputs)
+except asyncio.TimeoutError:
+    logger.exception("chain_timeout")
+    raise
+
+# ❌ 禁止：f-string 进 message（无法被 Loki 聚合）
+logger.info(f"llm_invoked model={m} tokens={n}")
+
+# ❌ 禁止：print
+# print("debug")
+```
+
+**合规审计三事件**（必须打）：
+
+```python
+logger.warning("audit_safety_violation", user_id=pseudo, category="medical", content_hash=hash)
+logger.warning("audit_medical_reject", user_id=pseudo, reason="...", score=0.83)
+logger.info("audit_persona_state_switch", user_id=pseudo, from_state="...", to_state="...")
+```
+
+**log.py 骨架**：
+
+```python
+# backend/app/core/log.py
+from __future__ import annotations
+import logging, sys
+from loguru import logger as _loguru
+
+_LOG_FORMAT: str = "json"
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level = _loguru.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        _loguru.opt(depth=6, exception=record.exc_info).log(level, record.getMessage())
+
+def setup_logging(level: str = "INFO", fmt: str = _LOG_FORMAT) -> None:
+    _loguru.remove()
+    if fmt == "json":
+        _loguru.add(sys.stdout, serialize=True, enqueue=True, backtrace=True, diagnose=False, level=level)
+    else:
+        _loguru.add(sys.stderr, colorize=True, enqueue=True, backtrace=True, diagnose=False, level=level,
+            format="<green>{time:HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | {extra[trace_id]} | {message}")
+    logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+
+def get_logger(name: str):
+    return _loguru.bind(logger_name=name)
+
+__all__ = ["logger", "get_logger", "setup_logging"]
+```
+
+### trace_id / request_id 注入（FastAPI 中间件）
+
+```python
+# backend/app/core/middleware.py
+class TraceContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable[..., Awaitable[Response]]) -> Response:
+        trace_id = request.headers.get("X-Trace-Id") or uuid.uuid4().hex[:16]
+        request_id = uuid.uuid4().hex[:12]
+        with logger.contextualize(trace_id=trace_id, request_id=request_id):
+            request.state.trace_id = trace_id
+            response = await call_next(request)
+            response.headers["X-Trace-Id"] = trace_id
+            response.headers["X-Request-Id"] = request_id
+            return response
+```
+
+### PII 脱敏（黑名单）
+
+```python
+_PII_DENY_KEYS = {"password", "email", "phone", "card_number", "diagnosis", "symptom", "ssn", "api_key"}
+
+def _scrub_pii(record):
+    extra = record.get("extra", {})
+    for k in _PII_DENY_KEYS:
+        if k in extra:
+            extra[k] = "[REDACTED]"
+    return record
+
+_loguru = _loguru.patch(_scrub_pii)
+```
+
+### 日志等级规约
+
+| Level | 用途 | 触发后续动作 |
+|-------|------|-------------|
+| `DEBUG` | 详细诊断信息（payload / SQL bind values） | 仅 dev 开启 |
+| `INFO` | 业务事件（节点进入/退出、路由选定、LLM 调用） | Loki 索引 |
+| `WARNING` | 预期失败（validation fail、safety rejected、rate limit） | 监控告警 |
+| `ERROR` | 系统级故障（DB 不可用、配置缺失、未捕获异常） | PagerDuty / 邮件 |
+| `CRITICAL` | 全局不可用（启动失败、secret 泄漏） | 即时处置 |
+
+---
+
+## 十五、API 错误码规范（对外契约）
+
+> **唯一真源**：`docs/api/error-codes.md`。
+> 本节定义编码规则与对外契约，所有码值/i18n 文案以该字典为准。
+
+### 命名规则
+
+```
+E_<MODULE>_<VERB_OR_NOUN>
+```
+
+| 段 | 约束 | 取值依据 |
+|----|------|----------|
+| `E_` 前缀 | 强制，标识"Error code" | Microsoft / Stripe / Google 全部使用字符串字面量 |
+| `<MODULE>` | 强制大写 | `GENERAL` / `AUTH` / `USER` / `DIAGNOSIS` / `PLAN` / `VIDEO` / `CHECKIN` / `COMMUNITY` / `NOTIFICATION` / `COMPLIANCE` / `ASSISTANT` / `FEEDBACK` / `RECALL` / `SHARE` |
+| `<VERB_OR_NOUN>` | UPPER_SNAKE_CASE，仅字母/数字/下划线 | 推荐动词短语或动名词，避免 `_ERROR` / `_FAIL` 后缀 |
+
+**正例**：`E_AUTH_TOKEN_EXPIRED` / `E_DIAGNOSIS_IMAGE_TOO_LARGE` / `E_CHECKIN_DUPLICATE`
+
+**反例**：
+- `E_AUTH_TOKEN_EXPIRED_ERROR` — 重复 `_ERROR` 后缀
+- `E401` — 与 HTTP 状态码语义混淆
+- `AuthTokenExpired` — 没有 `E_` 前缀
+
+### HTTP 状态码映射
+
+| HTTP 范围 | 语义 | 典型业务码 |
+|-----------|------|-----------|
+| `200` | 业务级 soft-tip（语义成功但需提示） | `E_RECALL_EMPTY`、`E_RECALL_SAFETY_BLOCKED` |
+| `400` | 请求语法/语义错误 | `E_*_INVALID_INPUT`、`E_*_INVALID_ENUM` |
+| `401` | 未认证 / Token 失效 | `E_AUTH_*` |
+| `403` | 已认证但无权限 | `E_GENERAL_FORBIDDEN`、`E_COMPLIANCE_USER_BLOCKED` |
+| `404` | 资源不存在 | `E_*_NOT_FOUND` |
+| `409` | 资源状态冲突 | `E_*_DUPLICATE`、`E_*_ALREADY_EXISTS` |
+| `413` | 请求体过大 | `E_FEEDBACK_PHOTO_TOO_LARGE` |
+| `429` | 限流 | `E_*_RATE_LIMIT`（须配合 `Retry-After` 头） |
+| `500` | 未捕获的服务端异常 | `E_GENERAL_INTERNAL_ERROR` |
+| `502/503` | 上游依赖异常 | `E_DIAGNOSIS_LLM_UNAVAILABLE` |
+
+**强制约束**：
+- 同一业务码**必须**只对应一个 HTTP 状态码
+- 5xx 响应**必须**带 `traceparent` / `X-Request-ID` 头
+- 429 响应**必须**带 `Retry-After` 头（按 message 中的精确秒数或粒度）
+
+### ErrorResponse 响应体 Schema
+
+```json
+{
+  "error": {
+    "code": "E_USER_INVALID_INPUT",
+    "message_zh": "输入参数错误",
+    "message_en": "Invalid user input"
+  }
+}
+```
+
+| 字段 | 必填 | 约束 |
+|------|:----:|------|
+| `error.code` | ✅ | UPPER_SNAKE_CASE，正则 `^E_[A-Z]+_[A-Z0-9_]+$`，≤ 64 字符 |
+| `error.message_zh` | ✅ | 简体中文，可含 `{field}` `{value}` `{limit}` 等占位符，运行时插值 |
+| `error.message_en` | ⚠️ 推荐 | 英文回退文案，与 `message_zh` 一一对应 |
+
+### 枚举管理与禁止项
+
+- **唯一源**：`docs/api/error-codes.md`（人类可读）+ `openapi.yaml#/components/responses/*`（机器可读），必须同 PR 修改
+- **新增**：必须先在字典申请编号，经 PR review 后入库；编号即被永久固定
+- **冻结策略**：已进入的业务码**禁止**变更语义；如必须变更，应新增码并标注旧码为 `DEPRECATED`
+
+| 禁止 | 正确做法 |
+|------|----------|
+| 错误码字符串中带 HTTP 状态码（`E401_*`） | HTTP 状态码由状态行承载，业务码独立 |
+| 错误码语义随版本变更 | 新增新码 + 旧码打 `DEPRECATED` |
+| 在 `agents/` / `nodes/` / `api/` 内硬编码 `E_*` 字符串 | `from app.errors.codes import E_USER_INVALID_INPUT` |
+| `error-codes.md` 与 `openapi.yaml` 单边修改 | 两个文件必须同 PR |
+
+> **迁移说明**：本节（§十四）已迁移至 `docs/api/error-codes-spec.md`，保留作为参考。
+> 规范真源：`docs/api/error-codes.md`（码值字典）+ `docs/api/error-codes-spec.md`（编码规则）。
+
+---
+
+## 十六、配置规范
+
+```python
+# ✅ 从 app.conf.app_config 读取
+from app.conf.app_config import app_config
+
+llm = init_chat_model(
+    model=app_config.llm.model_name,
+    base_url=app_config.llm.base_url,
+    api_key=app_config.llm.api_key,
+    temperature=app_config.llm.temperature,
+)
+
+# ✅ dataclass 配置类
+@dataclass
+class LLMConfig:
+    model_name: str = "gpt-4o"
+    api_key: str = ""
+    base_url: str = ""
+    timeout: int = 30
+```
+
+**禁止**：硬编码密钥、阈值、模型名、base_url。
+
+---
+
+## 十七、Docstring 规范
+
+Google 风格，公开类/函数必须包含 Args / Returns / Raises：
+
+```python
+def route_by_classification(state: dict) -> str:
+    """
+    Route the query based on classification.
+
+    Args:
+        state: AgentState dict with classification result
+
+    Returns:
+        Route name string for langgraph conditional routing.
+
+    Raises:
+        ValueError: If classification is missing from state.
+    """
+```
+
+LangChain 规范：所有公开函数/类的 docstring 必须包含最小使用示例：
+
+```python
+class RouteClassifier:
+    """
+    Classify user query into route types.
+
+    Args:
+        llm: Language model instance for classification.
+
+    Example:
+        >>> classifier = RouteClassifier(llm)
+        >>> route = classifier.classify("查询数据")
+        >>> assert route in SUPPORTED_ROUTES
+    """
+```
+
+### 注释规范
+
+```python
+# ✅ 好的注释：解释不显而易见的决策
+# 保留 __cause__，方便排查根因
+raise TransientError("LLM 调用超时") from e
+
+# ❌ 坏的注释：用注释掩盖逻辑而非提取函数
+# x 如果是负数就取反
+if x < 0:
+    x = -x
+
+# ❌ 废弃代码：禁止保留注释掉的代码交付
+```
+
+- 禁止用注释掩盖应提取函数的逻辑
+- 禁止保留注释掉的废弃代码（直接删除，用 git 历史找回）
+
+---
+
+## 十八、测试规范
+
+### 测试目录结构
+
+| 目录 | 用途 |
+|------|------|
+| `tests/unit/` | 单元测试（纯 Python，无需外部依赖） |
+| `tests/contracts/` | Pydantic 契约验证测试 |
+| `tests/nodes/` | 单节点逻辑测试 |
+| `tests/subgraphs/` | 子图集成测试 |
+| `tests/integration/` | 模块间交互测试 |
+| `tests/e2e/` | 端到端流程测试 |
+| `tests/smoke/` | API 冒烟测试 |
+| `tests/state/` | 状态归约测试 |
+
+### 测试命名
+
+- 文件：`test_<模块>_<场景>.py`
+- pytest mark：`@pytest.mark.phase2` / `@pytest.mark.l5_e2e` / `@pytest.mark.l6_smoke`
+
+### 覆盖率门槛
+
+> ⚠️ **统一目标**：≥ 80%（与 14 条 Checklist #14 保持一致）。
+
+| 模块 | 目标 |
+|------|------|
+| rules | >= 90% |
+| agents / middleware | >= 80% |
+| tools | >= 70% |
+| **全局（新代码）** | **>= 80%** |
+
+### TDD 循环示例
+
+```python
+# Step 1 — RED（先写测试）
+@pytest.mark.asyncio
+async def test_process_node_returns_results(mock_state):
+    """AC-1.1: 正常返回结果"""
+    from app.nodes.process_node import process_node
+    with patch("app.nodes.process_node.llm") as mock_llm:
+        mock_llm.ainvoke.return_value = AsyncMock(content='["关键词A", "关键词B"]')
+        result = await process_node(mock_state, MagicMock())
+    assert "results" in result
+
+# Step 2 — GREEN（最简实现）
+async def process_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+    return {"results": []}  # 最简实现
+
+# Step 3 — 逐步完善 → 所有测试 PASS → REFACTOR
+```
+
+### 测试 Fixture 示例
+
+```python
+# tests/conftest.py
+@pytest.fixture(autouse=True)
+async def setup_fake_redis():
+    """自动注入 FakeAsyncRedis，确保跨测试隔离。"""
+    redis_client_manager.client = FakeAsyncRedis(decode_responses=True)
+    redis_client_manager.circuit_breaker = CircuitBreaker()
+    redis_client_manager.circuit_breaker.state = CircuitState.CLOSED
+    yield
+    redis_client_manager.client = None
+    redis_client_manager.circuit_breaker = CircuitBreaker()
+
+# pytest.mark 标记
+# phase2: 契约层测试（验证 Pydantic Input/Output）
+# l5_e2e: E2E 测试（需要真实数据库/缓存）
+# l6_smoke: Playwright 浏览器冒烟测试
+```
+
+### Async 工具函数示例
+
+```python
+@asynccontextmanager
+async def query_service_scope() -> AsyncIterator[QueryService]:
+    async for session in _provide_session(mysql_session_manager.session_factory):
+        yield QueryService(...)
+        break
+
+async def _provide_session(
+    session_factory: async_sessionmaker[AsyncSession] | None,
+) -> AsyncIterator[AsyncSession]:
+    if session_factory is None:
+        raise DatabaseError("Session factory unavailable", None)
+    for attempt in range(2):
+        session = session_factory()
+        try:
+            yield session
+            if session.in_transaction():
+                await session.commit()
+            return
+        except asyncio.CancelledError:
+            await _rollback_session(session)
+            raise
+        except Exception:
+            await _rollback_session(session)
+            if attempt == 0:
+                continue
+            raise
+```
+
+---
+
+## 十九、V1.1 工程纪律 14 条 Checklist
+
+> 来源：`tech-arch v1.1.1` §10.4-10.5。
+> 强约束：**1 人 AI 加速模式无人 code review，本节为 CI 强校验的最后兜底**。
+
+### 14 条 Checklist（编号 = CI 检查 ID）
+
+> ⚠️ **执行上下文**：所有 `grep` 和 `ruff` 命令从**项目根目录**执行；pytest/uv 从根目录执行。
+> 注意：jscpd 仅支持 Python 3.15+，本项目锁定 3.12，用 `ruff --select=F401,F811` 替代重复率检查。
+
+| # | 规则 | 检查命令 | 失败后果 |
+|---|------|---------|---------|
+| 1 | `from loguru import logger` 必须 0 命中 | `grep -rn "from loguru import logger" backend/app/` | CI red |
+| 2 | `print(` 必须 0 命中 | `grep -rn "print(" backend/app/` | CI red |
+| 3 | 裸 except 必须 0 命中 | `ruff check . --select=E722` | CI red |
+| 4 | `except Exception` 必须前置捕获 `asyncio.CancelledError` | `ruff check . --select=ASYNC101` | CI red |
+| 5 | 所有 agent 节点必须用 `class AgentState(TypedDict)` 不用 dict | `grep -rn ": dict" backend/app/agents/*/state.py` | CI red |
+| 6 | 所有 prompt 必须抽到 `app/prompts/`，业务代码不得 f-string 拼 prompt | `grep -rn 'f".*{.*}.*".*system' backend/app/agents/` | CI red |
+| 7 | 所有 LLM 参数（model/temperature/max_tokens）必须从配置读 | `grep -rn "model=\".*\"\|temperature=0\." backend/app/services/llm/` | CI red |
+| 8 | 所有依赖必须在 `pyproject.toml` 声明 | `uv pip check` | CI red |
+| 9 | 所有错误码字符串必须 `from app.errors.codes import E_*` | `grep -rn 'E_[A-Z_]\+\s*=\s*"' backend/app/` | CI red |
+| 10 | Pydantic 模型 docstring（D102 被 pyproject.toml 部分 ignore，以 pyproject.toml 为准） | `ruff check . --select=D102` | CI red |
+| 11 | service 函数 docstring | `ruff check backend/app/services/ --select=D102` | CI red |
+| 12 | 复杂度：函数 McCabe ≤ 10，类 ≤ 20 | `radon cc backend/app/ -a -s` | CI red |
+| 13 | 重复率：使用 ruff --select=F401,F811（jscpd 不支持 Python 3.12） | `ruff check . --select=F401,F811` | CI red |
+| 14 | 测试覆盖率：新代码 ≥ 80% | `pytest --cov=backend/app --cov-fail-under=80` | CI red |
+
+### 跑全部 14 条（合并脚本）
+
+```bash
+#!/usr/bin/env bash
+# scripts/check_14.sh —— CI 入口（从项目根目录执行）
+set -e
+echo "[1/14] loguru import 检查..."  && grep -rn "from loguru import logger" backend/app/ | grep -v "backend/app/core/log.py" | grep -q . && exit 1 || true
+echo "[2/14] print 检查..."          && grep -rn "print(" backend/app/ | grep -q . && exit 1 || true
+echo "[3/14] 裸 except 检查..."      && ruff check . --select=E722
+echo "[4/14] CancelledError 前置..." && ruff check . --select=ASYNC101
+echo "[5/14] AgentState TypedDict..." && grep -rn ": dict" backend/app/agents/*/state.py && exit 1 || true
+echo "[6/14] f-string prompt 检查..." && grep -rn 'f".*{.*}.*".*system\|f".*{.*}.*".*prompt' backend/app/agents/ && exit 1 || true
+echo "[7/14] LLM 参数硬编码..."       && grep -rn 'model="[^"]*"\|temperature=0\.' backend/app/services/llm/ | grep -v "app/conf/llm.py" && exit 1 || true
+echo "[8/14] 依赖声明..."            && uv pip check
+echo "[9/14] 错误码导入..."           && grep -rn 'E_[A-Z_]\+\s*=\s*"' backend/app/ | grep -v "app/errors/codes.py" && exit 1 || true
+echo "[10/14] Pydantic docstring..."  && ruff check . --select=D102
+echo "[11/14] service docstring..."   && ruff check backend/app/services/ --select=D102
+echo "[12/14] McCabe 复杂度..."       && radon cc backend/app/ -a -s
+echo "[13/14] 重复率(F401/F811)..."   && ruff check . --select=F401,F811
+echo "[14/14] 测试覆盖率..."          && pytest --cov=backend/app --cov-fail-under=80
+echo "ALL 14 CHECKS PASSED ✓"
+```
+
+---
+
+## 二十、四点自检清单
+
+每次完成代码编写后、提交前，AI 必须确认：
+
+| 检查项 | 问题 |
+|--------|------|
+| ✅ Goal met? | 是否完成了用户要求的内容？不多不少？ |
+| ✅ Files edited? | 是否修改了所有必要的文件？遗漏了契约文件？ |
+| ✅ Code works? | 能否通过 L0-L3 自动检查？逻辑是否可验证？ |
+| ✅ No errors? | Lint / type / 测试全部 PASS？ |
+
+> 任何一项失败，必须立即修复，不允许跳过。
+
+---
+
+## 二十一、并行质量检查
+
+```bash
+# 并行执行（适用于 CI 环境）
+uv run ruff check . --fix &
+uv run ruff format --check . &
+uv run mypy --strict backend/app/ &
+uv run pytest backend/tests/unit -x -q &
+wait
+```
+
+---
+
+## 二十二、自审报告格式
+
+```
+## Self-Review 检查结果
+
+### 工具检查（L0-L4）
+| 工具 | 结果 |
+| --- | --- |
+| py_compile | PASS / FAIL |
+| ruff check | PASS / FAIL N 个 ERROR |
+| ruff format | PASS / FAIL 需格式化 |
+| mypy --strict | PASS / FAIL N 个错误 |
+| pytest unit | PASS / FAIL N 个失败 |
+| ruff quality | PASS / FAIL N 个告警 |
+| radon complexity | PASS / FAIL N 个 A 级 |
+| jscpd | PASS / FAIL N% 重复率 |
+
+### 代码规范（L5-L6）
+| 检查项 | 结果 |
+| --- | --- |
+| docstring（含 Example） | PASS / WARN N 处缺失 |
+| 日志记录（统一工厂、logger.exception、f-string 检测） | PASS / FAIL N 处违规 |
+| 日志 PII 黑名单（email/phone/card/diagnosis 字段） | PASS / FAIL N 处明文 |
+| 日志合规审计三事件 | PASS / FAIL N 处缺失 |
+| trace_id 中间件注入 | PASS / FAIL 未注册 |
+| ADR 冲突 | PASS / FAIL 冲突 |
+| 依赖声明 | PASS / FAIL 未声明 |
+| State 类型 | PASS / FAIL N 处用 dict |
+| Prompt 抽取 | PASS / FAIL N 处硬编码 |
+| LLM 参数配置 | PASS / FAIL N 处硬编码 |
+| 禁止项（裸 except/print/agents 规则） | PASS / FAIL N 处 |
+| 反模式 | PASS / WARN N 处 |
+
+### 结论
+- **PASS**：可以提交
+- **FAIL**：N 项必须修复
+- **WARN**：N 项建议修复
+```
+
+---
+
+## 二十三、坏味道代码示例
+
+### 超级节点（应拆分）
+
+```python
+# ❌ 坏味道：300 行超级节点
+async def bad_node(state: AgentState, runtime: Runtime[AgentContext]):
+    # 100 行检索逻辑...
+    # 100 行处理逻辑...
+    # 100 行验证逻辑...
+    pass
+
+# ✅ 好：拆分为 3 个节点
+# extract_keywords → validate_extraction → merge_results
+```
+
+### 参数过多（应封装为 dataclass/Pydantic）
+
+```python
+# ❌ 坏味道：7 个参数的函数
+async def generate_result(
+    query: str, items: list, configs: dict,
+    date_info: dict, enum_block: str, user_context: dict, options: dict,
+) -> dict: ...
+
+# ✅ 好：封装为参数对象
+class QueryContext(NamedTuple):
+    query: str; items: list; configs: dict
+    date_info: dict; enum_block: str; user_context: dict
+
+async def generate_result(ctx: QueryContext, options: dict) -> dict: ...
+```
+
+### 嵌套过深
+
+```python
+# ❌ 坏味道：5 层嵌套
+if user:
+    if user.is_active:
+        if user.has_permission:
+            if resource.exists:
+                if resource.is_accessible:
+                    do_action()
+
+# ✅ 好：提前返回 + 扁平化
+if not user or not user.is_active: return None
+if not user.has_permission: return None
+if not resource.exists or not resource.is_accessible: return None
+do_action()
+```
+
+---
+
+## 二十四、参考文档
+
+- alwaysApply 速查表：`.cursor/rules/python-patterns.mdc`（反模式速查、Result 类型、Async 安全、SQL 安全、Interrupt 幂等性）
+- 工程红线：`.cursor/rules/project-prohibitions.mdc`
+- 文件操作铁则：`.cursor/rules/file-operation-stability.mdc`
+- Skill 索引：`.cursor/rules/skills.mdc`
+- 项目元信息：`.cursor/rules/project-meta.mdc`
+- 错误码字典（唯一真源）：`docs/api/error-codes.md`
+- OpenAPI 契约：`docs/api/openapi.yaml`

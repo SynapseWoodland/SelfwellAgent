@@ -1,7 +1,7 @@
 ---
 description: >
   5 条最高优先级禁止项（违反任意一条即 FAIL）。
-  alwaysApply=true 每条消息注入，Coding Agent 在 system prompt 摘要层就看到红线。
+  Coding Agent 在 system prompt 摘要层就看到红线。
   配套工程化兜底：R-5 工具跳级会被 .cursor/hooks/guard-shell.ps1 exit 2 硬阻塞；
   R-1~R-4 由 pre-commit / CI / PR-Gate / Eval Runner 兜底。
 alwaysApply: true
@@ -9,8 +9,8 @@ alwaysApply: true
 
 # 最高优先级禁止项（工程红线）
 
-> 5 条红线，违反任意一条即 FAIL。本文件是**唯一真源**，不要在 skill 或文档里复制。
-> 与 `.cursor/hooks/guard-shell.ps1` 配合：R-5（工具跳级）会被脚本在 `beforeShellExecution` 阶段 exit 2 硬阻塞；R-1~R-4 由 CI / pre-commit / PR-Gate / Eval Runner 兜底。
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
 
 ## 红线速查表
 
@@ -18,8 +18,8 @@ alwaysApply: true
 |---|------|----------|----------|
 | **R-1** | 不在 `pyproject.toml` 声明依赖 | 用 `uv add <pkg>` 或手动 `pyproject.toml` 编辑后 `uv lock` | CI pip check |
 | **R-2** | 在 `agents/` 目录（含 5 个子目录 `mcp/memory/safety/scheduler/graph`）内编写业务规则 | 业务规则必须放 `rules/`（YAML + 纯 Python 解释器）；`agents/` 仅放图编排 / 节点 / 工具桥接 / 记忆 / 安全 | Backend Agent + 目录扫描 |
-| **R-3** | 提交前未跑通 `coding-standards` 的 L0-L6 质量门禁 | commit 前必须 ruff / mypy / pytest / coverage 全 PASS；详见 `.cursor/skills/coding-standards/GATES.md` | pre-commit hook + CI |
-| **R-4** | 修改 Prompt 但未跑对应版本 Golden Set 回归 | 改 prompt → 跑 `python -m eval.runner --mode pr` → baseline 跌幅 ≤ 5%；详见 `.cursor/skills/golden-set/SKILL.md` §5 §6 | PR-Gate + Eval Runner |
+| **R-3** | 提交前未跑通 L0-L6 质量门禁 | commit 前必须 ruff / mypy / pytest / coverage 全 PASS；详见 `.cursor/rules/coding-standards.mdc` | pre-commit hook + CI |
+| **R-4** | 修改 Prompt 但未跑对应版本 Golden Set 回归 | 改 prompt → 跑 `python -m eval.runner --mode pr`（任何 `*.prompt` 文件 / `prompts/*.md` 改动**必触发**，由 `.github/workflows/pr-gate.yml` 卡 1 + `backend-ci.yml` OpenAPI lint 阶段自动调起）→ baseline 跌幅 ≤ 5%；详见 `.cursor/skills/golden-set/SKILL.md` §5 §6。任何 prompt 改动**仅当 base >= 1 个真实基线**才能合入；**禁止** mock baseline（"假阳性基线"）。 | PR-Gate 卡 1（`prompts/*.md` 改动触发 `eval.runner --mode pr`）+ Eval Runner exit code |
 | **R-5** | 改文件 / 列目录跳级用 shell（绕过 `file-operation-stability.mdc`） | 文件用 Read / StrReplace / Write；目录用 Glob；详见 `.cursor/rules/file-operation-stability.mdc` | `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞 |
 
 > 5 条红线，**R-5** 由 hooks 在 `beforeShellExecution` 阶段 exit 2 硬阻塞（最严）；**R-1~R-4** 由 CI / pre-commit / PR-Gate / Eval Runner 兜底。本文件是**唯一真源**，不要在 skill 或文档里复制。
@@ -60,9 +60,9 @@ git add pyproject.toml uv.lock
 | L2 | Eval Runner (Prompt 改) | `python -m eval.runner --mode pr` |
 | L3 | pytest integration | `uv run pytest tests/integration -x -q` |
 | L4 | ruff 安全检查 | `uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003` |
-| L6 | coverage ≥ 60% | `uv run pytest --cov=app --cov-report=term-missing` |
+| L6 | coverage ≥ 80% | `uv run pytest --cov=app --cov-report=term-missing` |
 
-**禁止**：跳过任一级别直接 commit。详见 `.cursor/skills/coding-standards/GATES.md`。
+**禁止**：跳过任一级别直接 commit。详见 [.cursor/rules/coding-standards.mdc](./coding-standards.mdc#二l0-l6-质量门禁命令速查)。
 
 ### R-4：Prompt 改动 + Golden Set 回归
 

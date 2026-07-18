@@ -1,6 +1,6 @@
 ---
 description: >
-  SelfwellAgent 项目元信息（V3 架构对齐）。alwaysApply=true 每条消息注入，
+  SelfwellAgent 项目元信息（V3 架构对齐）。
   让 Cursor 在 system prompt 摘要层就知道这是 FastAPI + LangGraph + MCP + Qdrant
   + PostgreSQL + Volcengine 网关增量化 的 AI Agent 项目（Python 3.12+ / uv）。
   详细技术架构见 docs/architecture/tech-architecture-design-v3.md（V3 真源）。
@@ -9,8 +9,8 @@ alwaysApply: true
 
 # SelfwellAgent 项目元信息（V3 架构对齐）
 
-> 这是项目级"自我介绍"，**所有规范约束详见对应 root rule / skill**，本文件只列技术栈、目录结构和 V3 核心事实。
-> 完整技术架构图、Agent 编排、合规四层纵深、NFR 见 [`docs/architecture/tech-architecture-design-v3.md`](../../docs/architecture/tech-architecture-design-v3.md)（V3 真源）。
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
 
 ## 一、技术栈（V3 对齐 §2.1）
 
@@ -135,9 +135,9 @@ alwaysApply: true
 
 ## 五、工具使用规则
 
-### 5.1 阅读工具说明
+### 5.1 工具使用规范
 
-使用工具前必需要读 `D:\agent-project\SelfwellAgent\docs\harness\tools` 下面的说明文档。
+使用工具前请参考 `.cursor/rules/file-operation-stability.mdc` 中的工具优先级铁则，违规 shell 会被 `.cursor/hooks/guard-shell.ps1` exit 2 硬阻塞。
 
 ### 5.2 工具优先级铁则（唯一真源）
 

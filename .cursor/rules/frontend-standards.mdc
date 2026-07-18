@@ -1,0 +1,370 @@
+---
+description: >
+  前端编码规范速查（alwaysApply）。当编写、审查或重构 Flutter / 微信小程序代码时触发。
+  覆盖：Flutter Riverpod 状态管理、微信小程序 TypeScript 规范、WXSS/CSS 类名规范、测试规范、性能优化、审核标准。
+alwaysApply: true
+globs:
+  - "**/*.dart"
+  - "**/*.wxml"
+  - "**/*.wxss"
+  - "**/*.ts"
+---
+
+# 前端编码规范速查
+
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
+
+---
+
+## 一、Flutter 规范
+
+### 1.1 状态管理
+
+项目使用 **Riverpod 2.x**（`flutter_riverpod`），禁止使用裸 `StatefulWidget` 管理业务状态。
+
+| 场景 | 推荐 Provider | 说明 |
+|------|--------------|------|
+| 基础数据源 | `Provider<T>` | 只读，不可变 |
+| 异步数据 | `FutureProvider<T>` / `StreamProvider<T>` | 自动加载/错误状态 |
+| 可变状态 | `StateNotifierProvider<T>` | 需手动修改 |
+| 组件订阅 | `ConsumerWidget` / `ConsumerStatefulWidget` | 在 `build` 中 `ref.watch()` |
+
+```dart
+// ✅ 正确：FutureProvider 用于异步数据
+final userProvider = FutureProvider<User>((ref) async {
+  return await api.getMe();
+});
+
+// ✅ 正确：ConsumerWidget 订阅状态
+class ProfilePage extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(userProvider);
+    return userAsync.when(
+      data: (user) => Text(user.nickname),
+      loading: () => const CircularProgressIndicator(),
+      error: (e, _) => Text('Error: $e'),
+    );
+  }
+}
+
+// ❌ 禁止：裸 StatefulWidget 管理业务状态
+class _BadPage extends StatefulWidget { ... }
+```
+
+### 1.2 核心依赖
+
+所有依赖必须通过 `pubspec.yaml` 声明，禁止硬编码版本范围。
+
+| 依赖 | 用途 | 最低版本 |
+|------|------|---------|
+| flutter_riverpod | 状态管理 | ^2.5.1 |
+| go_router | 路由导航 | ^14.2.0 |
+| dio | HTTP 客户端 | ^5.7.0 |
+| json_serializable | JSON 序列化 | ^6.8.0 |
+| golden_toolkit | Golden 视觉测试 | ^0.15.0 |
+
+### 1.3 目录结构
+
+```
+lib/
+├── core/
+│   ├── api/           # API 服务（ApiService）、Dio 封装、异常类型
+│   ├── auth/          # 认证仓储（AuthRepository）
+│   ├── theme/         # 主题：颜色 token、间距、文本样式
+│   ├── router/        # GoRouter 配置
+│   ├── storage/       # SecureStorage / SharedPreferences 封装
+│   └── notification/  # FCM 推送服务
+├── pages/             # 页面组件（按功能模块分目录）
+│   ├── home/
+│   ├── diagnosis/
+│   ├── plan/
+│   └── profile/
+├── widgets/           # 共享组件（无状态或 Riverpod 驱动）
+└── services/          # 业务服务层（抽离复用逻辑）
+```
+
+**禁止**：
+- 页面组件直接 import `core/api/dio_client.dart`（必须通过 `ApiService`）
+- 在 `widgets/` 目录内写页面级状态逻辑
+
+### 1.4 命名规范
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| 文件 | `snake_case.dart` | `user_profile.dart` |
+| 类 | `PascalCase` | `class UserProfile` |
+| Provider | `xxxProvider` | `final userProvider` |
+| Widget | `PascalCase` + 后缀 | `ProfilePage`, `TaskCard` |
+| 常量 | `UPPER_SNAKE_CASE` | `const MAX_RETRY = 3` |
+
+### 1.5 注释规范
+
+项目使用 JSDoc 风格 `///` 注释，包含 IA-REF、FIGMA 来源、API 端点引用。
+
+```dart
+/// IA-REF: docs/design/ia-and-wireframe.md §4.2 P02 首页
+/// FIGMA: docs/design/figma-pixso-spec/pages/03-home.html
+/// API:
+///   - openapi.yaml tag=users operationId=getCurrentUser GET /users/me
+///
+/// Token: color/primary/mint=#A8C5B5, color/bg/page=#FAFBFC
+library;
+```
+
+### 1.6 Golden 测试
+
+修改 UI 组件后必须更新 Golden 文件：
+
+```bash
+flutter test --update-goldens
+```
+
+---
+
+## 二、微信小程序 TypeScript 规范
+
+### 2.1 类型导入
+
+```typescript
+// ✅ 正确：从统一类型文件导入
+import type { UserMe, TodayPlan, CheckinToday } from '../../types/api';
+
+// ❌ 禁止：页面内重复定义后端已有类型
+interface MyUser { user_id: string; ... }
+```
+
+### 2.2 API 错误处理
+
+统一使用 `ApiException`，禁止裸 `try/catch` 吞错误。
+
+```typescript
+import { get, post, ApiException } from '../../utils/request';
+
+try {
+  const data = await get<UserMe>('/users/me');
+} catch (e) {
+  if (e instanceof ApiException) {
+    if (e.httpStatus === 401) {
+      // 跳转登录页
+      wx.reLaunch({ url: '/pages/login/index' });
+    } else {
+      wx.showToast({ title: e.message, icon: 'none' });
+    }
+  }
+}
+```
+
+### 2.3 组件规范
+
+| 文件 | 用途 |
+|------|------|
+| `Component()` | 可复用组件 |
+| `Page()` | 页面入口 |
+| `Behavior()` | 行为复用 |
+
+```typescript
+// ✅ 正确：组件必须声明 styleIsolation
+Component({
+  options: {
+    styleIsolation: 'apply-shared',
+    multipleSlots: false,
+  },
+  properties: {
+    tabs: { type: Array as PropType<string[]>, value: [] },
+    active: { type: Number, value: 0 },
+  },
+  methods: {
+    onTap(e: WechatMiniprogram.CustomEvent) {
+      const index = Number((e.currentTarget as any).dataset.index);
+      this.triggerEvent<{ index: number; label: string }>('change', { index });
+    },
+  },
+});
+```
+
+### 2.4 禁止项
+
+| 禁止 | 正确做法 |
+|------|---------|
+| `any` 类型 | 使用 `PropType<T>` 或具体类型 |
+| 硬编码 `wx.request` | 通过 `utils/request.ts` 封装 |
+| 直接操作 `app.globalData` | 通过 `getApp()` 获取 |
+| 字符串拼接 API URL | 从 `utils/config.ts` 读取 `API_BASE_URL` |
+
+---
+
+## 三、WXSS / CSS 类名命名规范（必须遵守）
+
+> CSS 标识符规则（CSS Syntax Level 3）：ident 只能由 `[A-Za-z0-9_-]` + Unicode 转义序列组成，**不允许字面中文**。
+
+### 3.1 错误写法（编译即报错）
+
+```css
+/* WXSS 文件编译错误：unexpected `` at pos N */
+.direction-level-level-轻度,
+.direction-level-中度,
+.direction-level-重度 { ... }
+```
+
+```html
+<view class="direction-level direction-level-{{dir.level}}">  <!-- dir.level='轻度' 拼接后是中文 class -->
+```
+
+**报错示例**：
+
+```
+[ WXSS 文件编译错误]
+./pages/assistant-home/index.wxss(568:24): unexpected `` at pos 11006
+```
+
+### 3.2 推荐写法 1：属性选择器（最适合"动态值"）
+
+业务字段值（如 `intensity=轻柔` / `level=轻度` / `status=active`）是中文/枚举，**用 `[data-xxx='value']` 属性选择器**：
+
+```css
+.direction-level[data-level='轻度'] {
+  background-color: rgba(168, 197, 181, 0.35);
+}
+.direction-level[data-level='中度'] {
+  background-color: rgba(240, 217, 196, 0.7);
+}
+.direction-level[data-level='重度'] {
+  background-color: rgba(229, 62, 62, 0.15);
+}
+```
+
+```html
+<view class="direction-level" data-level="{{dir.level}}">{{dir.level}}</view>
+```
+
+### 3.3 推荐写法 2：kebab-case 英文别名（静态样式）
+
+明确知道值集合时，class 用英文别名：
+
+```css
+.intensity-light, .intensity-soft { ... }
+.intensity-normal { ... }
+.intensity-strong { ... }
+```
+
+```html
+<view class="intensity intensity-{{intensityEn}}">  <!-- intensityEn = light | normal | strong -->
+```
+
+### 3.4 推荐写法 3：data 属性 + JS 计算
+
+复杂样式用 inline style：
+
+```html
+<view style="background-color: {{bgColor}}; color: {{textColor}};">{{level}}</view>
+```
+
+### 3.5 自检清单
+
+- [ ] 任何 `class="xxx-{{y.zz}}"` 模板拼接，`xxx-yzz` 拼接后**整体必须是合法 ASCII 标识符**
+- [ ] 中文字段值（如 backend enum）**绝不出现在 class 名里**，只能用 `[data-xxx='中文']` 属性选择器或 inline style
+- [ ] PR diff 涉及 wxss / wxml 时，必须跑一遍"开发者工具 → 真机编译"再合并
+
+---
+
+## 四、测试规范
+
+### 4.1 小程序测试框架
+
+| 框架 | 用途 | 配置文件 |
+|------|------|---------|
+| vitest | 单元测试、契约测试 | `vitest.config.ts` |
+| playwright | 视觉回归测试 | `playwright.config.ts` |
+
+### 4.2 测试文件命名
+
+| 类型 | 命名模式 | 示例 |
+|------|---------|------|
+| 组件契约测试 | `xxx-component.test.ts` | `tab-switcher-component.test.ts` |
+| API 契约测试 | `xxx-contract.test.ts` | `plan-field-mapping.test.ts` |
+| 视觉回归测试 | `visual-baseline.spec.ts` | `visual-baseline/visual-baseline.spec.ts` |
+
+### 4.3 Flutter 测试
+
+| 类型 | 工具 | 说明 |
+|------|------|------|
+| Golden 测试 | `golden_toolkit` | UI 组件截图比对 |
+| Widget 测试 | `flutter_test` | 组件逻辑测试 |
+| Integration 测试 | `integration_test` | 端到端流程 |
+
+### 4.4 测试执行命令
+
+```bash
+# 小程序 vitest
+pnpm test
+
+# 小程序视觉回归
+pnpm visual:baseline        # 验证 baseline
+pnpm visual:update          # 更新 baseline
+
+# Flutter
+flutter test
+flutter test --update-goldens
+```
+
+---
+
+## 五、微信小程序审核标准（提交前必查）
+
+> 来源：https://developers.weixin.qq.com/miniprogram/dev/framework/audits/best-practice.html
+
+| # | 标准 | 阈值 |
+|---|------|------|
+| 1 | 避免 JS 异常 | 0 个未捕获异常 |
+| 2 | 避免网络请求失败 | 100% 成功率 |
+| 3 | 不使用已废弃 API | 0 个废弃 API 调用 |
+| 4 | 使用 HTTPS | 所有请求加密 |
+| 5 | 避免 setData 冗余 | 只传渲染相关数据 |
+| 6 | 设置最低基础库版本 | 确保 API 可用 |
+| 7 | 删除不可达页面 | 不打包未访问页面 |
+| 8 | setData 调用频率 | <20 次/秒 |
+| 9 | WXML 节点数 | <1000 个/页面 |
+| **10** | **WXSS 编译通过（无中文 class 标识符）** | **0 编译错误** |
+
+---
+
+## 六、输出格式（提交前自检）
+
+```
+## Frontend 规范自检结果
+
+### Flutter
+| 检查项 | 结果 |
+| --- | --- |
+| 状态管理（flutter_riverpod） | ✅ / ⚠️ |
+| 路由（go_router） | ✅ / ⚠️ |
+| 命名规范（无神秘命名 / 单字母 / 匈牙利） | ✅ / ⚠️ |
+| 禁止裸 StatefulWidget 管理业务状态 | ✅ / ⚠️ |
+| Golden 测试更新 | ✅ / ⚠️ |
+| 禁止硬编码 API URL | ✅ / ⚠️ |
+
+### 微信小程序
+| # | 标准 | 结果 |
+|---|------| --- |
+| 1 | TypeScript 类型完整（无 any） | ✅ / ⚠️ |
+| 2 | ApiException 统一错误处理 | ✅ / ⚠️ |
+| 3 | 组件契约测试存在 | ✅ / ⚠️ |
+| 4 | WXSS 无中文 class | ✅ / 🔴 |
+| 5 | setData 频率 <20 次/秒 | ✅ / ⚠️ |
+| 6 | WXML 节点 <1000 | ✅ / ⚠️ |
+| 7 | 视觉回归测试通过 | ✅ / ⚠️ |
+
+**结论**：✅ 可以提交 / ⚠️ 请修复后再提交 / 🔴 必须修复
+```
+
+---
+
+## 七、参考
+
+- 项目架构文档：`docs/architecture/`
+- ADR 决策记录：`docs/adr/`
+- API 类型定义：`apps/mp-selfwell/miniprogram/types/api.ts`
+- Flutter 核心文件：`apps/flutter_app/lib/core/api/api_service.dart`
+- Skill 索引：`.cursor/rules/skills.mdc`
