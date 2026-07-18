@@ -132,7 +132,7 @@ disable-model-invocation: false
 |-------|----------|------------------|
 | `coding-standards/SKILL.md` | 改 Python 代码 → 代码质量自审 | 不查 ruff/mypy/radon |
 | `pr-gate/SKILL.md` | 提 PR → FR/验收测试/ADR/Commit 格式 | 不查 commit 规范 |
-| `sdd-tdd/SKILL.md` | 新增功能 → SDD→TDD 循环 | 不驱动 TDD 流程 |
+| `ad-tdd/SKILL.md` | 新增功能 → SDD→TDD 循环 | 不驱动 TDD 流程 |
 
 ---
 
@@ -148,7 +148,7 @@ disable-model-invocation: false
 | **业务路由 README** | [`backend/eval/README.md`](../../backend/eval/README.md) | Markdown | — |
 | **拦截回归（输入）** | [`backend/tests/intercept/test_input.py`](../../backend/tests/intercept/test_input.py) | pytest | `G-01 ~ G-30` |
 | **拦截回归（输出）** | [`backend/tests/intercept/test_output.py`](../../backend/tests/intercept/test_output.py) | pytest | `G-R/S/C-0x` |
-| **拦截回归 README** | [`backend/tests/intercept/README.md`](../../backend/tests/intercept/README.md) | Markdown | — |
+| **拦截回归 README** | （无独立 README，整合于本 Skill §落地状态） | Markdown | — |
 | **已废弃的拦截回归** | （已删除）`backend/app/services/compliance/tests/` | — | — |
 | **合规检查器本体** | [`backend/services/compliance/checker.py`](../../backend/services/compliance/checker.py) | Python | — |
 
