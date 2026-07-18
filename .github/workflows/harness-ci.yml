@@ -1,0 +1,30 @@
+name: harness-ci
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "docs/harness/**"
+      - "agents/harness/**"
+      - ".cursor/skills/harness-*/**"
+      - ".github/workflows/harness-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "docs/harness/**"
+      - "agents/harness/**"
+      - ".cursor/skills/harness-*/**"
+      - ".github/workflows/harness-ci.yml"
+
+jobs:
+  harness-grep-check:
+    name: Harness 精简后 grep 兜底
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Harness grep 兜底（4 条）
+        run: bash docs/harness/scripts/check.sh
