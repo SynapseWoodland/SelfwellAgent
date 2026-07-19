@@ -126,7 +126,7 @@ flowchart LR
 
 ### 3.3 一人模式专属优化（V2 修复）
 
-> 来源：HARNESS-EVALUATION.md M1/M2 修复
+> 来源：V2 评估（M1/M2 修复，详见 `harness/checklist.md` §W4 P2 评估阶段 + 附录 A 决策记录）
 
 - **`auto_mode: true`**：默认连续推进，无需每 phase 询问
 - **`one_person_synthesis: true`**：PRE_MORTEM/SIGN_OFF 仅 2 reviewer（架构 + 安全），跳过 5 reviewer 串行
@@ -407,6 +407,6 @@ V2 修复后：
 - 入门文档：`harness/README-V2.md`
 - 迁移说明：`harness/MIGRATION-V2.md`
 - 改造 Checklist：`harness/checklist.md`
-- 评估报告：`harness/HARNESS-EVALUATION.md`
+- 评估报告归档：已整合到 `harness/checklist.md` §W4 P2 + 附录 A（HARNESS-EVALUATION.md 已删除）
 - 红线：`.cursor/rules/project-prohibitions.mdc`
 - 工具铁则：`.cursor/rules/file-operation-stability.mdc`

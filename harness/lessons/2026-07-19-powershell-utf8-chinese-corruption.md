@@ -8,7 +8,7 @@ status: active
 
 ## 触发场景
 
-2026-07-19 C-14 迁移 `harness/` → `harness/` 路径替换阶段。PowerShell `Set-Content` 把 41 份 `harness/` 内部文件的 `harness/` 字符串替换为 `harness/` 后，多份文件中文部分（`HARNESS-EVALUATION.md` / `templates/acceptance.md` / `templates/pre-mortem.md` / `templates/lesson-record.md`）在终端显示成 `?` / 乱码字符，且 `git diff --cached --stat` 显示大幅删行（`+2999/-4227` 净减 1228 行），用户立即警觉并要求"全部回退"。
+2026-07-19 C-14 迁移 `harness/` → `harness/` 路径替换阶段。PowerShell `Set-Content` 把 41 份 `harness/` 内部文件的 `harness/` 字符串替换为 `harness/` 后，多份文件中文部分（V2 评估报告 / `templates/acceptance.md` / `templates/pre-mortem.md` / `templates/lesson-record.md`）在终端显示成 `?` / 乱码字符，且 `git diff --cached --stat` 显示大幅删行（`+2999/-4227` 净减 1228 行），用户立即警觉并要求"全部回退"。
 
 ## 根因分析
 
