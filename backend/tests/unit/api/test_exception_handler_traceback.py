@@ -1,7 +1,7 @@
 """验证 ExceptionHandlerMiddleware 捕获异常时的日志级别策略。
 
 真源：docs/api/openapi.yaml + error-codes.md + RULES.md §5 +
-coding-standards/SKILL.md §九-日志（业务异常不打 traceback，未预期异常打 traceback）。
+coding-standards.mdc §九-日志（业务异常不打 traceback，未预期异常打 traceback）。
 
 业务异常（``SelfwellError``）一律用结构化字段 ``logger.warning``：每条 4xx
 限流 / 状态冲突都打 traceback 会污染 Loki 索引；调试时按 ``code / severity / path``

@@ -10,7 +10,7 @@
 - 与 baseline.json 比较回归（每指标跌 >5% 拒绝合入）
 - 拦截判定走 ``app.services.compliance.checker``（不重写关键词）
 
-本文件是骨架，符合 .cursor/skills/coding-standards/SKILL.md：
+本文件是骨架，符合 .cursor/skills/coding-standards.mdc：
 - PEP 695 内联泛型 + type 语句别名
 - 全部函数 < 80 行
 - docstring 含功能 / 入参 / 出参

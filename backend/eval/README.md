@@ -110,6 +110,6 @@ python -m backend.eval.runner --mode pr --output eval_report.json
 
 | Skill | 触发场景 | 本目录不做什么 |
 |-------|----------|----------------|
-| `coding-standards/SKILL.md` | 改 Python 代码 → 代码质量自审 | 不查 ruff/mypy/radon |
+| `coding-standards.mdc` | 改 Python 代码 → 代码质量自审 | 不查 ruff/mypy/radon |
 | `golden-set/SKILL.md` | 改 yaml / 跑 runner / baseline 回归 | 不查 case 编号规范（本 README §"用例编号规范"） |
 | `pr-gate/SKILL.md` | 提 PR → FR/验收测试/ADR/Commit 格式 | 不查 commit 规范 |
