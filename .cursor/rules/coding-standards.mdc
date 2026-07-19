@@ -2,7 +2,7 @@
 description: >
   Python 编码规范速查（alwaysApply，每条消息注入）。
   覆盖：L0-L6 质量门禁命令、复杂度约束、命名规范、禁止项速查表、节点规范、契约规范、
-  错误处理与日志、API 错误码规范、测试规范、工程纪律 14 条 Checklist。
+  错误处理与日志、API 错误码规范、测试规范、工程纪律 14 条 Checklist、REST API 设计规范、DDD 设计规范。
 alwaysApply: true
 ---
 
@@ -26,10 +26,25 @@ alwaysApply: true
 
 ## 二、L0-L6 质量门禁命令速查
 
-> **强制**：commit 前必须全部 PASS。
-> 
-> **执行上下文**：所有 `uv run` 命令必须从**项目根目录**执行（因为 `pyproject.toml` 在根目录）。
-> `cd backend` 仅用于需要切换工作目录的工具（如 `python -m py_compile`）。
+> **唯一真源**：L0-L6 完整定义、命令、阈值集中维护在 [`l0-l6-gates.mdc`](l0-l6-gates.mdc)（同目录下 alwaysApply 真源）。
+>
+> 本节仅作速查摘要，**禁止**在此重写或修改命令/阈值——如需修订请改 `l0-l6-gates.mdc`，然后同步本节摘要。
+
+**强制**：commit 前必须全部 PASS。**执行上下文**：所有 `uv run` 命令必须从**项目根目录**执行（因为 `pyproject.toml` 在根目录）。`cd backend` 仅用于需要切换工作目录的工具（如 `python -m py_compile`）。
+
+**L0-L6 速查表**（详见 `l0-l6-gates.mdc` §一）：
+
+| 级别 | 工具 | 命令 |
+|------|------|------|
+| L0 | 语法 & 导入 | `python -m py_compile app/xxx.py` |
+| L1 | ruff check + format | `ruff check . --fix && ruff format --check .` |
+| L2 | mypy strict | `mypy --strict backend/app/` |
+| L3 | pytest 全量 | `pytest tests/{unit,integration,e2e,smoke} -x -q` |
+| L4 | ruff 安全规则 + jscpd | `ruff check . --select=F401,F811,S608,S307,SEC,B,B003 && jscpd backend/ --threshold 4` |
+| L5 | 架构 & 安全 grep | 12 条 grep（见 `l0-l6-gates.mdc` §一 L5.1 / §一 L5.2） |
+| L6 | coverage | `pytest --cov=app --cov-fail-under=60` |
+
+**Eval Runner 不在 L0-L6 范围**：详见 `l0-l6-gates.mdc` §三（R-4 红线，Prompt 改动专属）。
 
 ### L0 — 语法 & 导入（秒级）
 
@@ -82,9 +97,15 @@ uv run radon -a -i A backend/app/ | grep -v ": A$"
 # 注意：jscpd 仅支持 Python 3.15+，本项目锁定 3.12，使用 ruff --select=F401,F811 替代重复率检查
 ```
 
-### L5 — 架构 & 安全（人工审查）
+### L5 — 架构 & 安全（**AI 审查 + CI 兜底**）
 
 > ⚠️ 以下命令需从**项目根目录**执行（不是 backend/）。
+>
+> **执行者**：AI 审查阶段（developer / reviewer agent）跑 grep 12 条；**不是 verifier 也不是人工**。
+>
+> **兜底**：CI 全部门禁拦截（backend-ci.yml L5 步骤 + PR-Gate 卡口 7）。**不靠人工**——一人 AI 开发模式无人可托。
+>
+> 完整定义见 [`l0-l6-gates.mdc`](l0-l6-gates.mdc) §一 L5（§L5.1 AI 审查 + §L5.2 CI 兜底）。
 
 ```bash
 # 禁止从 loguru 直接 import（仅 backend/app/core/log.py 豁免）
@@ -118,8 +139,9 @@ grep -rn "model=" backend/app/
 ### L6 — 覆盖率
 
 ```bash
-uv run pytest --cov=backend/app --cov-report=term-missing
-# 目标：≥ 80%（与 §十七覆盖率门槛保持一致）
+uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=60
+# 阈值：整体 ≥ 60%（CI 硬卡数字）；模块级阈值（rules ≥ 90% / agents+middleware ≥ 80% / tools ≥ 70%）见 §十八
+# 注意：CI 实际跑的是 `--cov=app`（不是 `--cov=backend/app`），命令以 CI 为准
 ```
 
 ---
@@ -1049,7 +1071,940 @@ do_action()
 
 ---
 
-## 二十四、参考文档
+## 二十五、REST API 设计规范（实用 REST）
+
+> 基于 Pragmatic REST 风格，平衡 REST 约束与实际工程效率。
+
+### 25.1 版本控制
+
+| 策略 | 规范 | 示例 |
+|------|------|------|
+| **URL Path（推荐）** | 大版本号置于 Path | `/api/v1/users`、`/api/v2/orders` |
+| 废弃版本 | 响应头 `Deprecation: true` + `Sunset` 日期 | `Deprecation: true; Sunset="2025-12-31"` |
+
+### 25.2 资源命名
+
+| 规范 | 正确示例 | 错误示例 |
+|------|----------|----------|
+| 复数名词 | `/users` | `/user`、`/getUser` |
+| Kebab-case | `/user-profiles`、`/checkin-records` | `/userProfiles`、`/checkinRecords` |
+| 层级嵌套 ≤ 2 级 | `/users/{uid}/orders` | `/users/{uid}/orders/{oid}/items/{iid}` |
+| 避免动词 | `/users` | `/getUsers`、`/createUser` |
+
+### 25.3 HTTP 方法语义
+
+| 方法 | 语义 | 幂等 | 请求体 | 响应体 |
+|------|------|------|--------|--------|
+| `GET` | 查询资源 | ✅ | 无 | 资源 / 列表 |
+| `POST` | 创建资源 | ❌ | 新资源数据 | 201 + 资源 |
+| `PUT` | 全量替换 | ✅ | 完整资源数据 | 200 + 资源 |
+| `PATCH` | 部分更新 | ✅ | 待更新字段 | 200 + 资源 |
+| `DELETE` | 删除资源 | ✅ | 无 | 204 No Content |
+
+### 25.4 状态码使用
+
+| 状态码 | 语义 | 使用场景 |
+|--------|------|----------|
+| `200 OK` | 成功 | GET/PUT/PATCH 成功 |
+| `201 Created` | 创建成功 | POST 创建新资源 |
+| `202 Accepted` | 异步接受 | 耗时操作（导出、批量） |
+| `204 No Content` | 无返回体 | DELETE 成功 |
+| `400 Bad Request` | 请求错误 | 参数校验失败 |
+| `401 Unauthorized` | 未认证 | Token 缺失/失效 |
+| `403 Forbidden` | 无权限 | 已认证但无权限 |
+| `404 Not Found` | 资源不存在 | 资源未找到 |
+| `409 Conflict` | 状态冲突 | 重复创建、资源状态冲突 |
+| `422 Unprocessable Entity` | 语义错误 | 业务规则校验失败 |
+| `429 Too Many Requests` | 限流 | 配合 `Retry-After` 头 |
+| `500 Internal Server Error` | 服务端异常 | 未捕获异常 |
+
+**红线**：禁止用 `200 OK` 包裹错误响应（`{"success": false, "error": ...}`）。
+
+### 25.5 请求/响应规范
+
+```python
+# ✅ 统一错误响应 schema
+class ErrorResponse(BaseModel):
+    error: ErrorDetail
+
+class ErrorDetail(BaseModel):
+    code: str  # E_* 错误码
+    message_zh: str
+    message_en: str | None = None
+
+# ✅ 创建资源返回 201 + Location 头
+@app.post("/users", status_code=201, response_model=UserResponse)
+async def create_user(user: UserCreate) -> UserResponse:
+    new_user = await user_service.create(user)
+    # 必须返回 Location 头
+    return UserResponse(
+        headers={"Location": f"/users/{new_user.id}"},
+        content=new_user,
+    )
+
+# ✅ 分页列表返回嵌套 pagination
+class PageResponse(BaseModel, Generic[T]):
+    items: list[T]
+    pagination: Pagination
+
+# ✅ Action 场景用子资源（而非动词）
+# ✅ POST /users/{uid}/send-verification-email
+# ❌ POST /send-verification-email?user_id=xxx
+```
+
+### 25.6 缓存与条件请求
+
+| 头 | 用途 | 规范 |
+|-----|------|------|
+| `ETag` | 资源版本标识 | 响应必带 |
+| `If-None-Match` | 条件获取 | 304 Not Modified |
+| `Cache-Control` | 缓存策略 | `private, max-age=3600` |
+| `Last-Modified` | 最后修改时间 | 可选 |
+
+### 25.7 异步操作规范
+
+```python
+# 异步操作采用 202 + Job 模式
+@app.post("/export", status_code=202)
+async def start_export(request: ExportRequest):
+    job_id = await export_service.create_job(request)
+    return {"job_id": job_id, "status": "processing"}
+
+@app.get("/export/{job_id}")
+async def get_export_status(job_id: str):
+    job = await export_service.get_job(job_id)
+    if job.status == "ready":
+        return {"status": "ready", "download_url": job.download_url}
+    return {"status": job.status, "progress": job.progress}
+```
+
+---
+
+## 二十六、DDD 设计规范（核心概念）
+
+> 领域驱动设计核心概念落地规范，适用于 `backend/app/` 下的业务代码。
+
+### 26.1 核心概念定义
+
+| 概念 | 定义 | 代码实现 |
+|------|------|----------|
+| **Entity** | 有唯一标识的生命周期对象 | `@dataclass` + `id: UUID` |
+| **Value Object** | 无标识、不可变的值 | `@dataclass(frozen=True, slots=True)` |
+| **Aggregate** | 一组相关对象的聚合，事务边界 | 聚合根类 + 子实体/VO |
+| **Domain Event** | 领域中已发生的重要事件 | `dataclass` + `occurred_at` |
+| **Repository** | 聚合的持久化抽象 | 抽象接口 + Infrastructure 实现 |
+| **Domain Service** | 不属于任何实体的领域操作 | 无状态 Service 类 |
+
+### 26.2 目录结构（DDD 分层）
+
+```
+backend/app/
+├── domain/                    # 领域层（纯 Python，无框架依赖）
+│   ├── entities/              # 实体定义
+│   ├── value_objects/         # 值对象定义
+│   ├── aggregates/             # 聚合根定义
+│   ├── events/                # 领域事件定义
+│   ├── repositories/          # Repository 接口定义
+│   └── services/              # 领域服务（无状态）
+├── application/               # 应用层（用例编排）
+│   ├── commands/              # Command（写操作）
+│   └── queries/               # Query（读操作）
+├── infrastructure/            # 基础设施层
+│   ├── persistence/           # Repository 实现（SQLAlchemy）
+│   ├── messaging/            # 事件发布/订阅
+│   └── external/             # 外部服务适配器
+└── api/                      # 接口层（FastAPI）
+    └── routers/
+```
+
+| **Domain Service** | 不属于任何实体的领域操作 | 无状态 Service 类 |
+| **DTO** | 数据传输对象（跨层传递） | Pydantic Model（请求）/ `@dataclass`（响应） |
+| **VO** | 值对象（Domain 层） | `@dataclass(frozen=True, slots=True)` |
+
+### 26.2 数据对象分层规范
+
+#### 26.2.1 四层数据对象对照表
+
+| 层级 | 数据对象 | 类型 | 位置 | 职责 |
+|------|----------|------|------|------|
+| **API/Router** | Request DTO | `Pydantic BaseModel` | `api/schemas/` | 接收 HTTP 请求、参数校验 |
+| **API/Router** | Response DTO | `Pydantic BaseModel` | `api/schemas/` | 返回 HTTP 响应 |
+| **Application** | Command / Query | `@dataclass` | `application/commands/` | 封装用例输入 |
+| **Domain** | Entity | `@dataclass` | `domain/entities/` | 领域模型，承载业务逻辑 |
+| **Domain** | Value Object | `@dataclass(frozen=True)` | `domain/value_objects/` | 不可变值 |
+| **Domain** | Aggregate | `@dataclass` | `domain/aggregates/` | 事务边界 |
+| **Infrastructure** | ORM Model | SQLAlchemy `DeclarativeBase` | `infrastructure/persistence/models/` | 数据库映射 |
+
+#### 26.2.2 目录结构（完整 DDD 分层 + Agent）
+
+```
+backend/app/
+├── api/
+│   ├── schemas/                    # API 层：Pydantic Request/Response DTO
+│   │   ├── user/
+│   │   │   ├── requests.py        # CreateUserRequest, UpdateUserRequest
+│   │   │   └── responses.py       # UserResponse, UserListResponse
+│   │   └── common.py              # PageRequest, ErrorResponse
+│   └── routers/
+│       └── user_router.py
+├── application/
+│   ├── commands/                   # 写操作用例
+│   │   ├── create_user_cmd.py    # CreateUserCommand
+│   │   └── update_user_cmd.py    # UpdateUserCommand
+│   ├── queries/                    # 读操作用例（可选 CQRS）
+│   │   └── get_user_qry.py        # GetUserQuery
+│   └── mappers/                    # Application ↔ Domain 转换
+│       └── user_mapper.py
+├── domain/
+│   ├── entities/                  # 领域实体
+│   │   └── user_entity.py
+│   ├── value_objects/              # 值对象
+│   │   └── email_vo.py
+│   ├── aggregates/                 # 聚合根
+│   │   └── user_aggregate.py
+│   ├── events/                     # 领域事件
+│   │   └── user_events.py
+│   ├── repositories/              # Repository 接口
+│   │   └── user_repository.py    # IUserRepository
+│   └── services/                   # 领域服务
+│       └── user_domain_service.py
+├── infrastructure/
+│   ├── persistence/
+│   │   ├── models/                # ORM 模型
+│   │   │   └── user_model.py     # SQLAlchemy UserModel
+│   │   ├── repositories/          # Repository 实现
+│   │   │   └── user_repository_impl.py
+│   │   └── mappers/               # Infrastructure ↔ Domain 转换
+│   │       └── user_orm_mapper.py
+│   └── external/                   # 外部服务适配器
+│       └── llm_adapter.py
+└── agents/                         # Agent 作为 Domain Service
+    ├── graph/
+    │   ├── state.py              # AgentState (TypedDict)
+    │   ├── assistant_graph.py    # 主图编排
+    │   └── routes/
+    │       └── conditional_routes.py
+    ├── nodes/
+    │   └── classify_intent_node.py
+    ├── tools/
+    │   └── user_tools.py
+    ├── memory/
+    │   ├── short_term.py         # 短期记忆（Redis）
+    │   ├── medium_term.py        # 中期记忆（PostgreSQL）
+    │   └── long_term.py         # 长期记忆（Qdrant）
+    └── services/
+        └── agent_domain_service.py
+```
+
+### 26.3 各层数据对象规范
+
+#### 26.3.1 API 层：Pydantic Request/Response DTO
+
+```python
+# ✅ api/schemas/user/requests.py
+"""User API 请求 DTO。"""
+from pydantic import BaseModel, EmailStr, Field
+from datetime import date
+
+class CreateUserRequest(BaseModel):
+    """创建用户请求。"""
+    name: str = Field(..., min_length=1, max_length=50, description="用户名")
+    email: EmailStr = Field(..., description="邮箱")
+    birthday: date | None = Field(None, description="生日（可选）")
+    avatar_url: str | None = Field(None, max_length=500, description="头像 URL")
+
+    model_config = {"extra": "forbid"}
+
+class UpdateUserRequest(BaseModel):
+    """更新用户请求。"""
+    name: str | None = Field(None, min_length=1, max_length=50)
+    email: EmailStr | None = None
+
+    model_config = {"extra": "forbid"}
+```
+
+```python
+# ✅ api/schemas/user/responses.py
+"""User API 响应 DTO。"""
+from pydantic import BaseModel, EmailStr
+from uuid import UUID
+from datetime import datetime, date
+
+class UserResponse(BaseModel):
+    """用户响应。"""
+    id: UUID
+    name: str
+    email: EmailStr
+    birthday: date | None = None
+    avatar_url: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}  # Pydantic v2 ORM 映射
+
+class UserListResponse(BaseModel):
+    """用户列表响应（含分页）。"""
+    items: list[UserResponse]
+    total: int
+    limit: int
+    offset: int
+    has_next: bool
+```
+
+#### 26.3.2 Application 层：Command / Query
+
+```python
+# ✅ application/commands/create_user_cmd.py
+"""创建用户命令。"""
+from dataclasses import dataclass
+from uuid import UUID
+from datetime import date
+
+@dataclass(frozen=True, slots=True)
+class CreateUserCommand:
+    """创建用户命令（Application 层用例输入）。"""
+    name: str
+    email: str
+    birthday: date | None = None
+    avatar_url: str | None = None
+
+@dataclass(frozen=True, slots=True)
+class UpdateUserCommand:
+    """更新用户命令。"""
+    user_id: UUID
+    name: str | None = None
+    email: str | None = None
+    birthday: date | None = None
+```
+
+```python
+# ✅ application/queries/get_user_qry.py
+"""查询用户。"""
+from dataclasses import dataclass
+from uuid import UUID
+
+@dataclass(frozen=True, slots=True)
+class GetUserQuery:
+    """获取用户查询。"""
+    user_id: UUID
+```
+
+#### 26.3.3 Domain 层：Entity / Value Object / Aggregate
+
+```python
+# ✅ domain/value_objects/email_vo.py
+"""Email 值对象。"""
+from dataclasses import dataclass
+
+@dataclass(frozen=True, slots=True)
+class Email:
+    """Email 值对象，不可变。"""
+    value: str
+
+    def __post_init__(self) -> None:
+        if "@" not in self.value:
+            raise ValueError(f"Invalid email: {self.value}")
+
+    def __str__(self) -> str:
+        return self.value
+```
+
+```python
+# ✅ domain/entities/user_entity.py
+"""User 实体。"""
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
+from .value_objects import Email
+
+@dataclass
+class User:
+    """User 实体，有唯一标识。"""
+    id: UUID = field(default_factory=uuid4)
+    name: str
+    email: Email
+    birthday: datetime | None = None
+    avatar_url: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, User):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def update_profile(self, name: str | None = None, email: Email | None = None) -> None:
+        """更新用户资料（业务逻辑）。"""
+        if name is not None:
+            self.name = name
+        if email is not None:
+            self.email = email
+        self.updated_at = datetime.now(timezone.utc)
+```
+
+```python
+# ✅ domain/aggregates/user_aggregate.py
+"""User 聚合根。"""
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
+from ..entities.user_entity import User
+from ..value_objects import Email
+from ..events.user_events import UserRegisteredEvent
+
+@dataclass
+class UserAggregate:
+    """User 聚合根，事务边界。"""
+    _id: UUID = field(default_factory=uuid4, repr=False)
+    _user: User = field(default_factory=lambda: User(name="", email=Email("")))
+    _registered: bool = field(default=False, repr=False)
+
+    @property
+    def id(self) -> UUID:
+        return self._id
+
+    @property
+    def user(self) -> User:
+        return self._user
+
+    def register(self, name: str, email: Email) -> UserRegisteredEvent:
+        """注册用户。"""
+        if self._registered:
+            raise InvalidOperationError("User already registered")
+        self._user.name = name
+        self._user.email = email
+        self._registered = True
+        return UserRegisteredEvent(
+            user_id=self._id,
+            email=str(email),
+            occurred_at=datetime.now(timezone.utc),
+        )
+```
+
+#### 26.3.4 Infrastructure 层：ORM Model
+
+```python
+# ✅ infrastructure/persistence/models/user_model.py
+"""SQLAlchemy ORM 模型。"""
+from datetime import datetime
+from uuid import UUID
+from sqlalchemy import String, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+class UserModel(Base):
+    """User ORM 模型（Infrastructure 层）。"""
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    birthday: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+```
+
+### 26.4 Mapper 转换机制
+
+#### 26.4.1 Mapper 放置位置
+
+| 转换方向 | Mapper 位置 | 理由 |
+|----------|-------------|------|
+| API Request → Application Command | `api/mappers/` | API 层负责 |
+| Application Command → Domain | `application/mappers/` | Application 层编排 |
+| Domain → API Response | `application/mappers/` | Application 层负责组装 |
+| Domain Entity ↔ ORM Model | `infrastructure/mappers/` | Infrastructure 层负责持久化映射 |
+
+#### 26.4.2 Mapper 实现规范（手动 Mapper）
+
+```python
+# ✅ application/mappers/user_mapper.py
+"""Application ↔ Domain 转换 Mapper。"""
+from uuid import UUID
+from datetime import date
+from ..commands.create_user_cmd import CreateUserCommand
+from ...domain.value_objects import Email
+from ...domain.aggregates.user_aggregate import UserAggregate
+
+def command_to_email(cmd: CreateUserCommand) -> Email:
+    """Command → Domain Email VO。"""
+    return Email(value=cmd.email)
+
+def command_to_aggregate(cmd: CreateUserCommand) -> UserAggregate:
+    """Command → Domain Aggregate。"""
+    email_vo = Email(value=cmd.email)
+    aggregate = UserAggregate()
+    return aggregate.create(name=cmd.name, email=email_vo)
+
+def aggregate_to_response(agg: UserAggregate) -> dict:
+    """Aggregate → Response DTO 数据。"""
+    return {
+        "id": agg.id,
+        "name": agg.user.name,
+        "email": str(agg.user.email),
+        "birthday": agg.user.birthday,
+        "avatar_url": agg.user.avatar_url,
+        "created_at": agg.user.created_at,
+        "updated_at": agg.user.updated_at,
+    }
+```
+
+```python
+# ✅ infrastructure/mappers/user_orm_mapper.py
+"""Domain ↔ ORM Model 转换 Mapper。"""
+from uuid import UUID
+from datetime import datetime
+from ...domain.entities.user_entity import User
+from ...domain.value_objects import Email
+from ..models.user_model import UserModel
+
+def orm_to_entity(model: UserModel) -> User:
+    """ORM Model → Domain Entity。"""
+    return User(
+        id=model.id,
+        name=model.name,
+        email=Email(value=model.email),
+        birthday=model.birthday,
+        avatar_url=model.avatar_url,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+    )
+
+def entity_to_orm(entity: User) -> UserModel:
+    """Domain Entity → ORM Model。"""
+    return UserModel(
+        id=entity.id,
+        name=entity.name,
+        email=str(entity.email),
+        birthday=entity.birthday,
+        avatar_url=entity.avatar_url,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
+    )
+```
+
+#### 26.4.3 转换流程图
+
+```
+HTTP Request (JSON)
+    ↓ 【api/schemas/user/requests.py: Pydantic BaseModel】
+API Request DTO
+    ↓ 【application/mappers/user_mapper.py: request_to_command()】
+Application Command (dataclass)
+    ↓ 【application/mappers/user_mapper.py: command_to_email() + aggregate factory】
+Domain Email VO + UserAggregate
+    ↓ 【domain/aggregates/user_aggregate.py: 业务逻辑 + 产生 Domain Event】
+UserAggregate (with Event)
+    ↓ 【infrastructure/persistence/repositories/: Repository 实现内部】
+ORM Model
+    ↓ 【infrastructure/mappers/user_orm_mapper.py: entity_to_orm()】
+Database Row
+
+(反向同理：DB → ORM → Entity → Command → Response DTO → HTTP Response)
+```
+
+### 26.5 Agent（LangGraph）与 DDD 集成
+
+#### 26.5.1 Agent 作为 Domain Service
+
+> **核心原则**：Agent（LangGraph）是 Domain Service 的一种实现形式，受 DDD 约束。
+
+| DDD 概念 | LangGraph 对应 | 说明 |
+|----------|---------------|------|
+| Domain Service | Agent Graph | 编排多个领域操作 |
+| Node | 单个处理节点 | 单一职责 |
+| State (TypedDict) | Graph State | 携带上下文 |
+| Tool | Domain Service 方法 | 原子领域操作 |
+| Prompt Template | 领域知识 | 从 `prompts/` 加载 |
+
+#### 26.5.2 Agent State 定义（TypedDict）
+
+```python
+# ✅ agents/graph/state.py
+"""Agent Graph State 定义。"""
+from typing import TypedDict, Required, NotRequired, Annotated
+import operator
+
+class AgentState(TypedDict):
+    """Agent 状态，TypedDict 禁止用 dict。"""
+    # 必需字段
+    session_id: Required[str]
+    user_id: Required[str]
+    query: Required[str]
+
+    # 累加字段（多节点追加）
+    messages: Annotated[Required[list], operator.add]
+    retrieved_context: Annotated[Required[list], operator.add]
+
+    # 可选字段
+    intent: NotRequired[str | None]
+    selected_route: NotRequired[str | None]
+    error: NotRequired[str | None]
+
+    # 标量覆盖字段（单分支写入）
+    current_step: NotRequired[str]
+    approved: NotRequired[bool]
+```
+
+#### 26.5.3 Agent Node 规范
+
+```python
+# ✅ agents/nodes/classify_intent_node.py
+"""意图分类节点。"""
+from typing import TypedDict
+from langchain_core.messages import AIMessage
+from app.core.log import logger
+
+async def classify_intent_node(state: AgentState, runtime) -> dict:
+    """
+    意图分类节点。
+
+    Args:
+        state: AgentState，包含 user_id, query, messages
+        runtime: AgentRuntime，提供 stream_writer 等
+
+    Returns:
+        dict: 增量状态更新，包含 intent
+
+    禁止：
+        - 抛出领域异常（应返回 error 字段）
+        - 直接返回整个 state（必须返回增量）
+    """
+    writer = runtime.stream_writer
+    writer({"type": "thinking", "content": "正在分析用户意图..."})
+
+    # 1. 业务逻辑（调用 Domain Service 或 Tool）
+    intent = await _classify(state["query"])
+
+    # 2. 日志记录
+    logger.info(
+        "intent_classified",
+        user_id=state["user_id"],
+        query_len=len(state["query"]),
+        intent=intent,
+    )
+
+    # 3. 返回增量状态（禁止返回整个 state）
+    return {
+        "intent": intent,
+        "messages": [AIMessage(content=f"识别到意图: {intent}")],
+    }
+```
+
+#### 26.5.4 Agent 与 Domain 层交互
+
+```python
+# ✅ agents/services/agent_domain_service.py
+"""Agent 领域服务封装（隔离 Agent 与 Domain）。"""
+from dataclasses import dataclass
+from uuid import UUID
+from ...domain.aggregates.user_aggregate import UserAggregate
+from ...domain.repositories.user_repository import IUserRepository
+
+@dataclass
+class AgentUserContextService:
+    """Agent 调用 Domain 的封装服务。"""
+    _user_repository: IUserRepository
+
+    async def get_user_profile(self, user_id: UUID) -> UserAggregate | None:
+        """获取用户画像（Tool 实现）。"""
+        return await self._user_repository.find_by_id(user_id)
+
+    async def check_user_eligibility(self, user_id: UUID) -> bool:
+        """检查用户是否有资格（业务规则）。"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            return False
+        return user.is_active and user.is_verified
+```
+
+```python
+# ✅ agents/tools/user_tools.py
+"""用户领域工具（Tool 实现）。"""
+from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
+from ...services.agent_domain_service import AgentUserContextService
+
+class GetUserProfileArgs(BaseModel):
+    user_id: str = Field(..., description="用户 ID")
+
+class GetUserProfileTool(BaseTool):
+    name: str = "get_user_profile"
+    description: str = "获取用户画像信息"
+    args_schema: type[BaseModel] = GetUserProfileArgs
+
+    _service: AgentUserContextService
+
+    def __init__(self, service: AgentUserContextService):
+        super().__init__()
+        self._service = service
+
+    async def _arun(self, user_id: str) -> str:
+        user = await self._service.get_user_profile(UUID(user_id))
+        if not user:
+            return "User not found"
+        return f"User: {user.name}, Status: {user.status}"
+```
+
+### 26.6 跨层数据对象转换规则
+
+| 转换 | 方向 | 工具 | 位置 |
+|------|------|------|------|
+| JSON → Pydantic | HTTP → API | Pydantic 自动 | FastAPI |
+| Pydantic → Command | API → Application | 手动 Mapper | `api/mappers/` |
+| Command → Domain | Application → Domain | 手动 Mapper + Factory | `application/mappers/` |
+| Domain → Response | Domain → API | 手动 Mapper | `application/mappers/` |
+| Entity → ORM | Domain → Infrastructure | 手动 Mapper | `infrastructure/mappers/` |
+| ORM → Entity | Infrastructure → Domain | 手动 Mapper | `infrastructure/mappers/` |
+
+### 26.7 Entity 规范（简化版）
+
+```python
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
+
+# ✅ Entity 必须有唯一标识 + 相等性基于 ID
+@dataclass
+class User:
+    id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    name: str
+    email: str
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, User):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+```
+
+### 26.8 Value Object 规范（简化版）
+
+```python
+from dataclasses import dataclass
+
+# ✅ Value Object 必须不可变（frozen=True）+ slots=True
+@dataclass(frozen=True, slots=True)
+class Email:
+    value: str
+
+    def __post_init__(self) -> None:
+        if "@" not in self.value:
+            raise ValueError(f"Invalid email: {self.value}")
+
+# ✅ 用 @dataclass(frozen=True) 确保相等性基于值
+@dataclass(frozen=True, slots=True)
+class Address:
+    province: str
+    city: str
+    district: str
+    street: str
+    postal_code: str | None = None
+```
+
+### 26.9 Aggregate 规范（简化版）
+
+```python
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+from .entities import User
+from .value_objects import Email
+from .events import UserRegisteredEvent
+
+# ✅ Aggregate Root：外部只能通过根 ID 引用
+@dataclass
+class UserAggregate:
+    _id: UUID = field(default_factory=uuid4, repr=False)
+    _user: User
+    _registered: bool = field(default=False, repr=False)
+
+    @property
+    def id(self) -> UUID:
+        return self._id
+
+    def register(self, email: Email) -> UserRegisteredEvent:
+        if self._registered:
+            raise InvalidOperationError("User already registered")
+        self._user.email = email.value
+        self._registered = True
+        return UserRegisteredEvent(
+            user_id=self._id,
+            email=email.value,
+            occurred_at=datetime.now(timezone.utc),
+        )
+
+    # ✅ 受保护方法：内部业务逻辑
+    def _can_unregister(self) -> bool:
+        return not self._has_active_orders()
+```
+
+### 26.10 Domain Event 规范（简化版）
+
+```python
+from dataclasses import dataclass, field
+from uuid import UUID
+from datetime import datetime, timezone
+
+# ✅ Domain Event：领域事件定义
+@dataclass(frozen=True, slots=True)
+class DomainEvent:
+    occurred_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+@dataclass(frozen=True, slots=True)
+class UserRegisteredEvent(DomainEvent):
+    user_id: UUID
+    email: str
+
+@dataclass(frozen=True, slots=True)
+class OrderPlacedEvent(DomainEvent):
+    order_id: UUID
+    user_id: UUID
+    total_amount: int  # 分
+    item_count: int
+```
+
+### 26.11 Repository 接口规范（简化版）
+
+```python
+# ✅ Repository 接口定义在 Domain 层（抽象）
+from abc import ABC, abstractmethod
+from uuid import UUID
+from typing import Optional
+
+class UserRepository(ABC):
+    @abstractmethod
+    async def save(self, user: User) -> None: ...
+
+    @abstractmethod
+    async def find_by_id(self, user_id: UUID) -> Optional[User]: ...
+
+    @abstractmethod
+    async def find_by_email(self, email: str) -> Optional[User]: ...
+
+    @abstractmethod
+    async def delete(self, user_id: UUID) -> None: ...
+```
+
+### 26.12 Domain Service 规范（简化版）
+
+```python
+from dataclasses import dataclass
+from .aggregates import UserAggregate
+from .repositories import UserRepository
+from .value_objects import Email
+
+# ✅ Domain Service：无状态，编排多个聚合/实体的操作
+@dataclass
+class UserRegistrationService:
+    _repository: UserRepository
+
+    async def register_user(
+        self, name: str, email: str
+    ) -> tuple[UserAggregate, list[DomainEvent]]:
+        # 1. 业务规则校验（可能抛出领域异常）
+        existing = await self._repository.find_by_email(email)
+        if existing:
+            raise EmailAlreadyExistsError(email)
+
+        # 2. 创建聚合
+        email_vo = Email(email)
+        user = UserAggregate(name=name, email=email_vo)
+
+        # 3. 注册事件
+        event = user.register(email_vo)
+
+        # 4. 持久化
+        await self._repository.save(user)
+
+        return user, [event]
+```
+
+### 26.13 反模式禁止
+
+| 禁止 | 正确做法 |
+|------|----------|
+| Anemic Domain Model（贫血模型） | Entity/Aggregate 内含业务逻辑 |
+| 跨 Aggregate 直接修改子对象 | 必须通过 Aggregate Root |
+| Repository 实现放在 Domain 层 | 放在 Infrastructure 层 |
+| Service 持有状态 | Domain Service 必须无状态 |
+| Domain Event 含技术细节 | Event 只含领域概念 |
+| Agent 直接操作 ORM | Agent 通过 Domain Service 操作 |
+| Agent 内写业务规则 | 业务规则在 Domain 层 |
+| Pydantic Model 作为 Domain 对象 | Domain 层用 `@dataclass` |
+| API 层直接返回 ORM Model | 必须通过 Response DTO |
+
+### 26.14 自审命令
+
+```bash
+# 检查 Entity 是否有 id 字段
+grep -rn "class.*Entity" backend/app/domain/ | grep -v "id:"
+
+# 检查 Value Object 是否有 frozen=True
+grep -rn "@dataclass" backend/app/domain/value_objects/ | grep -v "frozen=True"
+
+# 检查 Repository 实现是否在 Infrastructure 层
+grep -rn "class.*Repository" backend/app/infrastructure/persistence/
+
+# 检查 Domain Event 是否不可变
+ruff check backend/app/domain/events/ --select=S301
+
+# 检查 Agent 是否直接操作 ORM（禁止）
+grep -rn "UserModel\|OrderModel" backend/app/agents/ && echo "FAIL" || echo "PASS"
+
+# 检查 Pydantic 是否进入 Domain 层（禁止）
+grep -rn "from pydantic import" backend/app/domain/ && echo "FAIL" || echo "PASS"
+
+# 检查 Mapper 是否存在（必须有）
+grep -rn "def.*_to_.*:" backend/app/*/mappers/ | head -20
+
+# 检查 API 是否直接返回 ORM Model（禁止）
+grep -rn "response_model=UserModel" backend/app/api/ && echo "FAIL" || echo "PASS"
+```
+
+### 26.14 自审命令
+
+```bash
+# 检查 Entity 是否有 id 字段
+grep -rn "class.*Entity" backend/app/domain/ | grep -v "id:"
+
+# 检查 Value Object 是否有 frozen=True
+grep -rn "@dataclass" backend/app/domain/value_objects/ | grep -v "frozen=True"
+
+# 检查 Repository 实现是否在 Infrastructure 层
+grep -rn "class.*Repository" backend/app/infrastructure/persistence/
+
+# 检查 Domain Event 是否不可变
+ruff check backend/app/domain/events/ --select=S301
+
+# 检查 Agent 是否直接操作 ORM（禁止）
+grep -rn "UserModel\|OrderModel" backend/app/agents/ && echo "FAIL" || echo "PASS"
+
+# 检查 Pydantic 是否进入 Domain 层（禁止）
+grep -rn "from pydantic import" backend/app/domain/ && echo "FAIL" || echo "PASS"
+
+# 检查 Mapper 是否存在（必须有）
+grep -rn "def.*_to_.*:" backend/app/*/mappers/ | head -20
+
+# 检查 API 是否直接返回 ORM Model（禁止）
+grep -rn "response_model=UserModel" backend/app/api/ && echo "FAIL" || echo "PASS"
+```
+
+---
+
+## 二十七、参考文档
 
 - alwaysApply 速查表：`.cursor/rules/python-patterns.mdc`（反模式速查、Result 类型、Async 安全、SQL 安全、Interrupt 幂等性）
 - 工程红线：`.cursor/rules/project-prohibitions.mdc`
@@ -1058,3 +2013,5 @@ do_action()
 - 项目元信息：`.cursor/rules/project-meta.mdc`
 - 错误码字典（唯一真源）：`docs/api/error-codes.md`
 - OpenAPI 契约：`docs/api/openapi.yaml`
+- REST API 规范：见 §二十五
+- DDD 设计规范：见 §二十六

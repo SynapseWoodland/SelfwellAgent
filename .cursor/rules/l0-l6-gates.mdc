@@ -1,0 +1,354 @@
+---
+description: >
+  L0-L6 质量门禁唯一真源。
+  Coding Agent 在 system prompt 层就看到 L0-L6 命令 + 执行者 + 阶段；
+  CI / Skill / 文档统一引用本文件，禁止重写 L0-L6 表格。
+  配套兜底：pre-commit / backend-ci.yml L0-L5 / pr-gate.yml 卡口 7。
+alwaysApply: true
+---
+
+# L0-L6 质量门禁真源（唯一真源）
+
+> **本文件是 L0-L6 质量门禁的**唯一真源**。**
+>
+> 所有其他文档（rules/、skills/、agents/、docs/、.github/）必须**引用本文件**而非重写 L0-L6 表格。
+>
+> **修订记录**：
+> - 2026-07-19 W4 P3 §4.5.4 创建本文件（位置：`.cursor/skills/coding-standards/GATES.md`），把分散在 `coding-standards.mdc` §二 + §十七 + §十八 的 L0-L6 定义集中化。
+> - 2026-07-19 W4 P3 §4.5.11 升级 L5 为"AI 审查 + CI 兜底"双轨制。
+> - 2026-07-19 W4 P3 §4.5.12 **迁到 `.cursor/rules/l0-l6-gates.mdc`**（alwaysApply 真源）+ **新增 §六 执行者矩阵 + §七 阶段矩阵**。
+>
+> **结构**：
+> - **一、命令与阈值** — 完整定义 L0-L6
+> - **二、模块级覆盖率** — §十八模块阈值
+> - **三、Eval Runner 红线（R-4）** — Prompt 改动专属，不在 L0-L6 范围
+> - **四、引用规则** — 其他文档如何引用本文件
+> - **五、版本一致性** — 与 backend-ci.yml / pr-gate.yml 的对齐状态
+> - **六、执行者矩阵** — 哪个角色跑哪些 L（Q1 答复）
+> - **七、阶段矩阵** — ad-tdd / harness 流水线何时跑（Q1 答复）
+
+---
+
+## 一、L0-L6 命令与阈值（唯一真源）
+
+### L0 — 语法 & 导入（秒级）
+
+```bash
+cd backend && python -m py_compile app/xxx.py
+python -c "import backend.app.xxx; print('OK')"
+```
+
+**说明**：快速验证 Python 语法 + 模块可导入性。改完一个文件立即跑一次。
+
+---
+
+### L1 — 风格 & 格式化
+
+```bash
+uv run ruff check . --fix
+uv run ruff format --check .
+```
+
+**说明**：
+- `--fix` 在本地开发时自动修复；CI 阶段使用 `--check` 仅检查不修。
+- `.pre-commit-config.yaml` 配置 `ruff-check` + `ruff-format` 两个 hook。
+
+---
+
+### L2 — 静态类型
+
+```bash
+uv run mypy --strict backend/app/
+```
+
+**说明**：mypy strict 模式禁止隐式 Any、缺失返回类型、参数类型注解。
+
+---
+
+### L3 — 测试（unit + integration + e2e + smoke 全量）
+
+```bash
+uv run pytest tests/{unit,integration,e2e,smoke} -x -q
+```
+
+**说明**：
+- `tests/unit/` — 单元测试（最小可测试单元）
+- `tests/integration/` — 模块间交互
+- `tests/e2e/` — 端到端
+- `tests/smoke/` — 冒烟测试
+- `-x` 遇 FAIL 立即停止，`-q` 简化输出
+
+---
+
+### L4 — 代码质量扫描（双轨）
+
+```bash
+# L4a：ruff 安全规则选择器（必跑）
+uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003
+
+# L4b：jscpd 重复率（CI 跑，本地可选）
+uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd
+```
+
+**说明**：
+- F401 — 未使用导入；F811 — 重复定义；S608 — SQL 注入；S307 — 危险 eval；SEC — 硬编码密钥；B/B003 — 安全 + 可变默认参数
+- jscpd 重复率阈值 ≤ 4%（`--threshold 4`）
+
+---
+
+### L5 — 架构 & 安全（**AI 审查 + CI 兜底**）
+
+> **执行者**：AI 审查阶段（developer / reviewer agent）跑 grep 12 条；**不是 verifier 也不是人工**。
+>
+> **兜底**：如果 AI 没拦住，CI 全部门禁拦截——禁止放行进 production。
+>
+> **为何不需要人工**：一人 AI 开发模式无人可托，AI 审查 + CI 双轨制是唯一可行方案。
+
+#### L5.1 AI 审查阶段执行（developer / reviewer agent 必跑）
+
+```bash
+# 必须从项目根目录执行（不是 backend/）
+
+# 1. 禁止从 loguru 直接 import（仅 backend/app/core/log.py 豁免）
+grep -rn "from loguru import logger" backend/app/ && echo "FAIL" || echo "PASS"
+
+# 2. 禁止 stdlib logging 绕开管道
+grep -rn "logging\.getLogger\|logging\.basicConfig" backend/app/ | grep -v "backend/app/core/log.py" && echo "FAIL" || echo "PASS"
+
+# 3. PII 字段明文进日志
+grep -rnE "\.(password|email|phone|card_number|diagnosis)\s*=" backend/app/ \
+  | grep -v "REDACTED" | grep -v "tests/" && echo "FAIL" || echo "PASS"
+
+# 4. 吞 traceback 反模式
+grep -rnE "except Exception.*logger\.warning\(\s*(str\(|e)" backend/app/ \
+  && echo "FAIL" || echo "PASS"
+
+# 5. 裸 except
+grep -rn "except:" backend/app/
+
+# 6. print() 残留
+grep -rn "print(" backend/app/
+
+# 7. 调试代码残留
+grep -rn "pdb.set_trace\|breakpoint()\|TODO\|XXX\|FIXME" backend/app/
+
+# 8. LLM 参数硬编码（temperature）
+grep -rn "temperature=" backend/app/
+
+# 9. LLM 参数硬编码（model）
+grep -rn "model=" backend/app/
+
+# 10-12. （预留：循环复杂度 / 单文件函数 / 节点行数 — 由 radon 单独跑）
+```
+
+#### L5.2 CI 兜底（PR-Gate 卡口 7 + backend-ci.yml L5 步骤）
+
+| 卡口 | 检测范围 | 失败处理 |
+|------|---------|---------|
+| `pr-gate.yml` 卡口 7 | 文档级（重写 L0-L6 / 80% 阈值 / L2=Eval Runner） | CI 红 → 拒绝合并 |
+| `backend-ci.yml` L5 步骤 | 代码级（loguru / PII / print / LLM 硬编码 等 12 条） | CI 红 → 拒绝合并 |
+
+**关键原则**：
+
+- ❌ **不靠人工**——L5 grep 全自动跑
+- ❌ **不在 verifier 阶段选择性跑**——L5 是 hard gate，不是 soft gate
+- ✅ **双轨制**：AI 审查先跑（提供详细错误信息）+ CI 后跑（兜底防漏）
+- ✅ **失败即拦截**：任一 grep FAIL → CI exit 1 → 拒绝合并
+
+---
+
+### L6 — 覆盖率
+
+```bash
+uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=60
+```
+
+**阈值**：
+- **整体 ≥ 60%**（CI 硬卡数字：`--cov-fail-under=60`）
+- 模块级阈值见 §二
+
+---
+
+## 二、模块级覆盖率阈值（§十八）
+
+| 模块 | 阈值 | 命令 |
+|------|------|------|
+| `rules/` | ≥ 90% | `pytest tests/unit -k rules --cov-fail-under=90` |
+| `agents/` `middleware/` | ≥ 80% | `pytest tests/unit -k agents --cov-fail-under=80` |
+| `tools/` | ≥ 70% | `pytest tests/unit -k tools --cov-fail-under=70` |
+| **整体** | **≥ 60%** | `pytest tests/ --cov=app --cov-fail-under=60` |
+
+**注**：模块级 `--cov-fail-under` 是 W4 P2 §4.1.3 接入改造点——首次接入仅跑整体 ≥ 60%。
+
+---
+
+## 三、Eval Runner 红线（R-4，Prompt 改动专属）
+
+> **Eval Runner 不在 L0-L6 范围内**。它属于 R-4 红线（`project-prohibitions.mdc` R-4），仅当 `prompts/*.md` 或 `*.prompt` 文件改动时触发。
+
+```bash
+# 触发条件：prompts/*.md 或 *.prompt 文件改动
+python -m eval.runner --mode pr
+
+# baseline 跌幅 ≤ 5% 才允许合入
+# 真实基线要求：base >= 1 个真实 baseline；禁止 mock baseline（"假阳性基线"）
+```
+
+**触发场景**：
+- 改 `backend/app/prompts/*.md`
+- 改 `*.prompt` 文件
+- 改 LangGraph 节点的 system prompt / user prompt
+
+**门槛**：
+- baseline 跌幅 > 5% → PR-Gate 拒绝
+- 仅当 base >= 1 个真实基线才能合入
+- 禁止 mock baseline（假阳性基线）
+
+详见 `.cursor/skills/golden-set/SKILL.md` §5 §6。
+
+---
+
+## 四、引用规则
+
+### 4.1 禁止行为
+
+- ❌ **禁止**在 `rules/` `skills/` `agents/` `docs/` `.github/` 任意文档中**重写 L0-L6 完整表格**
+- ❌ **禁止**把 Eval Runner 算作 L2（历史错位，2026-07-19 已修复）
+- ❌ **禁止**使用过期的"≥ 80%" 整体覆盖率目标（CI 硬卡 ≥ 60%）
+- ❌ **禁止**在 `pytest tests/unit` 上标注 L1（已合并到 L3）
+
+### 4.2 正确引用方式
+
+| 场景 | 引用文本 |
+|------|---------|
+| 简短引用 | "L0-L6 详见 `.cursor/rules/l0-l6-gates.mdc`" |
+| 表格引用 | "L0=ruff check / L1=ruff format / L2=mypy / L3=pytest / L4=ruff+jscpd / L5=grep / L6=coverage，详见 l0-l6-gates.mdc" |
+| 速查表 | 直接复制本文件 §一 的 7 行命令表 |
+
+### 4.3 漂移检测（PR-Gate 卡口 7）
+
+PR 阶段 CI 自动扫描：若非真源文档重写 L0-L6 表格（除本文件外），CI 红 → 拒绝合并。详见 `.github/workflows/pr-gate.yml` 卡口 7。
+
+---
+
+## 五、版本一致性（与 CI 对齐状态）
+
+| 组件 | 文件 | 一致性 | 备注 |
+|------|------|:---:|------|
+| alwaysApply 速查 | `.cursor/rules/coding-standards.mdc` §二 | ✅ | 2026-07-19 已修复 L6 阈值 |
+| 红线兜底 | `.cursor/rules/project-prohibitions.mdc` R-3 | ✅ | 2026-07-19 已修复 L2/L3/L4 |
+| Agent 门禁 | `AGENTS.md` | ✅ | 2026-07-19 已改为引用真源 |
+| Python 规范 | `.cursor/rules/coding-standards.mdc` §十七 / §十八 | ✅ | 阈值与本文件一致 |
+| Coding-standards skill | `.cursor/skills/coding-standards/SKILL.md` | ⚠️ | 仍引用 rules/ 内联版本（不重写表格） |
+| Coding-standards RULES/PATTERNS/EXAMPLES | `.cursor/skills/coding-standards/{RULES,PATTERNS,EXAMPLES}.md` | ⏳ | 待 P2-1 检查 |
+| 跨 Skill 引用 | `.cursor/skills/ad-tdd/SKILL.md` Phase 5 | ⏳ | 待 P1-3 修复 |
+| Harness executor | `agents/harness/EXECUTORS.md` §2.3 verifier | ✅ | verifier 表与本文件对齐 |
+| Harness reviewer | `agents/harness/REVIEWERS.md` | ✅ | 引用 GATES.md L6 |
+| CI L0-L5 | `.github/workflows/backend-ci.yml` | ✅ | 2026-07-19 已对齐（含 L4 双轨 + L5 步骤） |
+| CI 守门 | `.github/workflows/pr-gate.yml` 卡口 5/6/7 | ✅ | 卡口 7 已启用 |
+| Harness 文档 | `docs/harness/L0-L6-TRUTH.md` / `ARCHITECTURE-AND-USAGE.md` | ✅ | 2026-07-19 已改为引用真源 |
+| Checklist | `docs/harness/checklist.md` §4.5 | ✅ | 已记录本修复流程 |
+
+**最后对齐日期**：2026-07-19
+**下次审计**：W4 P3 §4.5.12 PR-Gate 卡口 7 启用后
+
+---
+
+## 六、执行者矩阵（谁跑 L0-L6）
+
+> **这是 Q1 答复**——回答"L0-L6 分别都是哪些角色跑、什么时候跑"。
+> 真源定义在此，AGENTS.md / EXECUTORS.md 仅引用本节。
+
+### 6.1 角色 → L 级别矩阵
+
+| 级别 | 谁跑 | 工具调用方式 | 是否改代码 |
+|:----:|------|-------------|:----------:|
+| **L0** | developer（手动）+ AI 自审 | 本地 `py_compile` + `import` 测试（秒级） | 否（只检查） |
+| **L1** | developer（开发时 `--fix`）+ verifier（VERIFY 时 `--check`） + pre-commit hook | `ruff check --fix` / `ruff format --check` | developer 可修，verifier 只查 |
+| **L2** | developer + verifier | `mypy --strict` | 否（只检查） |
+| **L3** | developer 跑 unit+integration；verifier 跑 integration+e2e+smoke | `pytest` | 否（只检查） |
+| **L4a** | developer + verifier | `ruff --select=F401,...` | 否（只检查） |
+| **L4b** | **CI 兜底**（GitHub Actions） | `jscpd --threshold 4` | 否（只检查） |
+| **L5** | **AI 审查（developer/reviewer agent）+ CI 兜底**（双轨制） | grep 12 条 | 否（只检查） |
+| **L6** | developer + verifier + **CI 硬卡数字** | `pytest --cov --cov-fail-under=60` | 否（只检查） |
+| **R-4** | developer（prompts/*.md 改动时）+ tester（REGRESSION 时） + PR-Gate 兜底 | `eval.runner --mode pr` | 否（只检查） |
+
+### 6.2 不在矩阵里的排除项
+
+| 谁跑 | 为什么不在 L0-L6 | 解释 |
+|------|----------------|------|
+| **Security Agent** | bandit 在 Security Agent 自己的流程里跑（AGENTS.md §5）| bandit ≠ L5 grep；L5 是 grep 12 条 |
+| **DevOps Agent** | docker compose health check 在 deployer 跑（EXECUTORS.md §2.4）| 部署健康 ≠ Python 编码门禁 |
+| **plan-generator** | PLAN phase 不涉及代码（L0-L6 都不跑）| 只画方案，跑 coding-standards §型 R6 自检即可 |
+
+### 6.3 关键约束
+
+- **verifier 永不修改代码**（EXECUTORS.md §2.3 硬约束）——verifier FAIL 一律退回 developer
+- **AI 审查 ≠ verifier**——AI 审查是"reviewer agent 视角看 grep 结果"，verifier 是"按 GATES.md 跑命令"
+- **CI 兜底永远是最后一道闸**——AI 没拦住，CI 必须拦住
+
+---
+
+## 七、阶段矩阵（ad-tdd / harness 流水线何时跑）
+
+> **这是 Q1 答复的下半**——回答"什么时候跑"。
+> 真源定义在此，ad-tdd/SKILL.md Phase 5 / EXECUTORS.md §二 各角色 仅引用本节。
+
+### 7.1 ad-tdd 开发循环（5 phase）
+
+| 阶段 | 谁 | 跑哪些 L | ad-tdd 章节 |
+|------|----|---------|------------|
+| **Phase 1: Architecture** | tech-architect | 无（设计阶段） | ad-tdd Phase 1 |
+| **Phase 2: ATDD** | tech-architect + QA Agent | 无（写验收标准） | ad-tdd Phase 2 |
+| **Phase 3: TDD（RED → GREEN → REFACTOR）** | developer | **L0**（每个文件改完）/ **L1 + L2**（每个 commit 前）/ **L3 unit**（每轮 RED/GREEN） | ad-tdd Phase 3 |
+| **Phase 4: 全量回归** | developer + QA | **L3 全部**（unit + integration + e2e + smoke）/ **L4a**（ruff 选择器）/ **L6**（≥ 60%） | ad-tdd Phase 4 |
+| **Phase 5: AI 自审（提交前）** | developer（必跑 7 步）| **L1 + L4a + L2 + L3 unit + L3 integration + L6 + R-4**（如有 prompt 改动） | ad-tdd Phase 5 |
+| **Phase 6: AI 审查 + CI 提交** | reviewer agent + CI | **L5 grep 12 条**（AI 审查）+ **L4b + L5 + L6 + PR-Gate 7 项**（CI 兜底） | ad-tdd Phase 6 |
+
+### 7.2 harness 流水线（5 executor）
+
+| Phase | Executor | 跑哪些 L | EXECUTORS.md 章节 |
+|-------|----------|---------|------------------|
+| **PLAN** | plan-generator | 无（不写代码） | §2.1 |
+| **CODE** | developer | 同 ad-tdd Phase 3-4 | §2.2 |
+| **VERIFY** | verifier | **L0 / L1 / L2 / L3（integration+e2e+smoke）/ L4a / L6**（**跳过 L5**，由 CI 兜底） | §2.3 |
+| **DEPLOY** | deployer | 无（部署健康检查） | §2.4 |
+| **REGRESSION** | tester | **R-4**（Golden Set `--mode pr`）+ e2e | §2.5 |
+
+### 7.3 关键时序约束
+
+| 时序 | 规则 | 原因 |
+|------|------|------|
+| **L0 秒级反馈** | 改完一个 .py 文件立即跑 L0 | 立即发现语法/导入错误 |
+| **L1+L2 每个 commit 前** | developer 必跑（ad-tdd Phase 5）| 防止类型/风格错误进 commit |
+| **L3 unit 在 GREEN 阶段必跑** | RED→GREEN 闭环验证 | TDD 核心循环 |
+| **L3 integration+e2e+smoke 仅 verifier 跑** | 慢测试在 verifier/regression 跑，不占用 developer 主循环 | 快速反馈 |
+| **L5 在两个阶段跑** | AI 审查（Phase 5）+ CI 兜底（Phase 6）| 双轨制防漏 |
+| **L6 硬卡由 CI 跑** | developer 本地跑软卡（≥ 60% 警告），CI 硬卡 | CI 是最后一道闸 |
+| **R-4 仅 prompts 改动时跑** | 否则白跑浪费 CI 分钟 | 条件触发 |
+
+---
+
+## 八、修订历史
+
+| 日期 | 版本 | 改动 | 来源 |
+|------|------|------|------|
+| 2026-07-19 | v1.0 | 初次创建：集中 L0-L6 完整定义 + 修复 R-3 L2/L3/L4 错位 + L6 阈值冲突 + L4 双轨 + Eval Runner 独立成节 | W4 P3 §4.5.4 |
+| 2026-07-19 | v1.1 | 升级 L5 为"AI 审查 + CI 兜底"双轨制 | W4 P3 §4.5.11 |
+| 2026-07-19 | v2.0 | **移到 `.cursor/rules/l0-l6-gates.mdc`（alwaysApply 真源）+ 新增 §六 执行者矩阵 + §七 阶段矩阵（Q1 答复）** | W4 P3 §4.5.12 |
+
+---
+
+## 九、参考
+
+- 项目元信息：`.cursor/rules/project-meta.mdc`
+- 工程红线（5 条）：`.cursor/rules/project-prohibitions.mdc`
+- 工具铁则：`.cursor/rules/file-operation-stability.mdc`
+- Skill 索引：`.cursor/rules/skills.mdc`
+- Python 编码规范（alwaysApply 速查）：`.cursor/rules/coding-standards.mdc`
+- Harness 流水线：`.cursor/skills/harness-dispatcher/SKILL.md`
+- Golden Set：`.cursor/skills/golden-set/SKILL.md`
+- AD-TDD：`.cursor/skills/ad-tdd/SKILL.md`
+- Executor 协议：`agents/harness/EXECUTORS.md`
+- 审计报告（2026-07-19）：`docs/harness/L0-L6-AUDIT-2026-07-19.md`
+- 真源摘要：`docs/harness/L0-L6-TRUTH.md`（指向新路径）
