@@ -96,6 +96,6 @@ evidence_ref: evidence/05-acceptance.md
 ## 参考
 
 - 状态机：harness/workflow.yaml
-- 上下文：harness/context/atdd-phase.md
+- 上下文：harness/context/phase-checklist.md
 - openapi 真源：docs/api/openapi*.yaml
 - 上游 Skill：.cursor/skills/ad-tdd/SKILL.md（Phase 2 ATDD）

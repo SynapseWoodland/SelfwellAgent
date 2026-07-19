@@ -1,3 +1,19 @@
+# ⚠️ DEPRECATED（2026-07-19 架构师标记）
+
+> **本文件已不再生效**。原因：本文件是 markdown 文档（不是真 GitHub Actions workflow），GitHub 永远不会执行其中的 YAML 块。
+>
+> **替换方案**：见 `.github/workflows/pr-gate-ci.yml`（**真 workflow**，由本文件 §二/§五/§六/§七/§九/§十一 提取）。
+>
+> **保留原因**：审计追溯 + 历史决策可查。
+>
+> **维护状态**：冻结，不再修改。如发现本文件与 pr-gate-ci.yml 有冲突，以 pr-gate-ci.yml 为准。
+>
+> ---
+>
+> **触发本替换的来源**：`harness/checklist.md` W4 P4 §5.1.1。
+
+---
+
 # PR Gate — CI 守门 Workflow
 |
 |> **真源**：本文件是 `.cursor/skills/pr-gate/SKILL.md` 的**强约束实现**。

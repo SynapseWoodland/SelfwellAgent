@@ -1,3 +1,26 @@
+# ⚠️ DEPRECATED（2026-07-19 架构师标记）
+#
+# 本文件是 V1.6 状态机定义，已被 harness/workflow-v2.yaml 完全取代。
+#
+# 当前状态：
+# - harness/workflow-v2.yaml → **V2 真源**（16 phase + exit_criteria 真命令 + one_person_mode）
+# - harness/workflow.yaml   → 本文件，**仅作为 V1.6 历史审计保留**，不再被 dispatcher 读取
+# - agents/harness/DISPATCHER.md 已 alias 到 workflow-v2.yaml
+#
+# 为何不删除：
+# - git 历史追溯需要（所有 V1.6 时代的 evidence 都引用本文件 phase id）
+# - 教学价值（V1.6 → V2 迁移示例）
+#
+# 关键不一致（已知）：
+# - 本文件引用 harness/context/prd-phase.md / ad-phase.md / atdd-phase.md / code-phase.md
+#   等 phase context 文件实际不存在（V2 统一为 harness/context/phase-checklist.md）
+# - 本文件 exit_criteria 是占位符（[FR编号全, 场景拆解齐]），不可执行
+#
+# 维护规则：
+# - 冻结，不再修改
+# - 如发现本文件与 workflow-v2.yaml 冲突，以 workflow-v2.yaml 为准
+# - 触发本替换的来源：harness/checklist.md W4 P4 §5.4.4
+
 version: "1.0"
 initial_phase: PRD
 phases:
@@ -5,7 +28,7 @@ phases:
     next: [ARCH_DESIGN]
     entry_agent: requirement-analyst
     exit_criteria: [FR编号全, 场景拆解齐]
-    context: harness/context/prd-phase.md
+    context: harness/context/prd-phase.md  # noqa: 已被 phase-checklist.md 取代，仅历史保留
   - id: ARCH_DESIGN
     next: [PRE_MORTEM]
     entry_agent: tech-architect

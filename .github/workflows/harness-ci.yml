@@ -8,6 +8,7 @@ on:
       - "agents/harness/**"
       - ".cursor/skills/harness-*/**"
       - ".github/workflows/harness-ci.yml"
+      - "harness/scripts/check_phase.py"
   pull_request:
     branches: [main, develop]
     paths:
@@ -15,6 +16,7 @@ on:
       - "agents/harness/**"
       - ".cursor/skills/harness-*/**"
       - ".github/workflows/harness-ci.yml"
+      - "harness/scripts/check_phase.py"
 
 jobs:
   harness-grep-check:
@@ -28,3 +30,33 @@ jobs:
 
       - name: Harness grep 兜底（4 条）
         run: bash harness/scripts/check.sh
+
+  harness-check-phase:
+    name: Harness check_phase.py 跨平台可用性
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 PyYAML
+        run: pip install pyyaml
+
+      - name: 运行 check_phase.py --list（验证 YAML 解析 + 16 phase 列出）
+        shell: bash
+        run: |
+          echo "OS: ${{ matrix.os }}"
+          python harness/scripts/check_phase.py --list
+          python harness/scripts/check_phase.py --list | grep -c "^[ ]*- PRD\|^  - PRD" | head -1
+          python harness/scripts/check_phase.py --json | python -c "import sys, json; d=json.load(sys.stdin); assert len(d['phases'])==16, f'预期 16 phase，实际 {len(d[\"phases\"])}'; print(f'[OK] {len(d[\"phases\"])} phase 加载成功')"
+

@@ -147,5 +147,5 @@ schema_version: "1.0"
 ## 参考
 
 - 状态机：harness/workflow.yaml
-- 上下文：harness/context/atdd-phase.md
+- 上下文：harness/context/phase-checklist.md
 - 角色协议：agents/harness/REVIEWERS.md

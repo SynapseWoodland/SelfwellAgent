@@ -1,0 +1,289 @@
+name: pr-gate-ci
+
+# PR Gate — CI 强制拦截（真 GitHub Actions workflow）
+#
+# 历史：本文件从 .github/workflows/pr-gate.yml（原 markdown 文档）提取。
+# 原文件是 markdown 文档，GitHub 不会执行其中的 YAML 块。
+# 2026-07-19 W4 P4 §5.1.2 由架构师重构为真 workflow。
+#
+# 真源（规范文档）：.github/workflows/pr-gate-LEGACY.md（仅审计追溯）
+# 真源（人类检查）：.cursor/skills/pr-gate-human/SKILL.md
+# 真源（CI 描述）：.cursor/skills/pr-gate-ci/SKILL.md
+#
+# 7 项硬卡口：
+#   1. Commit 格式（commitlint）
+#   2. FR 编号关联
+#   3. ATDD 验收测试存在性（GitHub 脚本）
+#   4. ADR 冲突检查（GitHub 脚本）
+#   5. 覆盖率（硬卡 ≥ 60%）
+#   6. PR Diff 大小（≤ 600 行）
+#   7. L0-L6 文档一致性扫描
+
+"on":
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  # ============================================
+  # 卡口 1：Commit 格式（Conventional Commits）
+  # ============================================
+  commitlint:
+    name: Gate 1 — Commit 格式（commitlint）
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Conventional Commits lint
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: .commitlintrc.json
+
+  # ============================================
+  # 卡口 2：FR 编号关联
+  # ============================================
+  fr-required:
+    name: Gate 2 — FR 编号关联
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: FR 编号关联检查
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -e
+          # 1. 检测豁免前缀（chore/deps/, docs/readme/, ci/workflow/）
+          HEAD_COMMIT=$(git log -1 --pretty=%s)
+          if echo "$HEAD_COMMIT" | grep -qE '^(chore\(deps\)|docs\(readme\)|ci\(workflow\))'; then
+            echo "✅ 豁免 commit 类型：$HEAD_COMMIT"
+            exit 0
+          fi
+
+          # 2. 必须在 PR title 或 body 中包含 FR-<MODULE>-<NUM>
+          if echo "$PR_TITLE $PR_BODY" | grep -qE 'FR-[A-Z]+-[0-9]+'; then
+            echo "✅ PR 含 FR 编号"
+            exit 0
+          fi
+
+          echo "::error::PR 必须含 FR 编号（格式：FR-<MODULE>-<NUM>，例：FR-PLAN-01）"
+          echo "::error::或在 commit message body 加 BREAKING-CHANGE-FR-EXEMPT: <reason>"
+          exit 1
+
+  # ============================================
+  # 卡口 3：ATDD 验收测试存在性
+  # ============================================
+  atdd-required:
+    name: Gate 3 — ATDD 验收测试存在性
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ATDD 文件存在性检查
+        run: |
+          set -e
+          bash .github/scripts/check_atdd.sh
+
+  # ============================================
+  # 卡口 4：ADR 冲突检查
+  # ============================================
+  adr-conflict:
+    name: Gate 4 — ADR 冲突检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ADR freeze / 冲突检查
+        run: |
+          set -e
+          bash .github/scripts/check_adr.sh
+
+  # ============================================
+  # 卡口 5：覆盖率硬卡（≥ 60%）
+  # ============================================
+  coverage-gate:
+    name: Gate 5 — 覆盖率硬卡 ≥ 60%
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: pytest + coverage
+        run: |
+          uv run pytest backend/tests/ \
+            --cov=backend/app \
+            --cov-report=term-missing \
+            --cov-fail-under=60
+
+  # ============================================
+  # 卡口 6：PR Diff 大小（≤ 600 行）
+  # ============================================
+  pr-size:
+    name: Gate 6 — PR Diff 大小（≤ 600 行）
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 计算 PR diff 行数
+        run: |
+          set -e
+          LINES=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | awk '{print $4 + $6}')
+          if [ -z "$LINES" ]; then
+            echo "::warning::无法计算 PR diff 行数（可能 base ref 不存在）"
+            exit 0
+          fi
+          if [ "$LINES" -gt 600 ]; then
+            echo "::error::PR diff = $LINES 行，超过 600 行上限"
+            echo "::error::请拆分为多个小 PR（推荐每个 PR 关联 1 个 FR）"
+            exit 1
+          fi
+          echo "✅ PR diff = $LINES 行（≤ 600 上限）"
+
+  # ============================================
+  # 卡口 7：L0-L6 文档一致性扫描
+  # ============================================
+  l0-l6-consistency:
+    name: Gate 7 — L0-L6 文档一致性
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: L0-L6 一致性扫描
+        run: |
+          set -e
+          GATES=".cursor/rules/l0-l6-gates.mdc"
+          FAIL=0
+          echo "🔍 扫描非真源文档是否重写 L0-L6 表格..."
+
+          # 白名单（真源 + 引用方）
+          WHITELIST=(
+            ".cursor/rules/l0-l6-gates.mdc"
+            "harness/L0-L6-TRUTH.md"
+            "harness/L0-L6-AUDIT-2026-07-19.md"
+            "harness/checklist.md"
+            ".github/workflows/pr-gate-LEGACY.md"
+            ".github/workflows/pr-gate-ci.yml"
+            ".github/workflows/backend-ci.yml"
+          )
+
+          # 1) 检查非白名单文档是否重写完整 L0-L6 表格
+          for f in $(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD); do
+            # 跳过白名单
+            skip=0
+            for w in "${WHITELIST[@]}"; do
+              if [ "$f" = "$w" ]; then skip=1; break; fi
+            done
+            [ $skip -eq 1 ] && continue
+
+            # 只扫 .md 文件
+            case "$f" in
+              *.md) ;;
+              *) continue ;;
+            esac
+
+            # 检测：如果文件含 6 行连续 "L[0-6] |" 表格行，视为重写完整表格
+            count=$(grep -E '^\| L[0-6] \|' "$f" 2>/dev/null | wc -l)
+            if [ "$count" -ge 6 ]; then
+              echo "::error::$f 重写了 L0-L6 完整表格（≥6 行 L[0-6] |）"
+              echo "::error::修复方式：删除表格，改为 '详见 .cursor/rules/l0-l6-gates.mdc'"
+              FAIL=1
+            fi
+
+            # 2) 检查过期阈值（≥ 80% 整体覆盖率）
+            if grep -E 'coverage.*>=.*80%|覆盖率.*>=.*80%|≥ 80%.*覆盖率|≥ 80%.*coverage' "$f" >/dev/null 2>&1; then
+              echo "::error::$f 包含过期的 'coverage ≥ 80%' 阈值（CI 硬卡 ≥ 60%）"
+              FAIL=1
+            fi
+            # 3) 检查 L2 = Eval Runner 错位
+            if grep -E '^\| L2 \|.*Eval Runner|Eval Runner.*L2' "$f" >/dev/null 2>&1; then
+              echo "::error::$f 把 Eval Runner 写在 L2（历史错位，2026-07-19 已修复）"
+              echo "::error::修复方式：Eval Runner 是 R-4 红线（详见 GATES.md §三），不是 L2"
+              FAIL=1
+            fi
+          done
+
+          if [ $FAIL -eq 1 ]; then
+            echo "::error::L0-L6 一致性扫描失败，详见 harness/L0-L6-AUDIT-2026-07-19.md"
+            exit 1
+          fi
+          echo "✅ L0-L6 文档一致性扫描 PASS"
+
+  # ============================================
+  # 总闸：所有 Gate 必须通过才能合入
+  # ============================================
+  pr-gate-summary:
+    name: PR Gate 总闸（必须全 PASS）
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    needs:
+      - commitlint
+      - fr-required
+      - atdd-required
+      - adr-conflict
+      - coverage-gate
+      - pr-size
+      - l0-l6-consistency
+    if: always()
+    steps:
+      - name: 检查所有 Gate 状态
+        run: |
+          echo "============================================"
+          echo "PR Gate 总闸报告"
+          echo "============================================"
+          echo "Gate 1 commitlint:        ${{ needs.commitlint.result }}"
+          echo "Gate 2 fr-required:       ${{ needs.fr-required.result }}"
+          echo "Gate 3 atdd-required:     ${{ needs.atdd-required.result }}"
+          echo "Gate 4 adr-conflict:      ${{ needs.adr-conflict.result }}"
+          echo "Gate 5 coverage-gate:     ${{ needs.coverage-gate.result }}"
+          echo "Gate 6 pr-size:           ${{ needs.pr-size.result }}"
+          echo "Gate 7 l0-l6-consistency: ${{ needs.l0-l6-consistency.result }}"
+
+          if [ "${{ needs.commitlint.result }}" != "success" ] || \
+             [ "${{ needs.fr-required.result }}" != "success" ] || \
+             [ "${{ needs.atdd-required.result }}" != "success" ] || \
+             [ "${{ needs.adr-conflict.result }}" != "success" ] || \
+             [ "${{ needs.coverage-gate.result }}" != "success" ] || \
+             [ "${{ needs.pr-size.result }}" != "success" ] || \
+             [ "${{ needs.l0-l6-consistency.result }}" != "success" ]; then
+            echo "::error::PR Gate 至少 1 项失败，PR 拒绝合入"
+            exit 1
+          fi
+          echo "✅ 所有 Gate PASS，PR 可合入"
