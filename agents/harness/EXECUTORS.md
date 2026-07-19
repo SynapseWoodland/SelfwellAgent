@@ -35,7 +35,7 @@ owner: harness-executors
 - **禁用**：Read `evidence/*.md` 原文（避免上下文污染）；任何 R-1~R-5 违规
 - **Skill 调用**：
   - `ad-tdd/SKILL.md` Phase 3（**必串接**）—— RED → GREEN → REFACTOR 全循环
-  - `coding-standards/SKILL.md`（全程遵循）—— 节点签名、State 用 TypedDict、不硬编码 LLM 参数
+  - `coding-standards.mdc`（全程遵循）—— 节点签名、State 用 TypedDict、不硬编码 LLM 参数
   - `frontend-standards/SKILL.md`（前端任务时叠加）
 - **退出**：✅ L0 ruff format + L1 pytest unit + L3 pytest integration + 覆盖率达标（rules ≥ 90%、agents/middleware ≥ 80%、整体 ≥ 60%）；🔴 L0/L1 fail → 不允许进入下一阶段
 
@@ -45,7 +45,7 @@ owner: harness-executors
 > L0 命令不允许 `--fix`。违规的代码**必须退回 developer 修复**，不能在 verifier 阶段被自动改。
 > 避免"verifier 改完代码 → 报告 PASS → 走下一步"的假绿。
 >
-> **真源**：`.github/workflows/pr-gate.yml` §二.4 + `pr-gate.yml` 卡 5 走 `pytest --cov-fail-under=60` 硬卡数字。
+> **真源**：`.cursor/rules/l0-l6-gates.mdc` §一 + §六执行者矩阵 + §七阶段矩阵；硬卡数字见 `pr-gate.yml` 卡口 5（`pytest --cov-fail-under=60`）。
 
 - **Run**：`uv run pytest tests/{integration,e2e,smoke} -x -q`；`python -m eval.runner --mode pr`（仅 Prompt 改动时）
 - **Read**：`atdd/TDS-<id>-AC.md`、`evidence/04-acceptance.md`（如已存在）、`06-code.md`（developer 自审报告）

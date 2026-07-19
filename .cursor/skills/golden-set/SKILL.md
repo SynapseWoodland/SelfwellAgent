@@ -130,7 +130,7 @@ disable-model-invocation: false
 
 | Skill | 触发场景 | 本 skill 不做什么 |
 |-------|----------|------------------|
-| `coding-standards/SKILL.md` | 改 Python 代码 → 代码质量自审 | 不查 ruff/mypy/radon |
+| `coding-standards.mdc` | 改 Python 代码 → 代码质量自审 | 不查 ruff/mypy/radon |
 | `pr-gate/SKILL.md` | 提 PR → FR/验收测试/ADR/Commit 格式 | 不查 commit 规范 |
 | `ad-tdd/SKILL.md` | 新增功能 → SDD→TDD 循环 | 不驱动 TDD 流程 |
 

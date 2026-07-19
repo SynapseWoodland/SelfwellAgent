@@ -93,7 +93,7 @@ disable-model-invocation: false
 | Skill | 关系 |
 |-------|------|
 | `ad-tdd/SKILL.md` | **被调用**——PLAN/CODE 阶段由 ad-tdd 执行 TDD 循环 |
-| `coding-standards/SKILL.md` | **被引用**——L0-L6 质量门禁在 VERIFY 阶段强制跑 |
+| `coding-standards.mdc` | **被引用**——L0-L6 质量门禁在 VERIFY 阶段强制跑 |
 | `pr-gate/SKILL.md` | **被引用**——SIGN_OFF 阶段末尾跑 pr-gate 7 项 |
 | `golden-set/SKILL.md` | **被引用**——REGRESSION 阶段触发 `--mode pr` |
 | `frontend-standards/SKILL.md` | **被引用**——前端任务的 developer 角色触发 |

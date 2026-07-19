@@ -253,31 +253,34 @@ selfwell-agent/
 
 ## 🧪 测试与质量门禁
 
+> **L0-L6 唯一真源**：`.cursor/rules/l0-l6-gates.mdc`（2026-07-19 W4 P3 §4.5.12 迁到 rules/）。
+>
+> 本节列出**速查命令**（命令以 `l0-l6-gates.mdc` 为准；如有出入，以 `l0-l6-gates.mdc` 为准）：
+
 ```bash
-# L0 格式化 + Lint
-uv run ruff format .
-uv run ruff check .
-uv run mypy backend/app
+# L0 语法 & 导入
+python -m py_compile backend/app/xxx.py
 
-# L1 单元测试
-uv run pytest backend/tests/unit -q
+# L1 ruff check + format
+uv run ruff check . && uv run ruff format --check .
 
-# L2 Golden Set 回归（涉及 prompt 修改时必跑）
-uv run pytest backend/tests/golden -q
-# Eval Runner（schema 校验 + 4 种模式 pr/daily/release/schema）
-python backend/eval/run_eval.py --mode pr
+# L2 mypy strict
+uv run mypy --strict backend/app/
 
-# L3 集成测试（依赖 docker compose 服务栈）
-uv run pytest backend/tests/integration -q
+# L3 pytest 全量（unit + integration + e2e + smoke）
+uv run pytest tests/{unit,integration,e2e,smoke} -x -q
 
-# L4 BDD（pytest-bdd）
-uv run pytest backend/tests/bdd -q
+# L4 ruff 安全规则 + jscpd 重复率
+uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003
+uv run jscpd backend/ --threshold 4
 
-# L5 负载（locust）
-locust -f backend/tests/load/locustfile_mvp.py --host=http://localhost:8000
+# L5 架构 & 安全（AI 审查 + CI 兜底，详见 `l0-l6-gates.mdc` §一 L5）
 
-# L6 覆盖率（目标 ≥ 60%）
-uv run pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=60
+# L6 覆盖率 ≥ 60%（CI 硬卡数字）
+uv run pytest --cov=app --cov-fail-under=60
+
+# R-4 Eval Runner（仅 prompts/*.md 改动时跑，非 L0-L6 范围）
+python -m eval.runner --mode pr
 ```
 
 > 当前覆盖率约 **45%**（沿用 `142eab9f` worker 报告），Sprint 6 PR-Gate 回归一并补到 60%。

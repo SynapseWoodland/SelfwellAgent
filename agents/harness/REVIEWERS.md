@@ -42,9 +42,9 @@ owner: harness-reviewers
 
 ### 2.3 quality-guardian（质量）
 
-- **Read**：`TDS-*`、`ATDD`、`coding-standards/SKILL.md`、`ad-tdd/SKILL.md`
+- **Read**：`TDS-*`、`ATDD`、`coding-standards.mdc`、`ad-tdd/SKILL.md`
 - **Write**：`evidence/04-atdd.md`、`evidence/15-skill-update.md`、`evidence/16-interrupt-review.md`
-- **门禁引用**（不写死）：coverage ≥ 80% agents/middleware、≥ 90% rules、≥ 60% 整体（真源 `GATES.md` L6）
+**门禁引用**（不写死）：整体 ≥ 60% / rules ≥ 90% / agents+middleware ≥ 80% / tools ≥ 70%（真源 `.cursor/rules/l0-l6-gates.mdc` §一 L6 + §二）
 - **禁用**：业务代码、修改 Skill
 - **5 问**：ATDD 三态？字段映射 openapi？覆盖率可达？跨 FR 回归？新增 Golden Set？
 
@@ -105,7 +105,7 @@ owner: harness-reviewers
 
 | Skill | 关系 |
 |-------|------|
-| `coding-standards/SKILL.md` | **被引用**（quality 评审阈值以 coding-standards 为真源） |
+| `coding-standards.mdc` | **被引用**（quality 评审阈值以 coding-standards 为真源） |
 | `pr-gate/SKILL.md` | **被引用**（PRE_MORTEM / SIGN_OFF 末尾跑 pr-gate 7 项） |
 | `ad-tdd/SKILL.md` | **被引用**（tech-architect 评审 TDS 时参考） |
 | `frontend-standards/SKILL.md` | **被引用**（前端任务评审角度叠加） |

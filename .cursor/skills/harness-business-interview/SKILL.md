@@ -268,7 +268,7 @@ interrupt_log:
 
 | Skill | 何时用它 |
 |-------|----------|
-| `coding-standards/SKILL.md` | 工程规范 / 真源 / 命令 |
+| `coding-standards.mdc` | 工程规范 / 真源 / 命令 |
 | `pr-gate/SKILL.md` | PR 失败怎么读日志 |
 | `ad-tdd/SKILL.md` | "怎么实施 FR" |
 | `harness-dispatcher/SKILL.md` | "下一步轮到谁" |

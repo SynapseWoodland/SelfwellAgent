@@ -148,10 +148,10 @@ Security Agent
 
 | Agent | 门禁要求 |
 |-------|----------|
-| Backend Agent | L0: ruff format + ruff check + mypy<br>L1: pytest unit<br>L2: Golden Set 回归（如涉及 Prompt）<br>L3: pytest integration<br>L6: coverage ≥ 60% |
-| Frontend Agent | Flutter: flutter analyze + flutter test<br>小程序: npm run lint |
-| QA Agent | 全量 L0-L6 门禁通过 |
-| DevOps Agent | docker compose ps 健康检查通过 |
+| Backend Agent | 详见 `.cursor/rules/l0-l6-gates.mdc`（L0-L6 集中真源 + §六执行者 + §七阶段）；commit 前必跑 L0-L6 全部 |
+| Frontend Agent | Flutter: `flutter analyze + flutter test`；小程序: `npm run lint` |
+| QA Agent | 全量 L0-L6 门禁通过 + Golden Set 维护（`.cursor/skills/golden-set/SKILL.md`） |
+| DevOps Agent | `docker compose ps` 健康检查通过 |
 | Security Agent | bandit 无 S 高危 + 无敏感信息泄露 |
 
 ---

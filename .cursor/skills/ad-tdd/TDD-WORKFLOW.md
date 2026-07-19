@@ -1,6 +1,6 @@
 # TDD 工作流详解
 
-> **实施规范**：本文件中所有代码规范要求，均以 [coding-standards SKILL.md](../coding-standards/SKILL.md) 为准。
+> **实施规范**：本文件中所有代码规范要求，均以 [coding-standards](../../rules/coding-standards.mdc) 为准。
 
 ## TDD 核心原则
 
@@ -198,7 +198,7 @@ async def test_searches_repository(self):
 
 **Step 4 — REFACTOR**
 
-所有测试通过后，通过 [coding-standards L0-L6 质量门禁](../coding-standards/SKILL.md) 消除坏味道。参考规范：
+所有测试通过后，通过 [l0-l6-gates 质量门禁](../../../rules/l0-l6-gates.mdc) 消除坏味道（真源：`.cursor/rules/l0-l6-gates.mdc`）。参考规范：
 - 单函数 ≤ **50 行**，单节点 ≤ 150 行（`radon -l`，口径见 coding-standards SKILL.md）
 - 圈复杂度单函数 max A（`radon -a -i A`）
 - 添加 docstring 和 loguru 日志，禁止 print

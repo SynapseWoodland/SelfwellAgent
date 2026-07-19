@@ -144,7 +144,7 @@ And 系统跳转至首页
 
 ## Phase 3：TDD — 循环（对每个 ATDD 逐条执行）
 
-对 ATDD 中每个 Scenario，严格按以下顺序执行。实施阶段**必须严格遵循** [coding-standards SKILL.md](../coding-standards/SKILL.md)。
+对 ATDD 中每个 Scenario，严格按以下顺序执行。实施阶段**必须严格遵循** [coding-standards SKILL.md](../coding-standards.mdc)。
 
 ### Step 3.1 — RED：写测试
 
@@ -261,12 +261,24 @@ uv run pytest tests/smoke -x -q
 | 6 | 覆盖率 | `uv run pytest --cov=app --cov-fail-under=60` | FAIL → 补测试 |
 | 7 | prompt 改动（如有） | `python -m eval.runner --mode pr` | FAIL → 调 prompt 或回滚 |
 
+**本 7 步与 L0-L6 映射**（2026-07-19 新增，避免编号漂移）：
+
+| 自审步 | 对应 L 级别 | 真源 |
+|-------|-----------|------|
+| 1 format 校验 | L1（ruff format） | `.cursor/rules/l0-l6-gates.mdc` §一 L1 |
+| 2 lint | L4a（ruff 安全规则） | `.cursor/rules/l0-l6-gates.mdc` §一 L4a |
+| 3 类型 | L2（mypy strict） | `.cursor/rules/l0-l6-gates.mdc` §一 L2 |
+| 4 单元测试 | L3（unit 子集） | `.cursor/rules/l0-l6-gates.mdc` §一 L3 |
+| 5 集成测试 | L3（integration 子集） | `.cursor/rules/l0-l6-gates.mdc` §一 L3 |
+| 6 覆盖率 | L6（≥ 60%） | `.cursor/rules/l0-l6-gates.mdc` §一 L6 |
+| 7 prompt 改动 | **R-4 Eval Runner**（非 L0-L6） | `.cursor/rules/l0-l6-gates.mdc` §三 + `.cursor/skills/golden-set/SKILL.md` §5 |
+
 **禁止跳过任一项**。与 coding-standards 的关系：
 
 - **本 skill 是执行者**——跑命令
-- **coding-standards GATES.md 是规则定义**——定义命令与阈值
+- **`l0-l6-gates.mdc` 是规则定义**——定义命令与阈值
 
-正确引用链：**coding-standards/GATES.md** §十三（14 条）+ 本 skill Phase 5（7 步执行）= 真实可跑的自审。
+正确引用链：`.cursor/rules/l0-l6-gates.mdc` §十三（14 条）+ 本 skill Phase 5（7 步执行）= 真实可跑的自审。
 
 ### 自审报告输出格式
 
@@ -339,7 +351,7 @@ ATDD 格式要求：
 | TDD GREEN | 本 skill（ad-tdd） | `coding-standards` 提供编码规范 |
 | 跑分 / 回归 | - | `golden-set`（Prompt 改动） / `pr-gate`（PR 提交流） |
 
-> 编码规范、复杂度阈值、质量门禁、自审流程的**规则定义**全部以 [coding-standards/SKILL.md](../coding-standards/SKILL.md) 为唯一真源。
+> 编码规范、复杂度阈值、质量门禁、自审流程的**规则定义**全部以 [coding-standards.mdc](../coding-standards.mdc) 为唯一真源。
 >
 > **真实执行命令**以本 skill 的 Phase 3 / Phase 4 / Phase 5 表格为准。
 >
@@ -353,7 +365,7 @@ ATDD 格式要求：
 - TDS 文档模板：[TDS-TEMPLATE.md](TDS-TEMPLATE.md)
 - ATDD 验收标准格式：见上方 Phase 2 示例
 - TDD 工作流详解：[TDD-WORKFLOW.md](TDD-WORKFLOW.md)
-- **项目编码规范 & AI 自审流程（唯一真源）**：[coding-standards/SKILL.md](../coding-standards/SKILL.md)
+- **项目编码规范 & AI 自审流程（唯一真源）**：[coding-standards.mdc](../coding-standards.mdc)
 - PR 合入检查：`.cursor/skills/pr-gate/SKILL.md`
 - Golden Set 维护：`.cursor/skills/golden-set/SKILL.md`
 - ATDD 库：`docs/harness/atdd/`
