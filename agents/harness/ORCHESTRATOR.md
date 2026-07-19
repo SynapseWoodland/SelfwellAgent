@@ -78,7 +78,7 @@ replay_session_id: <uuid|null> # V2：DATA_REPLAY 时同步
 | **二、冲突条目** | reviewer 分歧；orchestrator 给"裁决建议"（引用 ADR 或建议新增 ADR），**不**写"最终结论" |
 | **三、待用户确认条目** | 涉及 ADR 新增/破坏性变更/商业敏感；必须 `AskUser` |
 
-> 模板与示例见 `docs/harness/templates/synthesis.md`（含 2 个内嵌示例）。
+> 模板与示例见 `harness/templates/synthesis.md`（含 2 个内嵌示例）。
 
 ## 四、触发时机（强制约束）
 
@@ -149,7 +149,7 @@ EXECUTORS → 单角色执行（"我负责做这件事"）
 
 - 评审角色清单：`agents/harness/REVIEWERS.md`
 - 执行角色清单：`agents/harness/EXECUTORS.md`
-- 合成模板：`docs/harness/templates/synthesis.md`
-- evidence schema：`docs/harness/evidence/README.md`（V2 8 字段）
-- workflow-v2.yaml：`docs/harness/workflow-v2.yaml`（V2 唯一真源）
+- 合成模板：`harness/templates/synthesis.md`
+- evidence schema：`harness/evidence/README.md`（V2 8 字段）
+- workflow-v2.yaml：`harness/workflow-v2.yaml`（V2 唯一真源）
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2

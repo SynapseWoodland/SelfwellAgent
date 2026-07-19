@@ -9,8 +9,8 @@ owner: harness-reviewers
 
 > **V2 更新**：新增 SECURITY_TEST（独立安全评审）和 INCIDENT_RESPONSE（故障响应）。
 > 必签 3 + 触发式 2。3 必签 = `requirement-analyst` / `tech-architect` / `quality-guardian`；2 触发式 = `security-reviewer`（PII/LLM/对外 API 时）/ `devops-reviewer`（CI/部署/迁移时）。
-> 触发规则见 `docs/harness/context/phase-checklist.md` §二。
-> **不重复** ORCHESTRATOR 的合成协议；不重复 harness-evidence Skill 的 schema（见 `docs/harness/evidence/README.md`）。
+> 触发规则见 `harness/context/phase-checklist.md` §二。
+> **不重复** ORCHESTRATOR 的合成协议；不重复 harness-evidence Skill 的 schema（见 `harness/evidence/README.md`）。
 
 ## 一、5 评审角色总览
 
@@ -22,7 +22,7 @@ owner: harness-reviewers
 | 4 | `security-reviewer` | 安全 | `PRE_MORTEM`（**触发式**）/ `SECURITY_TEST` | `evidence/03b-security.md` / `evidence/08-security-test.md` |
 | 5 | `devops-reviewer` | 部署 | `PRE_MORTEM`（**触发式**）/ `INCIDENT_RESPONSE` | `evidence/03c-devops.md` / `evidence/13-incident-response.md` |
 
-> 阶段名严格对齐 `docs/harness/workflow-v2.yaml`。
+> 阶段名严格对齐 `harness/workflow-v2.yaml`。
 
 ## 二、各角色协议
 
@@ -115,7 +115,7 @@ owner: harness-reviewers
 
 - 上游：`agents/harness/DISPATCHER.md`（按 phase 路由到 reviewer）
 - 下游：`agents/harness/ORCHESTRATOR.md`（合成 5 reviewer 产物）
-- 模板：`docs/harness/templates/pre-mortem.md` / `synthesis.md`
-- evidence schema：`docs/harness/evidence/README.md`（V2 8 字段）
-- workflow-v2.yaml：`docs/harness/workflow-v2.yaml`
+- 模板：`harness/templates/pre-mortem.md` / `synthesis.md`
+- evidence schema：`harness/evidence/README.md`（V2 8 字段）
+- workflow-v2.yaml：`harness/workflow-v2.yaml`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2

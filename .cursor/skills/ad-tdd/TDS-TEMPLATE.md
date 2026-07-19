@@ -42,7 +42,7 @@
 
 ## 5. ATDD 验收标准
 
-> **对应文件**：`docs/harness/atdd/TDS-<编号>-AC.md`
+> **对应文件**：`harness/atdd/TDS-<编号>-AC.md`
 
 详见 ATDD 验收标准文档。
 
@@ -111,7 +111,7 @@
 
 ## 10. ATDD 文件模板
 
-对应的 ATDD 验收标准文件放在 `docs/harness/atdd/TDS-<编号>-AC.md`：
+对应的 ATDD 验收标准文件放在 `harness/atdd/TDS-<编号>-AC.md`：
 
 ```markdown
 # TDS-<编号>: <标题> - 验收标准

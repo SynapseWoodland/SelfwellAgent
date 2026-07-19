@@ -2,7 +2,7 @@
 name: harness-dispatcher
 description: >
   Harness 调度入口 skill。当主会话说"进入 harness"/"按 Harness 跑"/"按流水线"/状态机 phase 切换时触发；
-  读 docs/harness/state/harness-state.json + docs/harness/workflow-v2.yaml，返回 next_agent 指令。
+  读 harness/state/harness-state.json + harness/workflow-v2.yaml，返回 next_agent 指令。
   支持 interrupt/replay 路由：当 interrupt_budget > 0 时自动路由到 INTERRUPT_REVIEW；budget 耗尽后请求 AskUser。
   本 skill 只做路由——不调代码工具、不读 evidence、不写业务文件。详细协议见 agents/harness/DISPATCHER.md。
 disable-model-invocation: false
@@ -27,12 +27,12 @@ disable-model-invocation: false
 
 ## 二、调用协议（6 步）
 
-1. **Read** `docs/harness/state/harness-state.json`（不存在则 `next_agent = orchestrator` 初始化）
-2. **Read** `docs/harness/workflow-v2.yaml`（V2 唯一真源，**不再读** `workflow.yaml`）
+1. **Read** `harness/state/harness-state.json`（不存在则 `next_agent = orchestrator` 初始化）
+2. **Read** `harness/workflow-v2.yaml`（V2 唯一真源，**不再读** `workflow.yaml`）
 3. **中断检查**：若用户显式触发"中断/暂停/interrupt"，且当前 phase `interruptible: true`：
    - 读取当前 `interrupt_budget`
    - 若 `interrupt_budget <= 0`，返回 `next_agent = AskUser` 请求授权超限
-   - 否则：`interrupt_budget - 1`，记录 `interrupted_phase`，`next_agent = quality-guardian`，context 指向 `docs/harness/context/16-interrupt-review.md`
+   - 否则：`interrupt_budget - 1`，记录 `interrupted_phase`，`next_agent = quality-guardian`，context 指向 `harness/context/16-interrupt-review.md`
 4. **DATA_REPLAY 特殊处理**：完成后 `next_phase_hint = "auto-cycle-to-PRD"`，`replay_session_id` 自增
 5. **正常路由**：校验 `exit_criteria`，全满足 → `next[0]`；未满足 → 当前 phase `entry_agent`；SIGN_OFF 且 next=[] → `DONE`
 6. 返回结构化指令：
@@ -42,8 +42,8 @@ disable-model-invocation: false
 | run_id | `<uuid>` |
 | current_phase | `<name>` |
 | next_agent | `<role-name 或 DONE 或 AskUser>` |
-| context_to_load | `docs/harness/context/<phase-specific>.md`（V2 6 个新 phase 各有专属模板，见下） |
-| evidence_required | `docs/harness/evidence/<phase>.md` |
+| context_to_load | `harness/context/<phase-specific>.md`（V2 6 个新 phase 各有专属模板，见下） |
+| evidence_required | `harness/evidence/<phase>.md` |
 
 7. 调 `<next_agent>`（参考 `agents/harness/<FILE>.md`）；按需 Read 上述 context；evidence 落点由对应 agent 写
 
@@ -51,22 +51,22 @@ disable-model-invocation: false
 
 | phase | context 路径 |
 |-------|-------------|
-| PRD | `docs/harness/context/phase-checklist.md` |
-| ARCH_DESIGN | `docs/harness/context/phase-checklist.md` |
-| PRE_MORTEM | `docs/harness/context/phase-checklist.md` |
-| ATDD | `docs/harness/context/phase-checklist.md` |
-| PLAN | `docs/harness/context/phase-checklist.md` |
-| CODE | `docs/harness/context/phase-checklist.md` |
-| VERIFY | `docs/harness/context/phase-checklist.md` |
-| DEPLOY | `docs/harness/context/phase-checklist.md` |
-| REGRESSION | `docs/harness/context/phase-checklist.md` |
-| SIGN_OFF | `docs/harness/context/phase-checklist.md` |
-| SECURITY_TEST | `docs/harness/context/11-security-test.md`（待 W12 P2 3.1.1 落地） |
-| INCIDENT_RESPONSE | `docs/harness/context/13-incident-response.md`（待 W12 P2 3.1.3 落地） |
-| OPS_LOOP | `docs/harness/context/14-ops-loop.md`（待 W12 P2 3.1.4 落地） |
-| SKILL_UPDATE | `docs/harness/context/15-skill-update.md`（待 W12 P2 3.1.5 落地） |
-| DATA_REPLAY | `docs/harness/context/12-data-replay.md`（待 W12 P2 3.1.2 落地） |
-| INTERRUPT_REVIEW | `docs/harness/context/16-interrupt-review.md`（待 W12 P2 3.1.6 落地） |
+| PRD | `harness/context/phase-checklist.md` |
+| ARCH_DESIGN | `harness/context/phase-checklist.md` |
+| PRE_MORTEM | `harness/context/phase-checklist.md` |
+| ATDD | `harness/context/phase-checklist.md` |
+| PLAN | `harness/context/phase-checklist.md` |
+| CODE | `harness/context/phase-checklist.md` |
+| VERIFY | `harness/context/phase-checklist.md` |
+| DEPLOY | `harness/context/phase-checklist.md` |
+| REGRESSION | `harness/context/phase-checklist.md` |
+| SIGN_OFF | `harness/context/phase-checklist.md` |
+| SECURITY_TEST | `harness/context/11-security-test.md`（待 W12 P2 3.1.1 落地） |
+| INCIDENT_RESPONSE | `harness/context/13-incident-response.md`（待 W12 P2 3.1.3 落地） |
+| OPS_LOOP | `harness/context/14-ops-loop.md`（待 W12 P2 3.1.4 落地） |
+| SKILL_UPDATE | `harness/context/15-skill-update.md`（待 W12 P2 3.1.5 落地） |
+| DATA_REPLAY | `harness/context/12-data-replay.md`（待 W12 P2 3.1.2 落地） |
+| INTERRUPT_REVIEW | `harness/context/16-interrupt-review.md`（待 W12 P2 3.1.6 落地） |
 
 > **落地前**：6 个新 phase 的 context 路径暂时指向 `phase-checklist.md` 合一份；W12 P2 落地后逐个拆出独立模板。
 
@@ -101,8 +101,8 @@ disable-model-invocation: false
 ## 五、参考
 
 - 路由协议真源：`agents/harness/DISPATCHER.md`
-- 状态机：`docs/harness/workflow-v2.yaml`（V2 唯一真源）
-- 兼容旧版：`docs/harness/workflow.yaml`（V1.6，迁移期只读，V2 稳定后冻结）
-- phase context：`docs/harness/context/`（6 个新 phase 落地前暂用 `phase-checklist.md` 合一份）
-- evidence schema：`docs/harness/evidence/README.md`
+- 状态机：`harness/workflow-v2.yaml`（V2 唯一真源）
+- 兼容旧版：`harness/workflow.yaml`（V1.6，迁移期只读，V2 稳定后冻结）
+- phase context：`harness/context/`（6 个新 phase 落地前暂用 `phase-checklist.md` 合一份）
+- evidence schema：`harness/evidence/README.md`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2 / R-5

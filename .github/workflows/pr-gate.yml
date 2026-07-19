@@ -72,7 +72,7 @@ on:
 
 ### 卡口 3：验收测试存在性（atdd 文件）
 
-> **TODO**：ATDD 目录尚未建立，暂不启用。待 W4 Phase 2 建立 `docs/harness/atdd/` 后启用。
+> **TODO**：ATDD 目录尚未建立，暂不启用。待 W4 Phase 2 建立 `harness/atdd/` 后启用。
 
 ```yaml
 # - name: 验收测试存在性
@@ -226,7 +226,7 @@ body:
 >
 > **背景**：2026-07-19 W4 P3 §4.5.12 把 GATES.md 从 `.cursor/skills/coding-standards/` 迁到 `.cursor/rules/l0-l6-gates.mdc`（真源从 skill 升级为 alwaysApply rule）。
 >
-> **背景**：2026-07-19 审计发现项目内 5 套 L0-L6 互相冲突的表格（详见 `docs/harness/L0-L6-AUDIT-2026-07-19.md`）。修复后建立卡口 7 自动拦截后续漂移。
+> **背景**：2026-07-19 审计发现项目内 5 套 L0-L6 互相冲突的表格（详见 `harness/L0-L6-AUDIT-2026-07-19.md`）。修复后建立卡口 7 自动拦截后续漂移。
 
 ```yaml
 - name: L0-L6 文档一致性扫描
@@ -239,9 +239,9 @@ body:
     # 白名单（真源 + 引用方）
     WHITELIST=(
       ".cursor/rules/l0-l6-gates.mdc"
-      "docs/harness/L0-L6-TRUTH.md"
-      "docs/harness/L0-L6-AUDIT-2026-07-19.md"
-      "docs/harness/checklist.md"
+      "harness/L0-L6-TRUTH.md"
+      "harness/L0-L6-AUDIT-2026-07-19.md"
+      "harness/checklist.md"
       ".github/workflows/pr-gate.yml"
       ".github/workflows/backend-ci.yml"
     )
@@ -282,7 +282,7 @@ body:
     done
 
     if [ $FAIL -eq 1 ]; then
-      echo "::error::L0-L6 一致性扫描失败，详见 docs/harness/L0-L6-AUDIT-2026-07-19.md"
+      echo "::error::L0-L6 一致性扫描失败，详见 harness/L0-L6-AUDIT-2026-07-19.md"
       exit 1
     fi
     echo "✅ L0-L6 文档一致性扫描 PASS"
@@ -290,13 +290,13 @@ body:
 
 **触发**：所有 PR 修改 `.md` 文件时自动跑。
 
-**失败指引**：错误信息会指向具体文件和修复方式（详见 `docs/harness/L0-L6-AUDIT-2026-07-19.md`）。
+**失败指引**：错误信息会指向具体文件和修复方式（详见 `harness/L0-L6-AUDIT-2026-07-19.md`）。
 
 **白名单**（重写 L0-L6 表格是被允许的）：
 - `.cursor/rules/l0-l6-gates.mdc`（**唯一真源 + alwaysApply**）
-- `docs/harness/L0-L6-TRUTH.md`（摘要）
-- `docs/harness/L0-L6-AUDIT-2026-07-19.md`（审计报告）
-- `docs/harness/checklist.md`（修复 checklist）
+- `harness/L0-L6-TRUTH.md`（摘要）
+- `harness/L0-L6-AUDIT-2026-07-19.md`（审计报告）
+- `harness/checklist.md`（修复 checklist）
 - `.github/workflows/pr-gate.yml`（本文件，含卡口 7 注释）
 - `.github/workflows/backend-ci.yml`（CI 含 L0-L4 步骤注释）
 
@@ -307,4 +307,4 @@ body:
 - `.cursor/skills/pr-gate/SKILL.md`
 - `.cursor/rules/project-prohibitions.mdc` R-3 / R-4（5 条红线的真源）
 - `backend-ci.yml`（L0-L4 跑分）
-- `docs/harness/MIGRATION-V2.md`（V2 取代 V1.6 整体路线图）
+- `harness/MIGRATION-V2.md`（V2 取代 V1.6 整体路线图）

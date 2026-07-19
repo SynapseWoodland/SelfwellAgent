@@ -4,7 +4,7 @@ description: >
   业务多轮对话追问专用 skill。当用户在 Harness 流水线跑期间（特别是 PRD / PRE_MORTEM / SIGN_OFF 三个 phase）
   反复追问"业务怎么答 / 客户问 XX 我怎么答 / PRD 那条 FR 该怎么拆 / 验收要不要这样选"等业务侧问题时触发。
   覆盖 5 类追问路由（追问目的路由到 PR / ORCHESTRATOR / USER）+ 4 步结构化澄清法（目的→边界→影响→决策）
-  + 业务回答模板。 与 docs/harness/MIGRATION-V2.md INTERRUPT_REVIEW phase 对齐。
+  + 业务回答模板。 与 harness/MIGRATION-V2.md INTERRUPT_REVIEW phase 对齐。
 disable-model-invocation: false
 ---
 
@@ -281,7 +281,7 @@ interrupt_log:
 
 ## 九、参考
 
-- V2 状态机：`docs/harness/workflow-v2.yaml`（待评）
+- V2 状态机：`harness/workflow-v2.yaml`（待评）
 - ORCHESTRATOR 协议：`agents/harness/ORCHESTRATOR.md`
 - 中断 review phase：W12 接入 INTERRUPT_REVIEW
 - 工程规范真源：`.cursor/rules/project-prohibitions.mdc`

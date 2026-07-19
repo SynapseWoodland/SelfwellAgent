@@ -4,14 +4,14 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "docs/harness/**"
+      - "harness/**"
       - "agents/harness/**"
       - ".cursor/skills/harness-*/**"
       - ".github/workflows/harness-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "docs/harness/**"
+      - "harness/**"
       - "agents/harness/**"
       - ".cursor/skills/harness-*/**"
       - ".github/workflows/harness-ci.yml"
@@ -27,4 +27,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Harness grep 兜底（4 条）
-        run: bash docs/harness/scripts/check.sh
+        run: bash harness/scripts/check.sh

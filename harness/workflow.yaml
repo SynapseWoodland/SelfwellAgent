@@ -1,0 +1,53 @@
+version: "1.0"
+initial_phase: PRD
+phases:
+  - id: PRD
+    next: [ARCH_DESIGN]
+    entry_agent: requirement-analyst
+    exit_criteria: [FR编号全, 场景拆解齐]
+    context: harness/context/prd-phase.md
+  - id: ARCH_DESIGN
+    next: [PRE_MORTEM]
+    entry_agent: tech-architect
+    exit_criteria: [ADR对齐, TDS骨架出]
+    context: harness/context/ad-phase.md
+  - id: PRE_MORTEM
+    next: [ATDD]
+    entry_agent: orchestrator
+    exit_criteria: [三评审+二扩展全签字]
+    context: harness/context/atdd-phase.md
+  - id: ATDD
+    next: [PLAN]
+    entry_agent: quality-guardian
+    exit_criteria: [Gherkin场景覆盖正常+边界+异常]
+    context: harness/context/atdd-phase.md
+  - id: PLAN
+    next: [CODE]
+    entry_agent: plan-generator
+    exit_criteria: [实施步骤有顺序+回滚点]
+    context: harness/context/code-phase.md
+  - id: CODE
+    next: [VERIFY]
+    entry_agent: developer
+    exit_criteria: [L0-L4 PASS, 覆盖率达标]
+    context: harness/context/code-phase.md
+  - id: VERIFY
+    next: [DEPLOY]
+    entry_agent: verifier
+    exit_criteria: [ATDD全过, 无回归]
+    context: harness/context/code-phase.md
+  - id: DEPLOY
+    next: [REGRESSION]
+    entry_agent: deployer
+    exit_criteria: [预发健康检查 PASS]
+    context: harness/context/code-phase.md
+  - id: REGRESSION
+    next: [SIGN_OFF]
+    entry_agent: tester
+    exit_criteria: [Golden Set baseline 跌幅 ≤5%]
+    context: harness/context/code-phase.md
+  - id: SIGN_OFF
+    next: []
+    entry_agent: orchestrator
+    exit_criteria: [commit message + PR desc 含 FR编号]
+    context: harness/context/code-phase.md

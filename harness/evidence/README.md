@@ -107,27 +107,27 @@ V2 PR-Gate 在 2.3.2 兼容性检查阶段会识别 `null` 值并发出警告，
 
 ## 六、grep 兜底（PR-Gate 补充项）
 
-主会话在 SIGN_OFF 阶段末尾跑以下 5 条 grep（已合并到 `docs/harness/scripts/check.sh`）：
+主会话在 SIGN_OFF 阶段末尾跑以下 5 条 grep（已合并到 `harness/scripts/check.sh`）：
 
 ```bash
 # 1. R-2 红线：agents/harness/ 禁业务阈值硬编码
 grep -RnE '(if|return).*score.*[<>]=.*0\.[0-9]+' agents/harness/
 
 # 2. evidence 文件不被主会话直接 Read（保护 8K 上下文）
-grep -RnE 'evidence.*MainSession' agents/harness/ docs/harness/
+grep -RnE 'evidence.*MainSession' agents/harness/ harness/
 
 # 3. evidence frontmatter 8 字段齐全
-for f in docs/harness/evidence/*.md; do
+for f in harness/evidence/*.md; do
   for field in phase run_id role fr_refs adr_refs signed interrupt_budget replay_session_id; do
     grep -L "^${field}:" "$f"
   done
 done
 
 # 4. SIGN_OFF evidence 必有 fr_refs 至少 1 条
-grep -L "fr_refs: .*FR-" docs/harness/evidence/11-signoff.md
+grep -L "fr_refs: .*FR-" harness/evidence/11-signoff.md
 
 # 5. V2 新 phase evidence 有 replay_session_id（非 null）
-grep -L "replay_session_id: null" docs/harness/evidence/12-data-replay.md
+grep -L "replay_session_id: null" harness/evidence/12-data-replay.md
 ```
 
 期望：5 条 grep 全 exit code 1（无匹配），否则触发对应红线。
@@ -140,7 +140,7 @@ grep -L "replay_session_id: null" docs/harness/evidence/12-data-replay.md
 | 2 | 修改 `harness-state.json` 而非 orchestrator 角色 | frontmatter `role` 字段审计 |
 | 3 | 缺 frontmatter 任一必填字段 | grep 3 兜底 |
 | 4 | `signed: true` 但无 3 必签 + 触发式签字 | orchestrator 校验 |
-| 5 | evidence 文件落点出 `docs/harness/evidence/` | pre-commit 路径 grep |
+| 5 | evidence 文件落点出 `harness/evidence/` | pre-commit 路径 grep |
 | 6 | 写 evidence 时未同步 `interrupt_budget` | dispatcher 写 state.json 时强制携带 |
 
 ## 八、与其他 Skill 边界
@@ -155,8 +155,8 @@ grep -L "replay_session_id: null" docs/harness/evidence/12-data-replay.md
 
 ## 九、参考
 
-- 状态机：`docs/harness/workflow-v2.yaml`（V2 唯一真源）
-- 兼容旧版：`docs/harness/workflow.yaml`（V1.6，迁移期只读）
+- 状态机：`harness/workflow-v2.yaml`（V2 唯一真源）
+- 兼容旧版：`harness/workflow.yaml`（V1.6，迁移期只读）
 - 角色协议：`agents/harness/REVIEWERS.md` / `EXECUTORS.md`
-- grep 兜底脚本：`docs/harness/scripts/check.sh`
+- grep 兜底脚本：`harness/scripts/check.sh`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2

@@ -2,7 +2,7 @@
 name: harness-autolearn
 description: >
   Harness 记忆进化 skill。commit 后 / 用户说"/learn"/"沉淀经验"时触发；
-  负责 lesson → pattern → instinct 三级晋升机制、判定阈值、文件路径 docs/harness/lessons/。
+  负责 lesson → pattern → instinct 三级晋升机制、判定阈值、文件路径 harness/lessons/。
   本 skill 是 Harness 自我进化层，不修改任何业务文件。
   触发频率：每个 PR 合入后由 orchestrator 询问一次"是否沉淀"。
 disable-model-invocation: false
@@ -25,11 +25,11 @@ disable-model-invocation: false
 
 | 级别 | 文件落点 | 触发条件 |
 |------|---------|---------|
-| **lesson** | `docs/harness/lessons/<YYYY-MM-DD>-<slug>.md` | 1 次实战踩坑 |
+| **lesson** | `harness/lessons/<YYYY-MM-DD>-<slug>.md` | 1 次实战踩坑 |
 | **pattern** | `.cursor/rules/python-patterns.mdc` | 同类 lesson 在 ≥ 2 个不同 FR 出现 |
 | **instinct** | `.cursor/rules/coding-standards.mdc` | pattern 实战 ≥ 3 run + 人工 confirm |
 
-> **关键约束**：本 skill 只写 `docs/harness/lessons/`；pattern / instinct 写入由 orchestrator 在 SIGN_OFF 阶段主动合入（避免 auto-learn 改既有 Skill 漂移）。
+> **关键约束**：本 skill 只写 `harness/lessons/`；pattern / instinct 写入由 orchestrator 在 SIGN_OFF 阶段主动合入（避免 auto-learn 改既有 Skill 漂移）。
 
 ## 三、晋升判定阈值
 
@@ -55,14 +55,14 @@ status: <active|resolved|expired>
 ---
 ```
 
-正文 4 段：触发场景 / 根因分析 / 修复路径 / 触发条件清单（grep 兜底用）。完整模板见 `docs/harness/templates/lesson-record.md` §〇。
+正文 4 段：触发场景 / 根因分析 / 修复路径 / 触发条件清单（grep 兜底用）。完整模板见 `harness/templates/lesson-record.md` §〇。
 
 ## 五、严格禁止（红线）
 
 | # | 禁止 | 兜底 |
 |---|------|------|
 | 1 | 自动写 `coding-standards/PATTERNS.md` / `RULES.md` | 必须 orchestrator + 人工 |
-| 2 | lesson 文件落点出 `docs/harness/lessons/` | pre-commit 路径 grep |
+| 2 | lesson 文件落点出 `harness/lessons/` | pre-commit 路径 grep |
 | 3 | 业务阈值硬编码入 lesson | grep `agents/` 扩展到 `lessons/`（R-2） |
 | 4 | lesson 跨 FR 串联绕 pattern 判定 | 必填 `fr_refs` + 手动确认 |
 | 5 | instinct 未经 ≥3 run 验证 + confirm 升级 | `confirmed_count` 校验 |
@@ -77,7 +77,7 @@ status: <active|resolved|expired>
 
 ## 七、参考
 
-- 模板：`docs/harness/templates/lesson-record.md`（含晋升机制 §〇）
+- 模板：`harness/templates/lesson-record.md`（含晋升机制 §〇）
 - 协议：`agents/harness/ORCHESTRATOR.md`（SIGN_OFF 阶段主动询问）
-- 状态机：`docs/harness/workflow.yaml`
+- 状态机：`harness/workflow.yaml`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2

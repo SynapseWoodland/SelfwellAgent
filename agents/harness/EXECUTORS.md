@@ -85,11 +85,11 @@ owner: harness-executors
 
 | Phase | Executor | evidence 文件 |
 |-------|----------|--------------|
-| `PLAN` | plan-generator | `docs/harness/evidence/05-plan.md` |
-| `CODE` | developer | `docs/harness/evidence/06-code.md` |
-| `VERIFY` | verifier | `docs/harness/evidence/05-verification.md` |
-| `DEPLOY` | deployer | `docs/harness/evidence/06-deploy.md` |
-| `REGRESSION` | tester | `docs/harness/evidence/07-regression.md` |
+| `PLAN` | plan-generator | `harness/evidence/05-plan.md` |
+| `CODE` | developer | `harness/evidence/06-code.md` |
+| `VERIFY` | verifier | `harness/evidence/05-verification.md` |
+| `DEPLOY` | deployer | `harness/evidence/06-deploy.md` |
+| `REGRESSION` | tester | `harness/evidence/07-regression.md` |
 
 > `05-verification.md` 与 `05-plan.md` 共用 `05-` 前缀不同主题——保留方案 §四原表。
 
@@ -130,5 +130,5 @@ ORCHESTRATOR → 跨角色合成（PRE_MORTEM / SIGN_OFF）
 - 评审角色：`agents/harness/REVIEWERS.md`
 - 合成协议：`agents/harness/ORCHESTRATOR.md`
 - Skill 入口：`ad-tdd` / `coding-standards` / `pr-gate` / `golden-set` / `frontend-standards`
-- 状态机：`docs/harness/workflow.yaml`
+- 状态机：`harness/workflow.yaml`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-1~R-5

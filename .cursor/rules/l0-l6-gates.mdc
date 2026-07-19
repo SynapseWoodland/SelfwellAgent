@@ -246,8 +246,8 @@ PR 阶段 CI 自动扫描：若非真源文档重写 L0-L6 表格（除本文件
 | Harness reviewer | `agents/harness/REVIEWERS.md` | ✅ | 引用 GATES.md L6 |
 | CI L0-L5 | `.github/workflows/backend-ci.yml` | ✅ | 2026-07-19 已对齐（含 L4 双轨 + L5 步骤） |
 | CI 守门 | `.github/workflows/pr-gate.yml` 卡口 5/6/7 | ✅ | 卡口 7 已启用 |
-| Harness 文档 | `docs/harness/L0-L6-TRUTH.md` / `ARCHITECTURE-AND-USAGE.md` | ✅ | 2026-07-19 已改为引用真源 |
-| Checklist | `docs/harness/checklist.md` §4.5 | ✅ | 已记录本修复流程 |
+| Harness 文档 | `harness/L0-L6-TRUTH.md` / `ARCHITECTURE-AND-USAGE.md` | ✅ | 2026-07-19 已改为引用真源 |
+| Checklist | `harness/checklist.md` §4.5 | ✅ | 已记录本修复流程 |
 
 **最后对齐日期**：2026-07-19
 **下次审计**：W4 P3 §4.5.12 PR-Gate 卡口 7 启用后
@@ -350,5 +350,5 @@ PR 阶段 CI 自动扫描：若非真源文档重写 L0-L6 表格（除本文件
 - Golden Set：`.cursor/skills/golden-set/SKILL.md`
 - AD-TDD：`.cursor/skills/ad-tdd/SKILL.md`
 - Executor 协议：`agents/harness/EXECUTORS.md`
-- 审计报告（2026-07-19）：`docs/harness/L0-L6-AUDIT-2026-07-19.md`
-- 真源摘要：`docs/harness/L0-L6-TRUTH.md`（指向新路径）
+- 审计报告（2026-07-19）：`harness/L0-L6-AUDIT-2026-07-19.md`
+- 真源摘要：`harness/L0-L6-TRUTH.md`（指向新路径）

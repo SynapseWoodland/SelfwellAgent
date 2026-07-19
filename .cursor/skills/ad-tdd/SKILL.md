@@ -17,7 +17,7 @@ disable-model-invocation: false
 | 阶段 | 节点 | Selfwell 对应 |
 |------|------|--------------|
 | **Architecture** | 方案设计 → 方案确认 → Pre-Mortem → 实施计划 | `docs/spec/TDS-M*.md` |
-| **ATDD** | 验收标准确认（Given-When-Then） | `docs/harness/atdd/TDS-M*-AC.md` |
+| **ATDD** | 验收标准确认（Given-When-Then） | `harness/atdd/TDS-M*-AC.md` |
 | **TDD** | 开发 → 编译 → 单测 | `backend/tests/unit/` |
 | **Verification** | ATDD 跑分 → 证据链 | `backend/tests/integration/` |
 | **Deploy** | 部署预发 → 接口测试 | CI/CD |
@@ -32,7 +32,7 @@ disable-model-invocation: false
 | **PRD** | `docs/PRD/` | 产品需求层：产品要做什么 | 需求评审 |
 | **Scenarios** | `docs/scenarios/` | 用户视角拆解：用户怎么用 | 需求确认 |
 | **TDS** | `docs/spec/TDS-M*.md` | 技术设计文档：代码怎么实现 | 方案设计 + 实施计划 |
-| **ATDD** | `docs/harness/atdd/` | 验收标准：Given-When-Then 格式 | 验收标准确认 |
+| **ATDD** | `harness/atdd/` | 验收标准：Given-When-Then 格式 | 验收标准确认 |
 | **UT** | `backend/tests/unit/` | 单元测试 | 单测 |
 | **IT** | `backend/tests/integration/` | 集成测试 | 接口测试 |
 
@@ -76,7 +76,7 @@ PRD → Scenarios → Architecture(TDS) → ATDD → TDD(RED) → TDD(GREEN) →
 | `docs/PRD/Selfwell-PRD-V1.1.md` | 提取 FR 编号 | → TDS FR 追溯 |
 | `docs/scenarios/S*.md` | 提取用户旅程 | → ATDD 场景 |
 | `docs/spec/TDS-M*.md`（如已存在） | 读取现有设计 | → 实施依据 |
-| `docs/harness/atdd/TDS-M*-AC.md`（如已存在） | 读取已有 AC | → 跳过或补充 |
+| `harness/atdd/TDS-M*-AC.md`（如已存在） | 读取已有 AC | → 跳过或补充 |
 
 ---
 
@@ -98,7 +98,7 @@ PRD → Scenarios → Architecture(TDS) → ATDD → TDD(RED) → TDD(GREEN) →
 
 ## Phase 2：ATDD — 生成验收标准
 
-在 TDS 生成后，**同步生成**对应的 ATDD 文件 `docs/harness/atdd/TDS-<编号>-AC.md`。
+在 TDS 生成后，**同步生成**对应的 ATDD 文件 `harness/atdd/TDS-<编号>-AC.md`。
 
 ### ATDD 格式要求
 
@@ -368,5 +368,5 @@ ATDD 格式要求：
 - **项目编码规范 & AI 自审流程（唯一真源）**：[coding-standards.mdc](../coding-standards.mdc)
 - PR 合入检查：`.cursor/skills/pr-gate/SKILL.md`
 - Golden Set 维护：`.cursor/skills/golden-set/SKILL.md`
-- ATDD 库：`docs/harness/atdd/`
+- ATDD 库：`harness/atdd/`
 - 入口规则：`.cursor/rules/`

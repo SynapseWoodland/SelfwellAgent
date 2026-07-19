@@ -1,7 +1,7 @@
 # Harness State Schema（V2）
 
 > **V2 更新**：新增 `interrupt_budget`、`interrupt_stack`、`replay_session_id`、`run_metadata` 字段。
-> **唯一真源**：本文件描述 schema；运行期状态见 `docs/harness/state/harness-state.json`。
+> **唯一真源**：本文件描述 schema；运行期状态见 `harness/state/harness-state.json`。
 > **V1.6 兼容**：V1.6 state.json 缺少 V2 字段时，默认填充 `null`；V2 dispatcher 读取时会用默认值初始化。
 
 ## 一、完整 Schema（JSON Schema Draft-07）
@@ -225,7 +225,7 @@
       "agent": "requirement-analyst",
       "entered_at": "2026-07-18T09:00:00+08:00",
       "exited_at": "2026-07-18T10:30:00+08:00",
-      "evidence_ref": "docs/harness/evidence/01-requirement.md",
+      "evidence_ref": "harness/evidence/01-requirement.md",
       "interrupt_budget_at_exit": 5
     },
     {
@@ -233,7 +233,7 @@
       "agent": "tech-architect",
       "entered_at": "2026-07-18T10:30:00+08:00",
       "exited_at": "2026-07-18T14:00:00+08:00",
-      "evidence_ref": "docs/harness/evidence/02-tech-design.md",
+      "evidence_ref": "harness/evidence/02-tech-design.md",
       "interrupt_budget_at_exit": 4
     },
     {
@@ -289,7 +289,7 @@ if state.get("version") != "2.0":
 
 ## 五、参考
 
-- workflow-v2.yaml：`docs/harness/workflow-v2.yaml`
-- evidence schema：`docs/harness/evidence/README.md`
+- workflow-v2.yaml：`harness/workflow-v2.yaml`
+- evidence schema：`harness/evidence/README.md`
 - dispatcher 协议：`agents/harness/DISPATCHER.md`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2 / R-5

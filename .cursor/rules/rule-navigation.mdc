@@ -55,9 +55,9 @@ alwaysApply: false
 | `.cursor/skills/pr-gate/SKILL.md` | PR 守门 | （无子文件，单文件） |
 | `.cursor/skills/ad-tdd/SKILL.md` | SDD → TDD 开发流（现在包含 ATDD） | 子文件 `TDS-TEMPLATE.md` / `TDD-WORKFLOW.md` |
 | `.cursor/skills/harness-dispatcher/SKILL.md` | Harness 调度入口 | `agents/harness/DISPATCHER.md` |
-| `.cursor/skills/harness-review/SKILL.md` | Harness 评审证据 | `docs/harness/evidence/README.md` |
-| `.cursor/skills/harness-evidence/SKILL.md` | Harness evidence 规范 | `docs/harness/evidence/README.md` |
-| `.cursor/skills/harness-autolearn/SKILL.md` | Harness 经验沉淀 | `docs/harness/lessons/` |
+| `.cursor/skills/harness-review/SKILL.md` | Harness 评审证据 | `harness/evidence/README.md` |
+| `.cursor/skills/harness-evidence/SKILL.md` | Harness evidence 规范 | `harness/evidence/README.md` |
+| `.cursor/skills/harness-autolearn/SKILL.md` | Harness 经验沉淀 | `harness/lessons/` |
 
 ---
 
