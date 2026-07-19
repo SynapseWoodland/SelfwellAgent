@@ -26,8 +26,8 @@ disable-model-invocation: false
 | 级别 | 文件落点 | 触发条件 |
 |------|---------|---------|
 | **lesson** | `docs/harness/lessons/<YYYY-MM-DD>-<slug>.md` | 1 次实战踩坑 |
-| **pattern** | `.cursor/skills/coding-standards/PATTERNS.md` | 同类 lesson 在 ≥ 2 个不同 FR 出现 |
-| **instinct** | `.cursor/skills/coding-standards/RULES.md` | pattern 实战 ≥ 3 run + 人工 confirm |
+| **pattern** | `.cursor/rules/python-patterns.mdc` | 同类 lesson 在 ≥ 2 个不同 FR 出现 |
+| **instinct** | `.cursor/rules/coding-standards.mdc` | pattern 实战 ≥ 3 run + 人工 confirm |
 
 > **关键约束**：本 skill 只写 `docs/harness/lessons/`；pattern / instinct 写入由 orchestrator 在 SIGN_OFF 阶段主动合入（避免 auto-learn 改既有 Skill 漂移）。
 
@@ -41,7 +41,7 @@ disable-model-invocation: false
 | 4. lesson 复发 | 同根因 90 天内再次出现 → 自动建议升 pattern |
 | 5. instinct 撤回 | 实战违反 ≥ 2 次 → 降级回 pattern |
 
-> **不写业务规则**：lesson / pattern 内容**不进入** `agents/` `rules/` 目录（R-2）。
+> **不写业务规则**：lesson 内容**不进入**后端 `backend/app/agents/` 或 `backend/app/rules/` 目录（R-2）；pattern / instinct 落点在 `.cursor/rules/`（Cursor 规则系统），**与后端 `rules/` 业务规则目录无关**。
 
 ## 四、lesson schema（5 字段 frontmatter，A 档精简）
 
@@ -69,12 +69,11 @@ status: <active|resolved|expired>
 
 ## 六、与其他 Skill 边界
 
-| Skill | 关系 |
-|-------|------|
-| `coding-standards/SKILL.md` | **接力**——本 skill 不直接写 pattern，由 orchestrator SIGN_OFF 时写入 PATTERNS.md |
-| `coding-standards/PATTERNS.md` | **被引用**——pattern 落地真源 |
-| `coding-standards/RULES.md` | **被引用**——instinct 落地真源 |
-| `pr-gate/SKILL.md` | **互斥**——pr-gate 不接受 auto-learn 路径下的修改 |
+| Skill / 文件 | 关系 |
+|--------------|------|
+| `.cursor/rules/python-patterns.mdc` | **被引用** — pattern 落地真源 |
+| `.cursor/rules/coding-standards.mdc` | **被引用** — instinct 落地真源 |
+| `.cursor/skills/pr-gate/SKILL.md` | **互斥** — pr-gate 不接受 auto-learn 路径下的修改 |
 
 ## 七、参考
 
