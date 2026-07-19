@@ -1,0 +1,215 @@
+# Harness V2 state machine; supersedes V1.6 workflow.yaml.
+version: "2.0"
+deprecates: "workflow.yaml"
+initial_phase: PRD
+interruption_policy:
+  budget_per_run: 5
+  escalation: "AskUser"
+  review_phase: INTERRUPT_REVIEW
+  budget_field: interrupt_budget
+  replay_field: replay_session_id
+# exit_criteria 字段语义：每个 phase 的退出条件是一个 bash 命令数组，
+# 命令全部返回 exit code 0（成功）时，phase 视为完成。
+# 约定：[cmd1, cmd2, cmd3] 三段式对应：[evidence 文件存在性, frontmatter 关键字段, 内容完整性]
+# 一人模式：`auto_mode: true` 时连续运行，跳过 prompt；`false` 时逐 phase 询问用户。
+auto_mode_supported: true
+one_person_mode:
+  enabled: true
+  behavior: "跳过 PRE_MORTEM/SIGN_OFF 的 5 reviewer 串行，改为 orchestrator 自动摘要"
+phases:
+  - id: PRD
+    next: [ARCH_DESIGN]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/01-requirement.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/01-requirement.md'
+      - 'grep -qE "fr_refs:.*FR-[0-9]" docs/harness/evidence/01-requirement.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: PRD, run_id: "<uuid>", role: requirement-analyst, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: ARCH_DESIGN
+    next: [PRE_MORTEM]
+    entry_agent: tech-architect
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/02-tech-design.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/02-tech-design.md'
+      - 'grep -qE "adr_refs:.*ADR-[0-9]" docs/harness/evidence/02-tech-design.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: ARCH_DESIGN, run_id: "<uuid>", role: tech-architect, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: PRE_MORTEM
+    next: [ATDD]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    one_person_synthesis: true
+    dispatch: {mode: serial, reviewers: [requirement-analyst, tech-architect], synthesis_agent: orchestrator, synthesis_evidence: docs/harness/evidence/03-pre-mortem.md, all_reviewers_required: true, one_person_synthesis_enabled: true}
+    exit_criteria:
+      - 'test -f docs/harness/evidence/03-pre-mortem.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/03-pre-mortem.md'
+      - 'grep -qE "fr_refs:.*FR-[0-9]" docs/harness/evidence/03-pre-mortem.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: PRE_MORTEM, run_id: "<uuid>", role: "<reviewer-role>", fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: ATDD
+    next: [PLAN]
+    entry_agent: quality-guardian
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/04-atdd.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/04-atdd.md'
+      - 'test -f backend/tests/atdd/<feature>.feature && grep -q "Scenario" backend/tests/atdd/<feature>.feature'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: ATDD, run_id: "<uuid>", role: quality-guardian, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: PLAN
+    next: [CODE]
+    entry_agent: plan-generator
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/05-plan.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/05-plan.md'
+      - 'grep -qE "fr_refs:.*FR-[0-9]" docs/harness/evidence/05-plan.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: PLAN, run_id: "<uuid>", role: plan-generator, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: CODE
+    next: [VERIFY]
+    entry_agent: developer
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/06-code.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/06-code.md'
+      - 'cd backend && uv run pytest tests/unit -x -q --tb=no >/dev/null 2>&1'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: CODE, run_id: "<uuid>", role: developer, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: VERIFY
+    next: [SECURITY_TEST]
+    entry_agent: verifier
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/07-verify.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/07-verify.md'
+      - 'grep -qE "(L0|L1|L3).*PASS|ruff.*pass|pytest.*pass" docs/harness/evidence/07-verify.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: VERIFY, run_id: "<uuid>", role: verifier, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: SECURITY_TEST
+    next: [DEPLOY]
+    entry_agent: security-reviewer
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/08-security-test.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/08-security-test.md'
+      - 'cd backend && uv run ruff check . --select=S,SEC,B >/dev/null 2>&1'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: SECURITY_TEST, run_id: "<uuid>", role: security-reviewer, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: DEPLOY
+    next: [REGRESSION]
+    entry_agent: deployer
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/09-deploy.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/09-deploy.md'
+      - 'grep -qE "deploy.*success|部署成功" docs/harness/evidence/09-deploy.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: DEPLOY, run_id: "<uuid>", role: deployer, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: REGRESSION
+    next: [SIGN_OFF]
+    entry_agent: tester
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/10-regression.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/10-regression.md'
+      - 'cd backend && uv run pytest tests/integration -x -q --tb=no >/dev/null 2>&1'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: REGRESSION, run_id: "<uuid>", role: tester, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: SIGN_OFF
+    next: [INCIDENT_RESPONSE]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    one_person_synthesis: true
+    dispatch: {mode: serial, reviewers: [requirement-analyst, tech-architect], synthesis_agent: orchestrator, synthesis_evidence: docs/harness/evidence/11-signoff.md, all_reviewers_required: true, one_person_synthesis_enabled: true}
+    exit_criteria:
+      - 'test -f docs/harness/evidence/11-signoff.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/11-signoff.md'
+      - 'grep -qE "fr_refs:.*FR-[0-9]" docs/harness/evidence/11-signoff.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: SIGN_OFF, run_id: "<uuid>", role: "<reviewer-role>", fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: DATA_REPLAY
+    next: [PRD]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/12-data-replay.md'
+      - 'grep -qE "replay_session_id: [a-f0-9-]{36}" docs/harness/evidence/12-data-replay.md'
+      - 'grep -qE "fr_refs:.*FR-[0-9]" docs/harness/evidence/12-data-replay.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: DATA_REPLAY, run_id: "<uuid>", role: requirement-analyst, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: INCIDENT_RESPONSE
+    next: [OPS_LOOP]
+    entry_agent: deployer
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/13-incident-response.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/13-incident-response.md'
+      - 'grep -qE "(fr_refs|incident_id).*FR-|INC-" docs/harness/evidence/13-incident-response.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: INCIDENT_RESPONSE, run_id: "<uuid>", role: deployer, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: OPS_LOOP
+    next: [SKILL_UPDATE]
+    entry_agent: tester
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/14-ops-loop.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/14-ops-loop.md'
+      - 'grep -qE "(A/B|灰度|gradual)" docs/harness/evidence/14-ops-loop.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: OPS_LOOP, run_id: "<uuid>", role: tester, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: SKILL_UPDATE
+    next: [INTERRUPT_REVIEW]
+    entry_agent: quality-guardian
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/15-skill-update.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/15-skill-update.md'
+      - 'ls docs/harness/lessons/ | wc -l | grep -qE "[1-9]"'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema: {frontmatter: {phase: SKILL_UPDATE, run_id: "<uuid>", role: quality-guardian, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
+  - id: INTERRUPT_REVIEW
+    next: null
+    entry_agent: quality-guardian
+    resume_from: "$interrupted_phase"
+    auto_mode: true
+    exit_criteria:
+      - 'test -f docs/harness/evidence/16-interrupt-review.md'
+      - 'grep -q "^signed: true" docs/harness/evidence/16-interrupt-review.md'
+      - 'grep -qE "(resume|continue|推迟|defer)" docs/harness/evidence/16-interrupt-review.md'
+    context: docs/harness/context/phase-checklist.md
+    interruptible: false
+    evidence_schema: {frontmatter: {phase: INTERRUPT_REVIEW, run_id: "<uuid>", role: quality-guardian, fr_refs: [], adr_refs: [], signed: false, interrupt_budget: 5, replay_session_id: "<uuid>"}}
