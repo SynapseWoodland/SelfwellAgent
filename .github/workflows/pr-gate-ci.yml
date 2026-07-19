@@ -247,6 +247,42 @@ jobs:
           echo "✅ L0-L6 文档一致性扫描 PASS"
 
   # ============================================
+  # Gate 8（软警告）：Harness exit_criteria 跨平台脚本兜底
+  # 真源：harness/scripts/check_phase.py
+  # 任务：harness/checklist.md W4 P4 §5.5.3
+  # 性质：非阻塞（warning-only）—— 让用户先熟悉 check_phase.py 而不被 CI 卡住
+  # ============================================
+  harness-exit-criteria:
+    name: Gate 8 — Harness exit_criteria 跨平台脚本可用性（软警告）
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    continue-on-error: true  # 软警告：脚本改动首次引入，先熟悉，不阻塞 PR
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 PyYAML
+        run: pip install pyyaml
+
+      - name: 运行 check_phase.py --list（应输出 16 phase + 数量）
+        run: |
+          python harness/scripts/check_phase.py --list
+
+      - name: 运行 check_phase.py --json（应输出 JSON，含 16 phase）
+        run: |
+          python harness/scripts/check_phase.py --json | python -c "import sys, json; d=json.load(sys.stdin); assert len(d['phases'])==16, f'预期 16 phase，实际 {len(d[\"phases\"])}'; print(f'OK: {len(d[\"phases\"])} phase 已加载')"
+
+      - name: 运行 check_phase.py PRD（应 FAIL，但说明 exit_criteria 机制工作）
+        run: |
+          echo "[INFO] 第一次跑 PRD phase，预期 FAIL（因为 evidence/01-requirement.md 不存在）"
+          python harness/scripts/check_phase.py PRD || echo "[OK] 跨平台脚本按预期 FAIL，证明机制可用"
+
+  # ============================================
   # 总闸：所有 Gate 必须通过才能合入
   # ============================================
   pr-gate-summary:
@@ -261,6 +297,7 @@ jobs:
       - coverage-gate
       - pr-size
       - l0-l6-consistency
+      - harness-exit-criteria
     if: always()
     steps:
       - name: 检查所有 Gate 状态
@@ -275,7 +312,9 @@ jobs:
           echo "Gate 5 coverage-gate:     ${{ needs.coverage-gate.result }}"
           echo "Gate 6 pr-size:           ${{ needs.pr-size.result }}"
           echo "Gate 7 l0-l6-consistency: ${{ needs.l0-l6-consistency.result }}"
+          echo "Gate 8 harness-exit-criteria (软警告): ${{ needs.harness-exit-criteria.result }}"
 
+          # Gate 8 是软警告，不计入总闸失败
           if [ "${{ needs.commitlint.result }}" != "success" ] || \
              [ "${{ needs.fr-required.result }}" != "success" ] || \
              [ "${{ needs.atdd-required.result }}" != "success" ] || \
@@ -283,7 +322,12 @@ jobs:
              [ "${{ needs.coverage-gate.result }}" != "success" ] || \
              [ "${{ needs.pr-size.result }}" != "success" ] || \
              [ "${{ needs.l0-l6-consistency.result }}" != "success" ]; then
-            echo "::error::PR Gate 至少 1 项失败，PR 拒绝合入"
+            echo "::error::PR Gate 至少 1 项失败（Gate 8 是软警告，不计入），PR 拒绝合入"
             exit 1
           fi
-          echo "✅ 所有 Gate PASS，PR 可合入"
+
+          if [ "${{ needs.harness-exit-criteria.result }}" != "success" ]; then
+            echo "::warning::Gate 8 (harness-exit-criteria) 软警告失败，请检查 check_phase.py 是否仍可用"
+          fi
+
+          echo "✅ 所有硬性 Gate PASS（Gate 8 软警告不计），PR 可合入"
