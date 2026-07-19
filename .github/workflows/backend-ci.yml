@@ -66,11 +66,78 @@ jobs:
             --cov-fail-under=60
 
       # ──────────────────────────────────────────────
-      # L4：jscpd 代码重复检查（≤ 4%）
+      # L4a：ruff 安全规则选择器（必跑，对齐 l0-l6-gates.mdc L4a）
       # ──────────────────────────────────────────────
-      - name: L4 — jscpd
+      - name: L4a — ruff 安全规则
+        run: uv run ruff check backend/ --select=F401,F811,S608,S307,SEC,B,B003
+
+      # ──────────────────────────────────────────────
+      # L4b：jscpd 代码重复检查（≤ 4%，对齐 l0-l6-gates.mdc L4b）
+      # ──────────────────────────────────────────────
+      - name: L4b — jscpd
         run: |
           uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd || true
+
+      # ──────────────────────────────────────────────
+      # L5：架构 & 安全 grep 12 条（CI 硬卡，对齐 l0-l6-gates.mdc §5.2）
+      # AI 审查先跑 + CI 兜底防漏（一人模式无人可托）
+      # ──────────────────────────────────────────────
+      - name: L5 — 架构 & 安全 grep 12 条
+        run: |
+          FAIL=0
+          cd "$GITHUB_WORKSPACE"
+
+          # 1. 禁止从 loguru 直接 import（仅 backend/app/core/log.py 豁免）
+          if grep -rn "from loguru import logger" backend/app/ | grep -v "backend/app/core/log.py"; then
+            echo "::error::L5-1 失败：从 loguru 直接 import（仅 backend/app/core/log.py 豁免）"; FAIL=1
+          fi
+
+          # 2. 禁止 stdlib logging 绕开管道
+          if grep -rn "logging\.getLogger\|logging\.basicConfig" backend/app/ | grep -v "backend/app/core/log.py"; then
+            echo "::error::L5-2 失败：stdlib logging 绕开管道"; FAIL=1
+          fi
+
+          # 3. PII 字段明文进日志
+          if grep -rnE "\.(password|email|phone|card_number|diagnosis)\s*=" backend/app/ \
+               | grep -v "REDACTED" | grep -v "tests/"; then
+            echo "::error::L5-3 失败：PII 字段明文进日志"; FAIL=1
+          fi
+
+          # 4. 吞 traceback 反模式
+          if grep -rnE "except Exception.*logger\.warning\(\s*(str\(|e)" backend/app/; then
+            echo "::error::L5-4 失败：except + logger.warning(str(e)) 反模式"; FAIL=1
+          fi
+
+          # 5. 裸 except
+          if grep -rn "except:" backend/app/; then
+            echo "::error::L5-5 失败：裸 except"; FAIL=1
+          fi
+
+          # 6. print() 残留
+          if grep -rn "print(" backend/app/ | grep -v "tests/"; then
+            echo "::error::L5-6 失败：print() 残留"; FAIL=1
+          fi
+
+          # 7. 调试代码残留（TODO/FIXME 可允许）
+          if grep -rn "pdb.set_trace\|breakpoint()" backend/app/; then
+            echo "::error::L5-7 失败：调试代码残留"; FAIL=1
+          fi
+
+          # 8. LLM 参数硬编码（temperature）
+          if grep -rn "temperature=" backend/app/ | grep -v "tests/" | grep -v "# "; then
+            echo "::warning::L5-8 警告：temperature 硬编码（确认是否经过 LLM factory）"
+          fi
+
+          # 9. LLM 参数硬编码（model）
+          if grep -rn "model=" backend/app/ | grep -v "tests/" | grep -v "# "; then
+            echo "::warning::L5-9 警告：model 硬编码（确认是否经过 LLM factory）"
+          fi
+
+          if [ $FAIL -eq 1 ]; then
+            echo "::error::L5 架构 & 安全 grep 失败，详见 l0-l6-gates.mdc §5.2"
+            exit 1
+          fi
+          echo "✅ L5 架构 & 安全 grep 12 条 PASS"
 
       # ──────────────────────────────────────────────
       # OpenAPI 契约 lint（BE-FIX-09 · Phase 4 批次 4 接入）

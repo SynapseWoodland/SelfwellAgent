@@ -214,9 +214,91 @@ body:
 | Golden Set --mode pr | `backend-ci.yml`（仅当 `prompts/*.md` 改动时触发，详见 W4 接入） |
 | OpenAPI lint | `backend-ci.yml` |
 | ack-pool 合规 | `backend-ci.yml` |
-| **本文件 6 项** | 本 workflow |
+| **本文件 7 项**（含卡口 7） | 本 workflow |
 
 不重复不遗漏：若某项在两边都跑会浪费 CI 分钟，**请删除其在本文件中的重复**。
+
+---
+
+### 卡口 7：L0-L6 文档一致性（2026-07-19 启用）
+
+> **真源**：`.cursor/rules/l0-l6-gates.mdc`（L0-L6 唯一真源 + alwaysApply）。
+>
+> **背景**：2026-07-19 W4 P3 §4.5.12 把 GATES.md 从 `.cursor/skills/coding-standards/` 迁到 `.cursor/rules/l0-l6-gates.mdc`（真源从 skill 升级为 alwaysApply rule）。
+>
+> **背景**：2026-07-19 审计发现项目内 5 套 L0-L6 互相冲突的表格（详见 `docs/harness/L0-L6-AUDIT-2026-07-19.md`）。修复后建立卡口 7 自动拦截后续漂移。
+
+```yaml
+- name: L0-L6 文档一致性扫描
+  run: |
+    set -e
+    GATES=".cursor/rules/l0-l6-gates.mdc"
+    FAIL=0
+    echo "🔍 扫描非真源文档是否重写 L0-L6 表格..."
+
+    # 白名单（真源 + 引用方）
+    WHITELIST=(
+      ".cursor/rules/l0-l6-gates.mdc"
+      "docs/harness/L0-L6-TRUTH.md"
+      "docs/harness/L0-L6-AUDIT-2026-07-19.md"
+      "docs/harness/checklist.md"
+      ".github/workflows/pr-gate.yml"
+      ".github/workflows/backend-ci.yml"
+    )
+
+    # 1) 检查非白名单文档是否重写完整 L0-L6 表格
+    for f in $(git diff --name-only origin/main...HEAD); do
+      # 跳过白名单
+      skip=0
+      for w in "${WHITELIST[@]}"; do
+        if [ "$f" = "$w" ]; then skip=1; break; fi
+      done
+      [ $skip -eq 1 ] && continue
+
+      # 只扫 .md 文件
+      case "$f" in
+        *.md) ;;
+        *) continue ;;
+      esac
+
+      # 检测：如果文件含 6 行连续 "L[0-6] |" 表格行，视为重写完整表格
+      if grep -E '^\| L[0-6] \|' "$f" | wc -l | grep -qE '^[6-9]$|^[1-9][0-9]+$'; then
+        echo "::error::$f 重写了 L0-L6 完整表格（≥6 行 L[0-6] |）"
+        echo "::error::修复方式：删除表格，改为 '详见 .cursor/rules/l0-l6-gates.mdc'"
+        FAIL=1
+      fi
+
+      # 2) 检查过期阈值（≥ 80% 整体覆盖率）
+      if grep -E 'coverage.*>=.*80%|覆盖率.*>=.*80%|≥ 80%.*覆盖率|≥ 80%.*coverage' "$f" >/dev/null 2>&1; then
+        echo "::error::$f 包含过期的 'coverage ≥ 80%' 阈值（CI 硬卡 ≥ 60%）"
+        FAIL=1
+      fi
+      # 3) 检查 L2 = Eval Runner 错位
+      if grep -E '^\| L2 \|.*Eval Runner|Eval Runner.*L2' "$f" >/dev/null 2>&1; then
+        echo "::error::$f 把 Eval Runner 写在 L2（历史错位，2026-07-19 已修复）"
+        echo "::error::修复方式：Eval Runner 是 R-4 红线（详见 GATES.md §三），不是 L2"
+        FAIL=1
+      fi
+    done
+
+    if [ $FAIL -eq 1 ]; then
+      echo "::error::L0-L6 一致性扫描失败，详见 docs/harness/L0-L6-AUDIT-2026-07-19.md"
+      exit 1
+    fi
+    echo "✅ L0-L6 文档一致性扫描 PASS"
+```
+
+**触发**：所有 PR 修改 `.md` 文件时自动跑。
+
+**失败指引**：错误信息会指向具体文件和修复方式（详见 `docs/harness/L0-L6-AUDIT-2026-07-19.md`）。
+
+**白名单**（重写 L0-L6 表格是被允许的）：
+- `.cursor/rules/l0-l6-gates.mdc`（**唯一真源 + alwaysApply**）
+- `docs/harness/L0-L6-TRUTH.md`（摘要）
+- `docs/harness/L0-L6-AUDIT-2026-07-19.md`（审计报告）
+- `docs/harness/checklist.md`（修复 checklist）
+- `.github/workflows/pr-gate.yml`（本文件，含卡口 7 注释）
+- `.github/workflows/backend-ci.yml`（CI 含 L0-L4 步骤注释）
 
 ---
 
