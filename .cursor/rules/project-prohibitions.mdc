@@ -53,16 +53,22 @@ git add pyproject.toml uv.lock
 
 ### R-3：L0-L6 质量门禁
 
-| 级别 | 工具 | 命令 |
-|------|------|------|
-| L0 | ruff format + check | `uv run ruff check . --fix && uv run ruff format .` |
-| L1 | pytest unit | `uv run pytest tests/unit -x -q` |
-| L2 | Eval Runner (Prompt 改) | `python -m eval.runner --mode pr` |
-| L3 | pytest integration | `uv run pytest tests/integration -x -q` |
-| L4 | ruff 安全检查 | `uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003` |
-| L6 | coverage ≥ 80% | `uv run pytest --cov=app --cov-report=term-missing` |
+> **唯一真源**：L0-L6 完整定义、命令、阈值见 [`.cursor/rules/l0-l6-gates.mdc`](l0-l6-gates.mdc)（alwaysApply 真源）。
+> 本节仅给出 commit 前必跑的**命令摘要**，避免漂移。
 
-**禁止**：跳过任一级别直接 commit。详见 [.cursor/rules/coding-standards.mdc](./coding-standards.mdc#二l0-l6-质量门禁命令速查)。
+| 级别 | 工具 | 命令摘要 |
+|------|------|---------|
+| **L0** | ruff check | `uv run ruff check .` |
+| **L1** | ruff format | `uv run ruff format --check .` |
+| **L2** | mypy strict | `uv run mypy --strict backend/app/` |
+| **L3** | pytest 全量 | `uv run pytest tests/{unit,integration,e2e,smoke} -x -q` |
+| **L4** | ruff 安全规则 + jscpd | `uv run ruff check . --select=F401,F811,S608,S307,SEC,B,B003 && uv run jscpd backend/ --threshold 4` |
+| **L5** | 架构 & 安全 grep | 12 条 grep（loguru / PII / print / LLM 硬编码等，见 `coding-standards.mdc` §L5） |
+| **L6** | coverage | `uv run pytest --cov=app --cov-fail-under=60` |
+
+**禁止**：跳过任一级别直接 commit。
+
+**Eval Runner 不在 L0-L6 范围内**——它属于 R-4 红线（Prompt 改动专属），详见下节。
 
 ### R-4：Prompt 改动 + Golden Set 回归
 
