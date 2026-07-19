@@ -1,0 +1,211 @@
+---
+description: DDD Bounded Context 速查表（6 个 Context + Domain Event 通信）
+globs:
+alwaysApply: true
+---
+
+# DDD Bounded Context 速查表
+
+> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
+> 唯一真源：`docs/architecture/ddd-bounded-context.md`，本文件仅做速查。
+
+---
+
+## 一、6 个 Bounded Context（与 Service 一一对应）
+
+| Context | Service | Aggregate Root | 核心职责 |
+|---|---|---|---|
+| **User Context** | `user_service` | `User` | 注册/登录/资料/隐私 |
+| **Diagnosis Context** | `diagnosis_service` | `Diagnosis` | 上传/分析/报告生成 |
+| **Plan Context** | `plan_service` | `TodayPlan` | 21 天计划/任务/打卡 |
+| **Community Context** | `community_service` | `Post` | 帖子/评论/点赞 |
+| **Video Context** | `video_service` | `Video` | 视频搜索/播放/降级 |
+| **Notification Context** | `notification_service` | `Notification` | 推送/站内信/邮件 |
+
+---
+
+## 二、Context 间通信：Domain Event 驱动
+
+### 禁止项
+
+| ❌ 禁止 | ✅ 正确做法 |
+|---------|------------|
+| Context A 直接 import Context B 的 Service/Model | 发布 Domain Event |
+| Context A 直接查询 Context B 的数据库表 | 订阅 Domain Event + 本地只读副本 |
+| 在 API 层手动调用多个 Service 后拼装响应 | 各 Context 独立响应，通过 EventBus 协调 |
+
+### Domain Event 命名规范
+
+```
+<Aggregate><Action>Event
+```
+
+**正例**：`UserRegisteredEvent`、`DiagnosisCompletedEvent`、`CheckinSubmittedEvent`、`PlanActivatedEvent`
+
+**反例**：`user_event`、`onDiagnosis`、`send_notification`
+
+### 12 个核心 Domain Event
+
+| Event | Producer | Consumer | 触发时机 |
+|---|---|---|---|
+| `UserRegisteredEvent` | User | Notification, Community | 用户注册成功 |
+| `DiagnosisCompletedEvent` | Diagnosis | Plan, Notification | 诊断报告生成 |
+| `DiagnosisFailedEvent` | Diagnosis | Notification | 诊断失败（含降级） |
+| `PlanActivatedEvent` | Plan | Notification | 21 天计划激活 |
+| `TaskAssignedEvent` | Plan | Notification, Community | 新任务分配 |
+| `CheckinSubmittedEvent` | Plan | Community, Notification | 用户打卡 |
+| `PostCreatedEvent` | Community | Notification, Safety | 发布帖子 |
+| `PostModeratedEvent` | Community | Notification | 审核完成 |
+| `VideoSearchedEvent` | Video | Analytics | 视频搜索 |
+| `NotificationSentEvent` | Notification | Analytics | 推送已发送 |
+| `UserDeactivatedEvent` | User | 全部 | 用户注销 |
+| `ConsentGrantedEvent` | User | 全部 | 用户授权 |
+
+---
+
+## 三、Aggregate Root 强制约束
+
+### 铁律
+
+| 规则 | 说明 |
+|------|------|
+| **唯一入口** | 外部只能通过 Aggregate Root 访问内部 Entity |
+| **事务边界** | 一个事务只能修改一个 Aggregate |
+| **引用方式** | 跨 Context 只引用 Aggregate ID（`user_id: UUID`），不引用整个对象 |
+| **不变性** | Aggregate Root 负责校验业务不变式 |
+
+### 反模式
+
+| ❌ 坏味道 | ✅ 正确做法 |
+|----------|------------|
+| 在 Service 层直接 `db.update(DiagnosisReport)` | 通过 `Diagnosis.update_report()` |
+| 跨 Context 传整个 User 对象 | 只传 `user_id: str` |
+| 一个事务更新 Diagnosis + Plan | 拆分为两个事务 + Event 协调 |
+
+---
+
+## 四、Domain Event 实现骨架
+
+### Publisher（Context A）
+
+```python
+# app/events/bus.py
+from typing import Protocol, TypeVar
+from app.core.log import logger
+
+T = TypeVar("T")
+
+class DomainEvent(Protocol):
+    event_name: str
+    aggregate_id: str
+    occurred_at: datetime
+
+
+class EventBus(Protocol):
+    async def publish(self, event: DomainEvent) -> None: ...
+    async def subscribe(self, event_type: str, handler: Callable) -> None: ...
+
+
+class InMemoryEventBus:
+    """生产环境用 Redis Pub/Sub 或 Kafka。"""
+
+    def __init__(self) -> None:
+        self._handlers: dict[str, list[Callable]] = {}
+
+    async def publish(self, event: DomainEvent) -> None:
+        handlers = self._handlers.get(event.event_name, [])
+        logger.info(
+            "domain_event_published",
+            event_name=event.event_name,
+            aggregate_id=event.aggregate_id,
+        )
+        for handler in handlers:
+            try:
+                await handler(event)
+            except Exception:
+                logger.exception(
+                    "event_handler_failed",
+                    event_name=event.event_name,
+                    handler=handler.__name__,
+                )
+
+
+# 单例（在 main.py 注入）
+event_bus: EventBus = InMemoryEventBus()
+```
+
+### Subscriber（Context B）
+
+```python
+# app/services/notification/handlers.py
+from app.events.bus import event_bus
+from app.events.user_events import UserRegisteredEvent
+
+
+async def on_user_registered(event: UserRegisteredEvent) -> None:
+    """发送欢迎推送。"""
+    await send_welcome_push(user_id=event.aggregate_id)
+
+
+def register_handlers() -> None:
+    event_bus.subscribe("UserRegisteredEvent", on_user_registered)
+```
+
+---
+
+## 五、目录结构约定
+
+```
+backend/app/
+├── contexts/                    # Bounded Context 根目录
+│   ├── user/
+│   │   ├── domain/              # Aggregate, Entity, ValueObject
+│   │   │   ├── user.py
+│   │   │   └── events.py        # UserRegisteredEvent, UserDeactivatedEvent
+│   │   ├── application/         # Application Service
+│   │   │   └── user_service.py
+│   │   ├── infrastructure/      # Repository, ORM Model
+│   │   │   └── user_repo.py
+│   │   └── interfaces/          # API Router
+│   │       └── user_router.py
+│   ├── diagnosis/
+│   │   ├── domain/
+│   │   │   ├── diagnosis.py
+│   │   │   └── events.py
+│   │   └── ...
+│   ├── plan/
+│   ├── community/
+│   ├── video/
+│   └── notification/
+├── events/                       # 跨 Context 共享
+│   ├── bus.py                    # EventBus 实现
+│   └── handlers.py               # 全局 Event Handler 注册
+└── main.py                       # 启动时调用 register_handlers()
+```
+
+**过渡策略**：保留现有 `services/` 目录，新代码按 contexts/ 目录组织，逐步迁移。
+
+---
+
+## 六、自审命令
+
+```bash
+# L4：跨 Context 直接导入检测
+grep -rn "from app.services.user" backend/app/services/diagnosis/ && echo "FAIL: cross-context import" || echo "PASS"
+
+# L4：Domain Event 命名规范
+grep -rn "Event\s*=" backend/app/contexts/ | grep -v "Event\s*=\s*\"[A-Z][a-zA-Z]*Event\"" && echo "FAIL: bad event name" || echo "PASS"
+
+# L4：禁止跨 Context 共享数据库表
+grep -rn "from app.contexts.user.infrastructure" backend/app/contexts/diagnosis/ && echo "FAIL: cross-context DB access" || echo "PASS"
+```
+
+---
+
+## 七、参考
+
+- 详细文档：`docs/architecture/ddd-bounded-context.md`
+- 设计方法论：`.cursor/skills/ddd-design/SKILL.md`
+- V3 架构：`.cursor/rules/project-meta.mdc`
+- 工程红线：`.cursor/rules/project-prohibitions.mdc`
