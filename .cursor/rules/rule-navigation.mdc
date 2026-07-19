@@ -41,11 +41,11 @@ alwaysApply: false
 
 ### 2.1 Rule 速查表（alwaysApply，内容已内联，无需读 skills/ 下的同名文件）
 
-| 真实路径 | 说明 | 内容来源 |
-|----------|------|---------|
-| `.cursor/rules/coding-standards.mdc` | Python 编码规范速查 | 来自已删除的 `skills/coding-standards/SKILL.md` / `RULES.md` / `GATES.md` / `EXAMPLES.md` |
-| `.cursor/rules/python-patterns.mdc` | Python 设计模式与反模式速查 | 来自已删除的 `skills/coding-standards/PATTERNS.md` / `RULES.md` §一/§三 |
-| `.cursor/rules/frontend-standards.mdc` | Flutter + 微信小程序规范速查 | 来自已删除的 `skills/frontend-standards/SKILL.md` |
+| 真实路径 | 说明 |
+|----------|------|
+| `.cursor/rules/coding-standards.mdc` | Python 编码规范速查 |
+| `.cursor/rules/python-patterns.mdc` | Python 设计模式与反模式速查 |
+| `.cursor/rules/frontend-standards.mdc` | Flutter + 微信小程序规范速查 |
 
 ### 2.2 Skill 文件（按需 Read，不是 alwaysApply）
 
