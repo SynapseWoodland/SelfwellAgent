@@ -44,15 +44,16 @@ flowchart LR
   A4[4 ATDD<br/>验收用例]
   A5[5 PLAN<br/>实施计划]
   A6[6 CODE<br/>RED-GREEN-重构]
-  A7[7 VERIFY<br/>质量门禁]
-  A8[8 DEPLOY<br/>部署预发]
-  A9[9 REGRESSION<br/>全量回归]
-  A10[10 SIGN_OFF<br/>最终签字]
+  A7[7 DEPLOY<br/>部署预发]
+  A8[8 VERIFY<br/>质量门禁]
+  A9[9 SECURITY_TEST<br/>安全扫描]
+  A10[10 REGRESSION<br/>全量回归]
+  A11[11 SIGN_OFF<br/>最终签字]
 
-  A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9 --> A10
+  A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 & A9 --> A10 --> A11
 
   style A3 fill:#fff3e0
-  style A10 fill:#fff3e0
+  style A11 fill:#fff3e0
 ```
 
 ### 3.1 每步谁做什么
@@ -65,10 +66,11 @@ flowchart LR
 | 4 | ATDD | quality-guardian | `harness/atdd/ATDD-*.md` | 覆盖正常/边界/异常三态 |
 | 5 | 计划 | plan-generator | `05-plan.md` | 步骤有序、有回滚方案 |
 | 6 | CODE | developer | `06-code.md` + 代码 | L0-L4 PASS、覆盖率达标 |
-| 7 | VERIFY | verifier | `05-verification.md` | L0-L6 全 PASS |
-| 8 | DEPLOY | deployer | `06-deploy.md` | 预发健康检查 PASS |
-| 9 | REGRESSION | tester | `07-regression.md` | Golden Set 跌幅 ≤ 5% |
-| 10 | SIGN_OFF | orchestrator | `99-signoff.md` | commit 含 FR 编号 |
+| 7 | DEPLOY | deployer | `09-deploy.md` | 部署成功/跳过 |
+| 8 | VERIFY | verifier | `07-verify.md` | L0-L6 全 PASS |
+| 9 | SECURITY_TEST | security-reviewer | `08-security-test.md` | 安全扫描 PASS |
+| 10 | REGRESSION | tester | `10-regression.md` | Golden Set 跌幅 ≤ 5% |
+| 11 | SIGN_OFF | orchestrator | `11-signoff.md` | commit 含 FR 编号 |
 
 ### 3.2 特殊步骤 3 和 10
 
@@ -187,7 +189,130 @@ agents/harness/                   4 份角色协议（Dispatcher / Orchestrator 
 
 ---
 
-## 第六章：质量门禁（L0-L6）
+## 第六章：测试分层与执行策略
+
+### 6.1 测试金字塔（业界标准命名）
+
+```
+┌──────────────────────────────────────────────────────┐
+│ UI-E2E：Playwright（Web） + 微信开发者工具 MCP       │  ← REGRESSION
+├──────────────────────────────────────────────────────┤
+│ API-E2E：pytest tests/e2e/                          │  ← VERIFY + REGRESSION
+├──────────────────────────────────────────────────────┤
+│ Integration：pytest tests/integration/                │  ← VERIFY
+├──────────────────────────────────────────────────────┤
+│ Smoke：pytest tests/smoke/                           │  ← VERIFY + REGRESSION
+├──────────────────────────────────────────────────────┤
+│ Golden Set：Eval Runner                              │  ← REGRESSION
+└──────────────────────────────────────────────────────┘
+
+        ATDD：产出 .feature 文件（验收标准，不跑自动化）
+```
+
+### 6.2 测试类型定义
+
+| 类型 | 工具 | 覆盖范围 |
+|------|------|---------|
+| **unit** | pytest `tests/unit/` | 单个函数/类逻辑 |
+| **integration** | pytest `tests/integration/` | 模块间交互 |
+| **API-E2E** | pytest `tests/e2e/` | 纯后端 API 端到端 |
+| **smoke** | pytest `tests/smoke/` | 核心 API 冒烟 |
+| **UI-E2E** | 微信 MCP / Playwright | 前端 UI + 前后端联动 |
+| **Golden Set** | Eval Runner | LLM/AI 功能回归 |
+
+### 6.3 执行阶段矩阵
+
+| 阶段 | integration | API-E2E | smoke | UI-E2E | Golden Set |
+|------|:-----------:|:--------:|:-----:|:------:|:----------:|
+| **ATDD** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **VERIFY** | ✅ | ✅ | ✅ | ✅* | ❌ |
+| **REGRESSION** | ❌ | ✅ | ✅ | ✅ | ✅ |
+
+*UI-E2E 在 VERIFY 阶段为**可选**（资源充足时执行）
+
+### 6.4 REGRESSION 环境说明
+
+REGRESSION 在**同一套 dev 环境**执行（`APP_ENV=dev`），不区分独立 staging：
+- 原因：当前项目没有独立的 staging 环境
+- 适用阶段：MVP 快速迭代
+- UI-E2E 自动检测环境可用性，不可用时自动跳过并记录原因到 evidence
+
+### 6.5 UI-E2E 自动跳过机制
+
+| 环境检测 | 工具 | 不可用时处理 |
+|---------|------|------------|
+| Windows + 微信开发者工具 | 微信 MCP | 跳过 + 记录原因 |
+| 浏览器 | Playwright | 跳过 + 记录原因 |
+
+### 6.6 各任务类型测试策略
+
+**适用任务**：feature + bugfix（仅增量测试）
+
+**增量识别**：基于 ATDD 用例映射（每个 FR 关联对应测试文件）
+
+| 任务类型 | CODE | DEPLOY | VERIFY | SECURITY_TEST | REGRESSION |
+|---------|:----:|:------:|:------:|:------------:|:----------:|
+| feature | ✅ | ✅ 条件 | ✅ 增量 | ✅ 并行 | ✅ 全量 |
+| bugfix | ✅ | ✅ 条件 | ✅ 增量 | ✅ 并行 | ✅ 全量 |
+| refactor | ✅ | ✅ 条件 | ❌ 跳过 | ✅ 并行 | ✅ 全量 |
+| doc-fix | ✅ 文档检查 | ❌ 跳过 | ❌ 跳过 | ❌ 跳过 | ❌ 跳过 |
+| perf-optimize | ✅ | ✅ 条件 | ❌ 跳过 | ✅ 并行 | ✅ 全量 |
+
+**doc-fix 验证方式**：markdownlint + typos + ruff format + broken-link-checker
+
+### 6.7 DEPLOY 条件触发
+
+DEPLOY 是**条件触发**阶段，不是每次都跑。
+
+**触发条件（满足任一即可）**：
+- 有 DDL/DML 更新
+- 有前端代码更新
+
+**非触发（跳过 DEPLOY）**：
+- 仅后端代码更新
+
+**操作**：
+
+| 触发类型 | 操作 |
+|---------|------|
+| 前端改动 | 微信开发者工具重新编译 |
+| DDL/DML | `alembic upgrade head` + 额外数据脚本 |
+
+**产出**：`evidence/09-deploy.md`（包含"跳过"或"执行"记录）
+
+### 6.8 流程图
+
+```
+CODE → DEPLOY(条件) → VERIFY ──┐
+                               ├──→ REGRESSION → SIGN_OFF
+                 SECURITY_TEST ─┘
+
+# doc-fix 专用流程
+CODE → DOC_FIX → SIGN_OFF（无运行时验证）
+```
+
+### 6.9 各任务类型 phase 映射
+
+| 任务类型 | 执行阶段 |
+|---------|---------|
+| feature | CODE → DEPLOY → VERIFY + SECURITY_TEST（并行） → REGRESSION → SIGN_OFF |
+| bugfix | CODE → DEPLOY → VERIFY + SECURITY_TEST（并行） → REGRESSION → SIGN_OFF |
+| refactor | CODE → DEPLOY → VERIFY + SECURITY_TEST（并行） → REGRESSION → SIGN_OFF |
+| doc-fix | CODE → DOC_FIX → SIGN_OFF（无运行时验证） |
+| perf-optimize | CODE → DEPLOY → VERIFY + SECURITY_TEST（并行） → REGRESSION → SIGN_OFF |
+
+### 6.10 SECURITY_TEST 并行说明
+
+SECURITY_TEST 与 VERIFY **并行执行**，两者都完成后进入 REGRESSION：
+
+```
+CODE → DEPLOY → VERIFY ──┐
+                 └── SECURITY_TEST ─┼──→ REGRESSION → SIGN_OFF
+```
+
+---
+
+## 第七章：质量门禁（L0-L6）
 
 | 级别 | 检查什么 | 命令 |
 |------|---------|------|
@@ -200,7 +325,7 @@ agents/harness/                   4 份角色协议（Dispatcher / Orchestrator 
 
 ---
 
-## 第七章：如何启动 Harness
+## 第八章：如何启动 Harness
 
 ### 场景 A：从零开始新 FR
 
