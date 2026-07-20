@@ -104,3 +104,217 @@ grep -rEn '\$OutputEncoding' backend/scripts/ .github/ 2>&1
 
 - lesson `2026-07-19-c14-pr-gate-is-markdown.md`（待写）：pr-gate.yml 是 markdown 文档不是真 CI workflow，PR-Gate 卡口 6 = 600 行硬卡没有真实 CI 在跑
 - lesson `2026-07-19-pr-a-replan-redundant.md`（待写）：REPLAN-A 拆 PR-A 加 asset-import 豁免机制，但发现 pr-gate.yml 不是真 CI 后该方案作废，浪费一轮 checklist 修订
+
+---
+
+# 附录：2026-07-20 追加踩坑经验
+
+## 新增根因：PowerShell Sequential Operator `&&` 不支持 + `git checkout` 恢复损坏版本
+
+### 触发场景（2026-07-20）
+
+今日继续执行路径迁移（`docs/api/` → `docs/architecture/api/`），用 PowerShell 脚本执行批量替换：
+1. `fix_paths.py` 脚本用 Python 读写文件（UTF-8 正确）
+2. 用 `git checkout -- .` 恢复所有文件（意图重新开始）
+3. 恢复后文件仍然是乱码
+
+### 新增根因分析
+
+**问题 1：`&&` Sequential Operator 在 PS 5.x 不支持**
+
+PowerShell 7.0+ 才引入 `&&`（Sequential Operator），在 PS 5.x（Windows 10 内置）上会报 `InvalidEndOfLine` 错误：
+
+```powershell
+# 在 PowerShell 5.x 中会失败
+cd "project" && python script.py
+# 报错：InvalidEndOfLine
+```
+
+**问题 2：`git checkout -- .` 恢复的是工作区损坏版本**
+
+当 `git add` 后立即 `git checkout -- .`：
+- `git checkout --` 恢复的是**暂存区（index）**的损坏内容
+- 而不是从 git 对象库（`.git/objects/`）读取的原始 blob
+- 因为损坏的文件已被 `git add` 写入暂存区
+
+**问题 3：PowerShell `&&` 失败导致命令未执行**
+
+```powershell
+cd "project" && python fix.py && git add . && git commit -m "..."
+#                           ↑ 这行失败了
+# 导致 git add . 和 commit 没有执行
+```
+
+### 修复路径
+
+#### 1. 从 git blob 获取正确内容（核心修复）
+
+```python
+import subprocess
+from pathlib import Path
+
+ROOT = Path('d:/agent-project/SelfwellAgent')
+
+def git_cat_file(blob_hash: str) -> bytes:
+    """从 git 对象库获取 blob 原始内容"""
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'cat-file', '-p', blob_hash],
+        capture_output=True
+    )
+    return result.stdout
+
+def get_blob_hash(rel_path: str) -> str | None:
+    """获取文件的 blob hash"""
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'ls-tree', '-r', 'HEAD', '--', rel_path],
+        capture_output=True
+    )
+    if result.returncode != 0:
+        return None
+    # 格式: 100644 blob <hash>\t<path>
+    parts = result.stdout.decode().strip().split()
+    if len(parts) >= 2 and parts[1] == 'blob':
+        return parts[2]
+    return None
+
+# 使用示例
+blob_hash = get_blob_hash('backend/app/conf/recall_safety_keywords.yaml')
+correct_content = git_cat_file(blob_hash).decode('utf-8', errors='replace')
+```
+
+#### 2. 用 Python 脚本（而非 PowerShell）执行批量替换
+
+```python
+# fix_final.py - 完整脚本
+import subprocess
+import re
+from pathlib import Path
+
+ROOT = Path(r'd:/agent-project/SelfwellAgent')
+
+def git_cat_file(blob_hash: str) -> bytes:
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'cat-file', '-p', blob_hash],
+        capture_output=True
+    )
+    return result.stdout
+
+def get_blob_hash(rel_path: str) -> str | None:
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'ls-tree', '-r', 'HEAD', '--', rel_path],
+        capture_output=True
+    )
+    if result.returncode != 0:
+        return None
+    parts = result.stdout.decode().strip().split()
+    if len(parts) >= 2 and parts[1] == 'blob':
+        return parts[2]
+    return None
+
+REPLACEMENTS = [
+    ('docs/adr/', 'docs/architecture/adr/'),
+    ('docs/api/openapi.yaml', 'docs/architecture/api.yaml'),
+    # ... 更多替换规则
+]
+
+extensions = ['.py', '.ts', '.tsx', '.dart', '.yaml', '.yml', '.md', '.txt', '.mdc', '.sh', '.sql']
+exclude_dirs = {'node_modules', '.git', 'venv', 'dist', '.venv', '__pycache__'}
+
+for ext in extensions:
+    for file_path in ROOT.rglob(f'*{ext}'):
+        if any(e in file_path.parts for e in exclude_dirs):
+            continue
+        rel_path = str(file_path.relative_to(ROOT)).replace('\\', '/')
+        blob_hash = get_blob_hash(rel_path)
+        if not blob_hash:
+            continue
+        original_bytes = git_cat_file(blob_hash)
+        content = original_bytes.decode('utf-8', errors='replace')
+        # ... 执行替换并用 LF 换行写入
+```
+
+#### 3. 避免 PowerShell `&&` 问题
+
+```powershell
+# ❌ 错误：PS 5.x 不支持 &&
+cd "project" && python script.py && git add .
+
+# ✅ 正确：分步执行
+cd "project"
+python script.py
+git add .
+git commit -m "message"
+```
+
+或者用 `.ps1` 脚本文件执行（避免命令行解析问题）：
+
+```powershell
+# run_fix.ps1 - 调用 Python 脚本
+python "C:\path\to\fix_final.py"
+```
+
+### 额外发现：CRLF vs LF 问题
+
+PowerShell `Set-Content` 会写入 CRLF（`\r\n`），而 git blob 默认用 LF（`\n`）：
+
+```
+磁盘文件: 6205 bytes (含 CRLF)
+Git blob: 5998 bytes (纯 LF)
+差异: 第一个不同在字节 53 - disk=0x0D (CR), git=0x0A (LF)
+```
+
+**修复**：写入时强制用 LF 换行：
+
+```python
+new_bytes = content.replace('\r\n', '\n').replace('\r', '\n').encode('utf-8')
+file_path.write_bytes(new_bytes)
+```
+
+### 验证清单
+
+```python
+# verify.py - 验证文件内容
+from pathlib import Path
+
+ROOT = Path('d:/agent-project/SelfwellAgent')
+test_files = [
+    ROOT / 'backend/app/conf/recall_safety_keywords.yaml',
+    ROOT / 'harness/templates/acceptance.md',
+]
+
+for f in test_files:
+    content = f.read_text(encoding='utf-8')
+    has_chinese = any('\u4e00' <= c <= '\u9fff' for c in content)
+    print(f"{f.name}: has_chinese={has_chinese}")
+    if has_chinese:
+        # 显示包含中文的行
+        for line in content.split('\n')[:5]:
+            if any('\u4e00' <= c <= '\u9fff' for c in line):
+                print(f"  Sample: {line[:80]}")
+                break
+```
+
+### 触发条件清单
+
+```bash
+# 检测 PowerShell Sequential Operator (PS 7+ only)
+grep -rn "&&" *.ps1 backend/scripts/ .github/scripts/
+
+# 检测 CRLF 文件（应全部是 LF）
+git -C repo ls-files | xargs -I{} git -C repo cat-file -p HEAD:{} > /tmp/git_content
+diff <(git ls-files | xargs -I{} cat {}) <(git ls-files | xargs -I{} git show HEAD:{})
+
+# 揪出含 CRLF 的文件
+file $(git ls-files) | grep "CRLF"
+```
+
+### 总结：PowerShell 文件操作正确姿势
+
+| 场景 | 正确做法 |
+|------|----------|
+| 读取中文文件 | `Get-Content -Path 'file' -Raw -Encoding utf8`（PS 7+）或 Python |
+| 写入中文文件 | **用 Python**，避免 `Set-Content` |
+| 批量替换 | **用 Python 脚本**，通过 `.ps1` 包装调用 |
+| `&&` 管道符 | **不用**，改用分步执行或 `.ps1` 脚本 |
+| 从 git 恢复 | **从 blob 读取** `git cat-file -p <hash>`，不用 `git checkout --` |
+| 换行符 | 统一用 LF（`\n`），Python 写入时显式转换 |
