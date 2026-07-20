@@ -1,16 +1,17 @@
 {
-  "run_id": "FR-PILOT-M1-20260719",
+  "run_id": "DDD-REFACTOR-USER-20260720",
   "version": "3.0",
-  "task_type": "feature",
-  "current_phase": "PRD",
-  "current_agent": "requirement-analyst",
-  "phase_started_at": "2026-07-19T23:55:00+08:00",
+  "task_type": "refactor",
+  "current_phase": "REGRESSION",
+  "current_agent": "tester",
+  "phase_started_at": "2026-07-20T16:10:00+08:00",
   "exit_criteria_met": [
+    false,
     false,
     false
   ],
-  "next_phase_hint": null,
-  "updated_at": "2026-07-19T23:55:00+08:00",
+  "next_phase_hint": "SIGN_OFF",
+  "updated_at": "2026-07-20T16:10:00+08:00",
   "interrupt_policy": {
     "budget_per_run": 5,
     "escalation": "AskUser",
@@ -22,20 +23,44 @@
   "interrupt_stack": [],
   "replay_session_id": null,
   "run_metadata": {
-    "task_type": "feature",
-    "created_at": "2026-07-19T23:55:00+08:00",
+    "task_type": "refactor",
+    "created_at": "2026-07-20T15:51:00+08:00",
     "created_by": "orchestrator",
-    "feature": "wx-login-M1-pilot",
-    "parent_run_id": null
+    "feature": "ddd-refactor-user-context",
+    "parent_run_id": null,
+    "scope": "services/auth/ + services/users/profile_service.py → contexts/user/"
   },
   "phase_history": [
     {
-      "phase": "PRD",
-      "agent": "requirement-analyst",
-      "entered_at": "2026-07-19T23:55:00+08:00",
-      "exited_at": null,
-      "evidence_ref": "harness/evidence/01-requirement.md",
-      "interrupt_budget_at_exit": null
+      "phase": "PLAN",
+      "agent": "plan-generator",
+      "entered_at": "2026-07-20T15:51:00+08:00",
+      "exited_at": "2026-07-20T15:55:00+08:00",
+      "evidence_ref": "harness/evidence/05-plan.md",
+      "interrupt_budget_at_exit": 5
+    },
+    {
+      "phase": "CODE",
+      "agent": "developer",
+      "entered_at": "2026-07-20T15:55:00+08:00",
+      "exited_at": "2026-07-20T16:05:00+08:00",
+      "evidence_ref": "harness/evidence/06-code.md",
+      "interrupt_budget_at_exit": 5
+    },
+    {
+      "phase": "VERIFY",
+      "agent": "verifier",
+      "entered_at": "2026-07-20T16:05:00+08:00",
+      "exited_at": "2026-07-20T16:10:00+08:00",
+      "evidence_ref": "harness/evidence/07-verify.md",
+      "interrupt_budget_at_exit": 5,
+      "gates_summary": {
+        "L0": "PASS",
+        "L1": "PASS",
+        "L2": "PASS",
+        "L3": "PASS (46 auth/login/jwt tests)",
+        "L4": "PASS"
+      }
     }
   ]
 }

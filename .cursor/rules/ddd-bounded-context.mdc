@@ -1,14 +1,26 @@
 ---
-description: DDD Bounded Context 速查表（6 个 Context + Domain Event 通信）
+description: DDD Bounded Context 真源速查表（6 个 Context + Domain Event 通信）
 globs:
 alwaysApply: true
 ---
 
-# DDD Bounded Context 速查表
+# DDD Bounded Context 真源速查表
 
-> 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
+> **本文件是 DDD 架构的唯一的真源（Source of Truth）。**
 > 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
-> 唯一真源：`docs/architecture/ddd-bounded-context.md`，本文件仅做速查。
+> **所有其他文档（V3架构、4+1视图、SDS等）必须引用本文件，而非重写目录结构。**
+
+---
+
+## 架构决策
+
+**DDD Bounded Context 架构已确立为后端代码组织的唯一真源。**
+
+| 约束 | 说明 |
+|------|------|
+| 禁止 | 在其他文档中重写 `backend/app/` 目录结构 |
+| 正确 | 引用本文件 §五 的目录结构 |
+| CI 兜底 | `pr-gate-ci.yml` Gate 9 检测文档漂移 |
 
 ---
 
@@ -29,7 +41,7 @@ alwaysApply: true
 
 ### 禁止项
 
-| ❌ 禁止 | ✅ 正确做法 |
+| 禁止 | 正确做法 |
 |---------|------------|
 | Context A 直接 import Context B 的 Service/Model | 发布 Domain Event |
 | Context A 直接查询 Context B 的数据库表 | 订阅 Domain Event + 本地只读副本 |
@@ -77,7 +89,7 @@ alwaysApply: true
 
 ### 反模式
 
-| ❌ 坏味道 | ✅ 正确做法 |
+| 坏味道 | 正确做法 |
 |----------|------------|
 | 在 Service 层直接 `db.update(DiagnosisReport)` | 通过 `Diagnosis.update_report()` |
 | 跨 Context 传整个 User 对象 | 只传 `user_id: str` |
@@ -108,43 +120,31 @@ class EventBus(Protocol):
 
 
 class InMemoryEventBus:
-    """生产环境用 Redis Pub/Sub 或 Kafka。"""
-
     def __init__(self) -> None:
         self._handlers: dict[str, list[Callable]] = {}
 
     async def publish(self, event: DomainEvent) -> None:
         handlers = self._handlers.get(event.event_name, [])
-        logger.info(
-            "domain_event_published",
-            event_name=event.event_name,
-            aggregate_id=event.aggregate_id,
-        )
+        logger.info("domain_event_published", event_name=event.event_name, aggregate_id=event.aggregate_id)
         for handler in handlers:
             try:
                 await handler(event)
             except Exception:
-                logger.exception(
-                    "event_handler_failed",
-                    event_name=event.event_name,
-                    handler=handler.__name__,
-                )
+                logger.exception("event_handler_failed", event_name=event.event_name, handler=handler.__name__)
 
 
-# 单例（在 main.py 注入）
 event_bus: EventBus = InMemoryEventBus()
 ```
 
 ### Subscriber（Context B）
 
 ```python
-# app/services/notification/handlers.py
+# app/contexts/notification/application/handlers.py
 from app.events.bus import event_bus
-from app.events.user_events import UserRegisteredEvent
+from app.contexts.user.domain.events import UserRegisteredEvent
 
 
 async def on_user_registered(event: UserRegisteredEvent) -> None:
-    """发送欢迎推送。"""
     await send_welcome_push(user_id=event.aggregate_id)
 
 
@@ -154,37 +154,53 @@ def register_handlers() -> None:
 
 ---
 
-## 五、目录结构约定
+## 五、目录结构约定（唯一真源）
+
+> **本节是后端目录的唯一真源。**
+> 其他文档必须引用本节，不得重写目录结构。
+> CI `pr-gate-ci.yml` Gate 9 检测漂移，拒绝重写。
 
 ```
 backend/app/
 ├── contexts/                    # Bounded Context 根目录
 │   ├── user/
-│   │   ├── domain/              # Aggregate, Entity, ValueObject
+│   │   ├── domain/           # Aggregate, Entity, ValueObject, Events
 │   │   │   ├── user.py
-│   │   │   └── events.py        # UserRegisteredEvent, UserDeactivatedEvent
-│   │   ├── application/         # Application Service
+│   │   │   └── events.py
+│   │   ├── application/      # Application Service
 │   │   │   └── user_service.py
-│   │   ├── infrastructure/      # Repository, ORM Model
+│   │   ├── infrastructure/   # Repository, ORM Model
 │   │   │   └── user_repo.py
-│   │   └── interfaces/          # API Router
+│   │   └── interfaces/      # API Router
 │   │       └── user_router.py
 │   ├── diagnosis/
 │   │   ├── domain/
 │   │   │   ├── diagnosis.py
 │   │   │   └── events.py
-│   │   └── ...
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── interfaces/
 │   ├── plan/
 │   ├── community/
 │   ├── video/
 │   └── notification/
-├── events/                       # 跨 Context 共享
-│   ├── bus.py                    # EventBus 实现
-│   └── handlers.py               # 全局 Event Handler 注册
-└── main.py                       # 启动时调用 register_handlers()
+├── events/                   # 跨 Context 共享
+│   ├── bus.py              # EventBus
+│   └── registry.py         # Handler 注册
+├── core/                    # 基础设施
+│   ├── errors.py
+│   ├── log.py
+│   └── config.py
+└── main.py
 ```
 
-**过渡策略**：保留现有 `services/` 目录，新代码按 contexts/ 目录组织，逐步迁移。
+### 过渡策略
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 当前 | V3 `services/` 架构 | 保留现有代码，逐步迁移 |
+| 目标 | DDD `contexts/` 架构 | 新代码必须按本结构创建 |
+| 完成 | 迁移完毕 | 删除 `services/` 目录 |
 
 ---
 
@@ -192,20 +208,43 @@ backend/app/
 
 ```bash
 # L4：跨 Context 直接导入检测
-grep -rn "from app.services.user" backend/app/services/diagnosis/ && echo "FAIL: cross-context import" || echo "PASS"
+grep -rn "from app.contexts.user" backend/app/contexts/diagnosis/ && echo "FAIL" || echo "PASS"
 
 # L4：Domain Event 命名规范
-grep -rn "Event\s*=" backend/app/contexts/ | grep -v "Event\s*=\s*\"[A-Z][a-zA-Z]*Event\"" && echo "FAIL: bad event name" || echo "PASS"
+grep -rn 'Event\s*=' backend/app/contexts/ | grep -v 'Event\s*=\s*"[A-Z][a-zA-Z]*Event"' && echo "FAIL" || echo "PASS"
 
 # L4：禁止跨 Context 共享数据库表
-grep -rn "from app.contexts.user.infrastructure" backend/app/contexts/diagnosis/ && echo "FAIL: cross-context DB access" || echo "PASS"
+grep -rn "from app.contexts.user.infrastructure" backend/app/contexts/diagnosis/ && echo "FAIL" || echo "PASS"
+
+# L4：禁止在新 Context 中使用 services/
+grep -rn "from app.services" backend/app/contexts/ && echo "FAIL" || echo "PASS"
 ```
 
 ---
 
-## 七、参考
+## 七、参考与引用规范
 
-- 详细文档：`docs/architecture/ddd-bounded-context.md`
-- 设计方法论：`.cursor/skills/ddd-design/SKILL.md`
-- V3 架构：`.cursor/rules/project-meta.mdc`
-- 工程红线：`.cursor/rules/project-prohibitions.mdc`
+### 正确引用方式
+
+其他文档应按以下方式引用本文件：
+
+```markdown
+## 代码目录（DDD 真源）
+
+**唯一真源**：`.cursor/rules/ddd-bounded-context.mdc` §五
+```
+
+### 禁止行为
+
+- **禁止**在其他文档中重写 `backend/app/` 目录结构
+- **禁止**使用旧的 `services/` 架构作为新代码的组织方式
+- **禁止**在 `contexts/` 目录内创建非 DDD 结构的代码
+
+### 参考文档
+
+| 文档 | 角色 |
+|------|------|
+| `docs/architecture/ddd-bounded-context.md` | DDD 详细设计（含 EventBus 实现骨架） |
+| `.cursor/skills/ddd-design/SKILL.md` | DDD 设计方法论 |
+| `.cursor/rules/project-meta.mdc` | 项目元信息（引用本文件） |
+| `.cursor/rules/coding-standards.mdc` | 编码规范（引用本文件） |
