@@ -2,6 +2,28 @@
 version: "2.0"
 deprecates: "workflow.yaml"
 initial_phase: PRD
+# 5 种任务类型定义，每种类型指定不同的 phase 子集
+task_types:
+  feature:
+    description: "完整功能开发"
+    phases: [PRD, ARCH_DESIGN, PRE_MORTEM, ATDD, PLAN, CODE, VERIFY, SECURITY_TEST, DEPLOY, REGRESSION, SIGN_OFF, DATA_REPLAY, INCIDENT_RESPONSE, OPS_LOOP, SKILL_UPDATE]
+    initial_phase: PRD
+  bugfix:
+    description: "Bug 修复"
+    phases: [CODE, VERIFY, DEPLOY, REGRESSION, SIGN_OFF]
+    initial_phase: CODE
+  refactor:
+    description: "代码重构"
+    phases: [PLAN, CODE, VERIFY, REGRESSION, SIGN_OFF]
+    initial_phase: PLAN
+  doc-fix:
+    description: "文档修复"
+    phases: [CODE, VERIFY, SIGN_OFF]
+    initial_phase: CODE
+  perf-optimize:
+    description: "性能优化"
+    phases: [PLAN, CODE, VERIFY, DEPLOY, REGRESSION, SIGN_OFF]
+    initial_phase: PLAN
 interruption_policy:
   budget_per_run: 5
   escalation: "AskUser"

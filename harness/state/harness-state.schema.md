@@ -1,18 +1,40 @@
-# Harness State Schema（V2）
+# Harness State Schema（V3）
 
-> **V2 更新**：新增 `interrupt_budget`、`interrupt_stack`、`replay_session_id`、`run_metadata` 字段。
+> **V3 更新**：新增 `task_type` 字段，支持 5 种任务类型（feature/bugfix/refactor/doc-fix/perf-optimize）。
+> **V2 更新**：`interrupt_budget`、`interrupt_stack`、`replay_session_id`、`run_metadata` 字段。
 > **唯一真源**：本文件描述 schema；运行期状态见 `harness/state/harness-state.json`。
-> **V1.6 兼容**：V1.6 state.json 缺少 V2 字段时，默认填充 `null`；V2 dispatcher 读取时会用默认值初始化。
+> **V1.6/V2 兼容**：V1.6/V2 state.json 缺少 V3 字段时，默认填充 `null`；V3 dispatcher 读取时会用默认值初始化。
 
 ## 一、完整 Schema（JSON Schema Draft-07）
+
+### 1.1 task_types 定义（V3 新增）
+
+```yaml
+task_types:
+  feature:       # 完整功能开发
+    phases: [PRD, ARCH_DESIGN, PRE_MORTEM, ATDD, PLAN, CODE, VERIFY, SECURITY_TEST, DEPLOY, REGRESSION, SIGN_OFF, DATA_REPLAY, INCIDENT_RESPONSE, OPS_LOOP, SKILL_UPDATE]
+  bugfix:        # Bug 修复
+    phases: [CODE, VERIFY, DEPLOY, REGRESSION, SIGN_OFF]
+  refactor:      # 代码重构
+    phases: [PLAN, CODE, VERIFY, REGRESSION, SIGN_OFF]
+  doc-fix:       # 文档修复
+    phases: [CODE, VERIFY, SIGN_OFF]
+  perf-optimize: # 性能优化
+    phases: [PLAN, CODE, VERIFY, DEPLOY, REGRESSION, SIGN_OFF]
+```
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "HarnessStateV2",
+  "title": "HarnessStateV3",
   "type": "object",
-  "required": ["run_id", "current_phase", "current_agent", "version", "interrupt_policy"],
+  "required": ["run_id", "current_phase", "current_agent", "version", "interrupt_policy", "task_type"],
   "properties": {
+    "task_type": {
+      "type": "string",
+      "enum": ["feature", "bugfix", "refactor", "doc-fix", "perf-optimize"],
+      "description": "任务类型，决定执行哪些 phase 子集（V3 新增）"
+    },
     "run_id": {
       "type": "string",
       "pattern": "^FR-[A-Z]+-\\d{2}-\\d{8}$",
@@ -20,13 +42,13 @@
     },
     "version": {
       "type": "string",
-      "const": "2.0",
-      "description": "Harness 版本，V2 = 2.0"
+      "const": "3.0",
+      "description": "Harness 版本，V3 = 3.0（支持 task_type）"
     },
     "current_phase": {
       "type": "string",
       "enum": ["PRD", "ARCH_DESIGN", "PRE_MORTEM", "ATDD", "PLAN", "CODE", "VERIFY", "SECURITY_TEST", "DEPLOY", "REGRESSION", "SIGN_OFF", "DATA_REPLAY", "INCIDENT_RESPONSE", "OPS_LOOP", "SKILL_UPDATE", "INTERRUPT_REVIEW"],
-      "description": "当前 phase"
+      "description": "当前 phase（受 task_type 约束，只执行 task_type.phases 中的 phase）"
     },
     "current_agent": {
       "type": "string",
@@ -125,6 +147,11 @@
       "type": "object",
       "description": "run 元数据（V2 新增）",
       "properties": {
+        "task_type": {
+          "type": "string",
+          "enum": ["feature", "bugfix", "refactor", "doc-fix", "perf-optimize"],
+          "description": "任务类型（V3 新增，与顶层 task_type 一致）"
+        },
         "created_at": {
           "type": "string",
           "format": "date-time",
@@ -184,12 +211,13 @@
 }
 ```
 
-## 二、示例（V2 完整）
+## 二、示例（V3 完整）
 
 ```json
 {
   "run_id": "FR-DIAG-02-20260718",
   "version": "2.0",
+  "task_type": "feature",
   "current_phase": "CODE",
   "current_agent": "developer",
   "phase_started_at": "2026-07-18T21:00:00+08:00",
