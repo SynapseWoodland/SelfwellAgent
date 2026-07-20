@@ -123,7 +123,9 @@
 | **高危** | `rm -rf /` | 删除根目录或关键路径 | 需用户书面授权 |
 | **列目录** | `dir /X ...` (跨盘) | cmd 跨盘列目录 | **Glob** |
 | | `cmd /c "dir ..."` | cmd 转义调 dir | **Glob** |
-| **PS 读字节** | `powershell -Command ...[IO.File]...` | 用 .NET 反射读字节 | **Read** |
+| **PS 文件写入** | `Set-Content ... -Value` / `Out-File` | PS 5.x 默认 GBK 编码导致中文乱码 |
+| **PS 脚本执行** | `powershell -File script.ps1` / `pwsh -File` | 脚本内部文件操作 hook 不可见 |
+| **git checkout --** | `git checkout -- .` / `git checkout -- file` | 恢复暂存区（可能含损坏内容），应用 git cat-file |
 
 **白名单快速通道**（首 token 命中即放行）：
 

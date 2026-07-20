@@ -90,6 +90,16 @@ class TestViolationsShouldDeny:
             'cmd /c "dir C:\\Windows"',
             # PS 反射读字节
             "powershell -Command [System.IO.File]::ReadAllText('foo.txt')",
+            # PowerShell 文件写入（GBK/UTF-16 编码问题）
+            "Set-Content -Path file.txt -Value '中文内容'",
+            "Out-File -FilePath output.txt",
+            "powershell -Command Set-Content -Path foo.txt -Value test",
+            # PowerShell -File 脚本执行
+            "powershell -File run_fix.ps1",
+            "pwsh -File script.ps1",
+            # git checkout -- 恢复暂存区
+            "git checkout -- .",
+            "git checkout -- file.txt",
         ],
     )
     def test_violation_denied(self, command: str) -> None:

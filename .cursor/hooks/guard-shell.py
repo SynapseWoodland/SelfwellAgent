@@ -160,6 +160,35 @@ VIOLATIONS: Final[tuple[tuple[re.Pattern[str], str, str], ...]] = (
         "用 PowerShell [IO.File] 读文件 — 应用 Read 工具",
         "Read",
     ),
+    # ---------- PowerShell 文件写入类违规（应用 Write 工具） ----------
+    # Set-Content / Out-File 默认 GBK 编码，会导致中文乱码
+    (
+        re.compile(r"(?i)\bSet-Content\s+.*-[Vv]alue\s+"),
+        "PowerShell Set-Content 写文件 — 默认 GBK 编码会导致中文乱码，应用 Python 或 Write 工具",
+        "Write/Python",
+    ),
+    (
+        re.compile(r"(?i)\bOut-File\s+"),
+        "PowerShell Out-File 写文件 — 默认 UTF-16 编码，应用 Write 工具",
+        "Write",
+    ),
+    # ---------- PowerShell -File 脚本执行（内部操作不可见） ----------
+    (
+        re.compile(r"(?i)\b(powershell|pwsh)(?:\.exe)?\s+-File\s+\S+\.ps1"),
+        "PowerShell -File 执行脚本 — 脚本内部文件操作 hook 不可见，应用 Write/StrReplace 工具",
+        "Write/StrReplace",
+    ),
+    # ---------- git checkout -- 恢复暂存区（可能恢复损坏版本） ----------
+    (
+        re.compile(r"\bgit\s+checkout\s+--\s+\."),
+        "git checkout -- . 恢复暂存区 — 可能恢复已损坏的文件，应用 git cat-file -p 从 blob 恢复",
+        "git cat-file",
+    ),
+    (
+        re.compile(r"\bgit\s+checkout\s+--\s+\S"),
+        "git checkout -- <file> 恢复暂存区 — 可能恢复已损坏的文件，应用 git show HEAD:<path> 从 blob 恢复",
+        "git show HEAD",
+    ),
 )
 
 
@@ -291,6 +320,9 @@ def main() -> None:
             pass
         elif re.search(r"\btee\s+", command):
             # tee 通过任何位置（包括 pipe）调用都是违规 → 走违规检测
+            pass
+        elif first == "git" and re.search(r"\bgit\s+checkout\s+--", command):
+            # git checkout -- 是特例：恢复暂存区（可能含损坏内容），必须走违规检测
             pass
         else:
             _emit({"permission": "allow"})
