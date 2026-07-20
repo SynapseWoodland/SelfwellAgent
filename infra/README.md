@@ -157,6 +157,80 @@ docker compose exec backend alembic revision --autogenerate -m "add xxx"
 | §8.2 生产建议 | 见 `infra/production/` 后续文件（待补 K8s manifest） |
 
 ---
+## 外部依赖安装（Tailscale Funnel + Caddy）
+
+> 当需要把本地 backend 暴露为公网 HTTPS 域名时使用 `infra/start_tailscale_caddy.ps1`。该脚本会：
+> 1) 启动 Tailscale；2) 开启 `tailscale funnel --bg 8000`；3) 启动 Caddy 反向代理。
+
+### 1. 安装 Tailscale（Windows）
+
+| 项 | 值 |
+|---|---|
+| 下载 | https://tailscale.com/download/windows |
+| 安装路径 | `C:\Program Files\Tailscale\tailscale-ipn.exe` |
+| 前置 | Microsoft Edge WebView2 Runtime（Win11 默认带，Win10 需装） |
+| 登录 | 首次启动后用 Microsoft / Google / GitHub 账号登录 |
+| MagicDNS | 在 Tailscale admin console → Access Controls → 开启 MagicDNS |
+| HTTPS | 在 admin console → 个设备 → Edit route settings → 启用 HTTPS |
+
+**验证**：
+
+```bash
+"C:\Program Files\Tailscale\tailscale-ipn.exe" status
+# 应能看到自己的设备 + 100.x.x.x IP
+```
+
+### 2. 安装 Caddy（Windows）
+
+Caddy 二进制放在 `infra\caddy\caddy_windows_amd64.exe`。**首次启动脚本时会自动检测**：
+
+- 文件存在 → 直接执行
+- 文件缺失 → 脚本会从 GitHub releases 下载 `v2.8.4` zip → 解压并重命名为 `caddy_windows_amd64.exe`
+
+如需手动安装：
+
+```bash
+# 方法 1：winget（推荐，自动加 PATH）
+winget install caddyserver.caddy
+
+# 方法 2：手动下载
+#   https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_windows_amd64.zip
+#   解压得到 caddy.exe，重命名为 caddy_windows_amd64.exe 放入 infra\caddy\
+```
+
+**版本锁定**：脚本当前硬编码 `Caddy v2.8.4`。升级时同步修改 `start_tailscale_caddy.ps1` 中 `$CaddyVersion` 变量。
+
+### 3. 启动脚本
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\infra\start_tailscale_caddy.ps1
+```
+
+输出会显示 Tailscale 状态 + Caddy 启动日志。Caddy 前台运行，`Ctrl+C` 停止。
+
+### 4. 停止 / 清理
+
+```bash
+# 关 Caddy：Ctrl+C
+# 关 Funnel：
+"C:\Program Files\Tailscale\tailscale-ipn.exe" funnel --bg off
+# 或彻底关：
+"C:\Program Files\Tailscale\tailscale-ipn.exe" funnel off
+# 关 Tailscale 托盘：Task Manager → tailscale-ipn.exe → End task
+```
+
+### 5. 常见问题
+
+| 症状 | 原因 | 解法 |
+|---|---|---|
+| `tailscale-ipn.exe not found` | 未安装 Tailscale | 见 §1 |
+| `funnel returned non-zero` | 未登录 / HTTPS 关 / MagicDNS 关 | 见 §1 前置 3 项 |
+| `Caddy binary not found` 且下载失败 | 网络无法访问 GitHub releases | 手动安装，见 §2 |
+| Caddy 启动报端口冲突 | 8000 被占用 | `netstat -ano \| findstr :8000` 找到 PID |
+| 日志位置 | `$env:TEMP\selfwell_startup\start_*.log` | 全文日志，含 Tailscale 输出 |
+
+---
 
 ## 已知限制 / 待办
 
