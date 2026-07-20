@@ -112,7 +112,12 @@ phases:
     exit_criteria:
       - 'test -f harness/evidence/06-code.md'
       - 'grep -q "^signed: true" harness/evidence/06-code.md'
-      - 'cd backend && uv run pytest tests/unit -x -q --tb=no >/dev/null 2>&1'
+      # 1. L0-L2：全量快速检查（秒级）
+      - 'cd backend && uv run ruff check app/ && uv run ruff format --check app/ && uv run mypy --strict app/ && uv run ruff check app/ --select=F401,F811,S608,S307,SEC,B,B003'
+      # 2. L3 增量 unit 测试：基于 git diff 确定增量测试文件（feature/bugfix 适用）
+      - >-
+        changed=$(git diff --name-only HEAD~1...HEAD | grep "^backend/tests/unit" | sed 's|^backend/||' | tr '\n' ' ') &&
+        if [ -n "$changed" ]; then uv run pytest $changed -x -q --tb=no; else uv run pytest tests/unit -x -q --tb=no; fi
     context: harness/context/phase-checklist.md
     interruptible: true
     interrupt_route: INTERRUPT_REVIEW
@@ -136,7 +141,12 @@ phases:
     exit_criteria:
       - 'test -f harness/evidence/07-verify.md'
       - 'grep -q "^signed: true" harness/evidence/07-verify.md'
-      - 'grep -qE "(L0|L1|L3).*PASS|ruff.*pass|pytest.*pass" harness/evidence/07-verify.md'
+      # 1. L0-L2 + L4a：全量快速检查（秒级，增量/全量无差异）
+      - 'cd backend && uv run ruff check app/ && uv run ruff format --check app/ && uv run mypy --strict app/ && uv run ruff check app/ --select=F401,F811,S608,S307,SEC,B,B003'
+      # 2. L3 增量 pytest：基于 git diff 确定增量文件，只测试改动的测试文件（feature/bugfix 适用）
+      - >-
+        changed=$(git diff --name-only HEAD~1...HEAD | grep "^backend/tests/" | sed 's|^backend/||' | tr '\n' ' ') &&
+        if [ -n "$changed" ]; then uv run pytest $changed -x -q; else echo "NO_TEST_CHANGES"; fi
     context: harness/context/phase-checklist.md
     interruptible: true
     interrupt_route: INTERRUPT_REVIEW
@@ -149,7 +159,8 @@ phases:
     exit_criteria:
       - 'test -f harness/evidence/08-security-test.md'
       - 'grep -q "^signed: true" harness/evidence/08-security-test.md'
-      - 'cd backend && uv run ruff check . --select=S,SEC,B >/dev/null 2>&1'
+      # bandit 安全扫描（与 pr-gate-ci.yml Gate 8 对齐）：无 HIGH/MEDIUM 高置信度漏洞
+      - 'cd backend && pip install -q bandit >/dev/null 2>&1 && bandit -r app/ --severity-level=HIGH,MEDIUM --confidence-level=HIGH,MEDIUM'
     context: harness/context/phase-checklist.md
     interruptible: true
     interrupt_route: INTERRUPT_REVIEW
@@ -173,7 +184,10 @@ phases:
     exit_criteria:
       - 'test -f harness/evidence/10-regression.md'
       - 'grep -q "^signed: true" harness/evidence/10-regression.md'
-      - 'cd backend && uv run pytest tests/integration -x -q --tb=no >/dev/null 2>&1'
+      # L3 integration + e2e + smoke + Golden Set intercept（R-4 prompt 回归）
+      - 'cd backend && uv run pytest tests/integration tests/e2e tests/smoke tests/intercept -x -q --tb=no'
+      # L6 coverage：整体 ≥ 60%（与 CI 硬卡数字对齐）
+      - 'cd backend && uv run pytest --cov=app --cov-fail-under=60'
     context: harness/context/phase-checklist.md
     interruptible: true
     interrupt_route: INTERRUPT_REVIEW
