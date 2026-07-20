@@ -75,8 +75,7 @@ jobs:
       # L4b：jscpd 代码重复检查（≤ 4%，对齐 l0-l6-gates.mdc L4b）
       # ──────────────────────────────────────────────
       - name: L4b — jscpd
-        run: |
-          uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd || true
+        run: uv run jscpd backend/ --threshold 4 --reporters console --output /tmp/jscpd
 
       # ──────────────────────────────────────────────
       # L5：架构 & 安全 grep 12 条（CI 硬卡，对齐 l0-l6-gates.mdc §5.2）
@@ -123,14 +122,14 @@ jobs:
             echo "::error::L5-7 失败：调试代码残留"; FAIL=1
           fi
 
-          # 8. LLM 参数硬编码（temperature）
-          if grep -rn "temperature=" backend/app/ | grep -v "tests/" | grep -v "# "; then
-            echo "::warning::L5-8 警告：temperature 硬编码（确认是否经过 LLM factory）"
+          # 8. LLM 参数硬编码（temperature）- error
+          if grep -rn "temperature=" backend/app/ | grep -v "tests/" | grep -v "# " | grep -v "app_config\|llm_config"; then
+            echo "::error::L5-8 失败：temperature 硬编码（必须从 app_config.llm 读取）"; FAIL=1
           fi
 
-          # 9. LLM 参数硬编码（model）
-          if grep -rn "model=" backend/app/ | grep -v "tests/" | grep -v "# "; then
-            echo "::warning::L5-9 警告：model 硬编码（确认是否经过 LLM factory）"
+          # 9. LLM 参数硬编码（model）- error
+          if grep -rn "model=" backend/app/ | grep -v "tests/" | grep -v "# " | grep -v "app_config\|llm_config"; then
+            echo "::error::L5-9 失败：model 硬编码（必须从 app_config.llm 读取）"; FAIL=1
           fi
 
           if [ $FAIL -eq 1 ]; then

@@ -18,7 +18,7 @@ disable-model-invocation: false
 
 > ⚠️ **历史**：本工作流从 `.github/workflows/pr-gate.yml`（原 markdown 文档）提取。**2026-07-19 W4 P4 §5.1.2 架构师重构**：原文件是 markdown，GitHub 永远不会执行其中的 YAML 块——这是项目历史最大的潜在风险之一。
 
-## 7 项硬卡口
+## 10 项卡口（8 硬 + 2 软）
 
 | Gate | 名称 | 实现 | 失败后果 |
 |------|------|------|----------|
@@ -29,8 +29,11 @@ disable-model-invocation: false
 | 5 | 覆盖率硬卡 | `pytest --cov=backend/app --cov-fail-under=60` | < 60% → CI red |
 | 6 | PR 大小 | bash 计算 `git diff --shortstat` 行数 | > 600 行 → CI red |
 | 7 | L0-L6 一致性 | bash 扫非白名单 .md 文件 | 重写 L0-L6 表格 / 含 ≥ 80% 旧阈值 / Eval Runner 错位 → CI red |
+| **8** | **安全扫描** | **bandit（无 HIGH/MEDIUM 高置信度漏洞）** | **发现高危漏洞 → CI red** |
+| 9 | DDD 目录结构 | bash 扫非白名单文档 | 重写 backend/app 目录结构 → CI red |
+| 10 | Harness exit_criteria | check_phase.py 跨平台可用性 | **软警告**（不阻塞） |
 
-总闸 job `pr-gate-summary` 检查所有 Gate 状态，任一非 `success` → 拒绝合入。
+总闸 job `pr-gate-summary` 检查所有 Gate 状态，任一非 `success`（硬卡）→ 拒绝合入。
 
 ## 触发条件
 
@@ -53,9 +56,9 @@ disable-model-invocation: false
 **串联顺序**（必须都 PASS）：
 1. `backend-ci.yml` 跑 L0-L4 + L5 → 任一 FAIL → PR 拒绝
 2. `harness-ci.yml` 跑 4 条 grep → FAIL → PR 拒绝
-3. `pr-gate-ci.yml` 跑 7 项卡口 → 任一 FAIL → PR 拒绝
+3. `pr-gate-ci.yml` 跑 10 项卡口（8 硬 + 2 软）→ 任一硬卡 FAIL → PR 拒绝
 
-## 7 项卡口详细说明
+## 10 项卡口详细说明
 
 ### Gate 1: Commit 格式
 
@@ -138,6 +141,25 @@ if [ "$LINES" -gt 600 ]; then exit 1; fi
 2. 含过期阈值 `coverage >= 80%` / `覆盖率 >= 80%`
 3. L2 = Eval Runner 错位
 
+### Gate 8: 安全扫描（bandit）
+
+**规则**：
+- 运行 `bandit -r backend/app/` 对全代码扫描
+- 允许：INFO / LOW 级别漏洞
+- **FAIL**：HIGH / MEDIUM 级别 + HIGH / MEDIUM 置信度的漏洞
+
+**对齐**：`workflow-v2.yaml` SECURITY_TEST phase exit_criteria
+
+**注意**：Gate 8 在 `pr-gate-ci.yml` 中实现，与 `backend-ci.yml` L5 grep 12 条互补：
+- L5 grep：代码级安全模式（loguru/PII/print 等）
+- Gate 8 bandit：工具级安全扫描（已知漏洞模式）
+
+### Gate 9: DDD 目录结构一致性
+
+**白名单**：`.cursor/rules/ddd-bounded-context.mdc` 等（详见 `pr-gate-ci.yml`）
+
+**检测**：非白名单文档重写 `backend/app/` 目录结构 ≥ 15 行
+
 ## 失败后如何修复
 
 | Gate 失败 | 修复指引 |
@@ -149,6 +171,8 @@ if [ "$LINES" -gt 600 ]; then exit 1; fi
 | Gate 5 覆盖率 | 补 unit test 达到 60% |
 | Gate 6 PR 大小 | 拆分 PR（每个 PR 关联 1 个 FR） |
 | Gate 7 L0-L6 一致性 | 删除重写的表格 / 改 `≥ 60%` / 删除 Eval Runner 错位 |
+| Gate 8 安全扫描 | 修复 bandit 报告的 HIGH/MEDIUM 高置信度漏洞 |
+| Gate 9 DDD 目录结构 | 删除重写的目录结构 / 改为引用真源 |
 
 ## 参考
 
