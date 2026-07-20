@@ -1,6 +1,6 @@
 """乐观锁并发控制工具（version 字段）。
 
-真源：``docs/api/openapi.yaml`` ``#/components/schemas/User`` ``version`` 字段
+真源：``docs/architecture/api.yaml`` ``#/components/schemas/User`` ``version`` 字段
 + User ORM ``version: Mapped[int] = mapped_column(INTEGER, default=0)``。
 
 约定：

@@ -1,7 +1,7 @@
 """M1 auth services（jargon 拆分）。
 
 真源：``docs/spec/TDS-M1-wechat-login.md`` V1.1
-+ ``docs/api/openapi.yaml`` ``#/components/schemas/WxLogin*``。
++ ``docs/architecture/api.yaml`` ``#/components/schemas/WxLogin*``。
 
 约定：
 - 业务规则只在本包内实现（不写进 routers）

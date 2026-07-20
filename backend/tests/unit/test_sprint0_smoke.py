@@ -59,5 +59,5 @@ def test_codes_module_loads() -> None:
     constants = [getattr(codes, n) for n in dir(codes) if n.startswith("E_")]
     min_required = 80
     assert len(constants) >= min_required, (
-        f"仅 {len(constants)} 条 E_*，未达 docs/api/error-codes.md 字典完整性门槛"
+        f"仅 {len(constants)} 条 E_*，未达 docs/architecture/error-codes.md 字典完整性门槛"
     )

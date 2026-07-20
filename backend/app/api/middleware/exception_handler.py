@@ -1,7 +1,7 @@
 """异常处理中间件（Sprint 0 骨架 + v4.1-prep envelope 集成）。
 
-真源：``docs/api/openapi.yaml#/components/schemas/ErrorResponse`` +
-``docs/api/error-codes.md`` + ``app/errors/envelope.make_envelope()``。
+真源：``docs/architecture/api.yaml#/components/schemas/ErrorResponse`` +
+``docs/architecture/error-codes.md`` + ``app/errors/envelope.make_envelope()``。
 
 职责：
 1. 捕获所有 ``SelfwellError`` 子类 → envelope 响应 + ``error.code / http_status``

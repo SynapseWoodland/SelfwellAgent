@@ -58,7 +58,7 @@ export interface RequestOptions<TReq = unknown> {
   timeoutMs?: number;
 }
 
-/** 后端统一错误体（参考 docs/api/error-codes.md） */
+/** 后端统一错误体（参考 docs/architecture/error-codes.md） */
 interface ApiErrorBody {
   code: string;
   message?: string;

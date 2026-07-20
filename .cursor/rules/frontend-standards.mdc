@@ -364,7 +364,7 @@ flutter test --update-goldens
 ## 七、参考
 
 - 项目架构文档：`docs/architecture/`
-- ADR 决策记录：`docs/adr/`
+- ADR 决策记录：`docs/architecture/adr/`
 - API 类型定义：`apps/mp-selfwell/miniprogram/types/api.ts`
 - Flutter 核心文件：`apps/flutter_app/lib/core/api/api_service.dart`
 - Skill 索引：`.cursor/rules/skills.mdc`

@@ -1,7 +1,7 @@
 """FastAPI Depends 工厂。
 
 真源：``docs/spec/TDS-M1-wechat-login.md`` §4.3
-+ ``docs/api/openapi.yaml`` ``#/components/securitySchemes/bearerAuth``。
++ ``docs/architecture/api.yaml`` ``#/components/securitySchemes/bearerAuth``。
 """
 
 from __future__ import annotations

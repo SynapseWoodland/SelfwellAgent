@@ -80,6 +80,6 @@ cli.bat project preview
 
 - 类目选择：**MVP 阶段选"工具-效率"**（W6 升级公司主体后切"工具-健康"）
 - 简介避免"医疗/医美/治疗"字眼，写成"AI 智能习惯陪伴 / 21 天轻自律"
-- 详见 [ADR-0005 微信小程序类目](../../docs/adr/0005-wechat-mp-category.md)
+- 详见 [ADR-0005 微信小程序类目](../../docs/architecture/adr/0005-wechat-mp-category.md)
 - **像素禁用色栅栏**详见 `miniprogram/app.wxss` 顶部注释，CI grep 卡死
 - **ack-bubble ≤ 30 字**由 `utils/config.ts` 中 `ACK_MAX_CHARS` 统一约束

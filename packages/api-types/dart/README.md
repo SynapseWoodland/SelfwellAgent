@@ -1,6 +1,6 @@
 # packages/api-types/dart/ — Flutter 端共享类型（SF0 占位）
 
-> 本目录由 `openapi-generator-cli` 从 `docs/api/openapi.yaml` 自动生成。
+> 本目录由 `openapi-generator-cli` 从 `docs/architecture/api.yaml` 自动生成。
 > 与微信小程序端（`packages/api-types/ts/`）保持 1:1 同步。
 
 ## 现状（SF0 · 2026-07-06）

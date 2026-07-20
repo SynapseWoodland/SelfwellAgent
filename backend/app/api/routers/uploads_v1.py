@@ -1,7 +1,7 @@
 """M2 上传 presign 路由（``/api/v1/uploads``）。
 
 真源：``docs/spec/TDS-M2-multimodal-diagnosis.md`` §上传通道
-+ ``docs/api/openapi.yaml`` ``#/components/responses/PresignResponse``。
++ ``docs/architecture/api.yaml`` ``#/components/responses/PresignResponse``。
 
 约定：
 - ``object_key`` 命名规范：``{purpose}/{user_id}/{uuid4()}.{ext}``

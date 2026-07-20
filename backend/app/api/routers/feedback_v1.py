@@ -2,7 +2,7 @@
 
 V1.1.1：GET 端点支持 ``X-Caller-Id`` 白名单校验
 （``mood_diary_list / recall_retrieve / time_album_list``），
-对齐 ``docs/api/openapi.yaml``。
+对齐 ``docs/architecture/api.yaml``。
 """
 
 from __future__ import annotations

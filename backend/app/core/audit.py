@@ -1,6 +1,6 @@
 """合规审计：HMAC-SHA256 伪 ID 生成。
 
-真源：ADR-0017 §3.3 + ``docs/api/error-codes.md`` 审计事件字段约束。
+真源：ADR-0017 §3.3 + ``docs/architecture/error-codes.md`` 审计事件字段约束。
 
 约定：
 - 用 HMAC-SHA256(user_id, salt) 取前 16 hex 字符作为伪 ID（16 hex = 64 bit）

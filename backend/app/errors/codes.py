@@ -1,6 +1,6 @@
 """业务错误码常量。
 
-真源：``docs/api/error-codes.md``（唯一人类可读字典）+ ``docs/api/openapi.yaml``
+真源：``docs/architecture/error-codes.md``（唯一人类可读字典）+ ``docs/architecture/api.yaml``
 双向同步。任何新增业务码必须先在 ``error-codes.md`` 申请编号，然后同步到这里。
 
 模块参考：``docs/spec/facts-anchor.md`` §1（M1-M11 模块，V1.3 重排）

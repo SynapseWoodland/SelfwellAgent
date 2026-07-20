@@ -1,8 +1,8 @@
 """OpenAPI 契约校验工具（Phase 4 · 批次 4 · BE-FIX-09 配套）。
 
 真源：
-- ``docs/api/openapi.yaml`` —— 机器可读契约（外部 SDK / 文档生成）
-- ``docs/api/error-codes.md`` —— 人类可读错误码字典
+- ``docs/architecture/api.yaml`` —— 机器可读契约（外部 SDK / 文档生成）
+- ``docs/architecture/error-codes.md`` —— 人类可读错误码字典
 - SKILL.md §九-附 9.3 / 9.8：错误码字符串 / OpenAPI 双向同步约束
 
 设计目标：
@@ -14,7 +14,7 @@
 约束：
 - **不引入 prance**（项目 pyproject.toml 未声明，且 Windows 装 openapi-spec-validator
   容易与现有 prance 冲突）；改用纯 ``yaml.safe_load`` + 文本正则做最关键的契约字段校验。
-- **可被 CI / 本地 / pre-commit 复用** —— 默认读 ``docs/api/openapi.yaml``（相对仓库根），
+- **可被 CI / 本地 / pre-commit 复用** —— 默认读 ``docs/architecture/api.yaml``（相对仓库根），
   支持 ``--path`` 覆盖。
 - **可与 ``openapi-spec-validator`` 配合** —— 如果未来引入（pyproject 显式声明后），
   加上 ``--strict`` 会再走一遍 spec validator；当前默认仅做静态校验。

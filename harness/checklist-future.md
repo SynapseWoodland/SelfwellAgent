@@ -120,7 +120,7 @@
 
 | # | 任务 | 产出 | 状态 | 来源 | 依赖 |
 |---|------|------|:---:|------|------|
-| 7.3.1 | **新建 harness/scripts/check_links.py**：扫 `docs/fr/*/FR-*.md` + `docs/adr/*/ADR-*.md` + `docs/spec/TDS-*.md`，检查 fr_id ↔ adr_refs ↔ tds_ref 三向引用无悬空 | `harness/scripts/check_links.py` | ⏳ | D-追加 | — |
+| 7.3.1 | **新建 harness/scripts/check_links.py**：扫 `docs/fr/*/FR-*.md` + `docs/architecture/adr/*/ADR-*.md` + `docs/spec/TDS-*.md`，检查 fr_id ↔ adr_refs ↔ tds_ref 三向引用无悬空 | `harness/scripts/check_links.py` | ⏳ | D-追加 | — |
 | 7.3.2 | **pr-gate-ci.yml（5.1.2 新建）**：新增卡口 8 调用 check_links.py --strict | `.github/workflows/pr-gate-ci.yml` | ⏳ | D-追加 | 5.1.2 + 7.3.1 |
 
 ### 7.4 80% 残留阈值清理（F9）

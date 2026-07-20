@@ -1,6 +1,6 @@
 """RateLimit 中间件（Sprint 0 骨架）。
 
-真源：``docs/api/error-codes.md`` §三（429 Retry-After 三档约定）
+真源：``docs/architecture/error-codes.md`` §三（429 Retry-After 三档约定）
 + ``docs/architecture/mvp-tech-architecture.md`` §十。
 
 约定：

@@ -17,7 +17,7 @@ disable-model-invocation: true
 | 1 | `evidence/13-incident-response.md` | INCIDENT_RESPONSE phase 产出，确认修复措施 |
 | 2 | `evidence/11-signoff.md` | SIGN_OFF phase 产出，确认基线版本 |
 | 3 | `docs/PRD/*` | 原始 PRD，确认业务指标 |
-| 4 | `docs/api/error-codes-spec.md` | 错误码规范 |
+| 4 | `docs/architecture/error-codes-spec.md` | 错误码规范 |
 
 ## 二、禁止
 

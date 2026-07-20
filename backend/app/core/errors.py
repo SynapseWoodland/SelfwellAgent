@@ -1,6 +1,6 @@
 """业务错误层（Sprint 0 骨架）。
 
-设计真源：``docs/api/error-codes.md`` + ``docs/spec/facts-anchor.md`` + ADR-0015。
+设计真源：``docs/architecture/error-codes.md`` + ``docs/spec/facts-anchor.md`` + ADR-0015。
 
 该层职责：
 1. ``ErrorSeverity``（4 级）内部异常分级，与 HTTP 业务码解耦

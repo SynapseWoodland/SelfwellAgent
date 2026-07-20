@@ -480,7 +480,7 @@ pytest backend/tests/services/feedback/test_caller_guard.py -v
 
 ## 十一、SSE 事件契约
 
-> 来源：`docs/api/sse-events.md`。
+> 来源：`docs/architecture/sse-events.md`。
 > 强约束：**M2 诊断流（`GET /api/v1/diagnosis/{id}/stream`）上线必对齐**。
 
 ### 10 种事件类型
@@ -557,7 +557,7 @@ grep -rn ": heartbeat" backend/app/api/sse/
 
 ## 十二、统一分页规范
 
-> 来源：`docs/api/pagination.md`。
+> 来源：`docs/architecture/pagination.md`。
 > 强约束：**MVP 阶段全用 `limit + offset`**，**不用 cursor**；响应**必须嵌套** `pagination` 对象。
 
 ### 请求/响应 schema

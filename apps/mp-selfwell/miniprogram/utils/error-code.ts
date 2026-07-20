@@ -1,7 +1,7 @@
 /**
  * utils/error-code.ts — Selfwell · 错误码 → 中文 toast 映射
  * ─────────────────────────────────────────────────────────
- * 与 docs/api/error-codes.md 1:1 对齐；SF1 仅登录链路使用。
+ * 与 docs/architecture/error-codes.md 1:1 对齐；SF1 仅登录链路使用。
  * 类型版本联调：金标 (E_AUTH_*) / 输入校验 (E_USER_INVALID_INPUT) / 限流 (E_RATE_LIMIT)。
  *
  * 用途：在 page 的 catch 中根据 e.code 找到对应的中文提示，避免裸英文错误回传用户。

@@ -1,6 +1,6 @@
 """app.errors — 业务错误码模块（Sprint 0 骨架）。
 
-唯一真源：``docs/api/error-codes.md`` + ``docs/api/openapi.yaml``
+唯一真源：``docs/architecture/error-codes.md`` + ``docs/architecture/api.yaml``
 双向同步。
 
 约定：

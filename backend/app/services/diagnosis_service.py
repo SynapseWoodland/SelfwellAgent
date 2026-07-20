@@ -571,7 +571,7 @@ def _rule_engine_fallback(profile: dict[str, Any], complaint: str | None) -> dic
     "这是 fallback 不是 LLM 真实报告"，用户看到"脸 方向 1"这种长得像报告但不是报告的内容。
 
     PR4 F4 改：directions/tags 留空 + is_fallback=true + fallback_reason="资料不足"，前端
-    识别后不渲染 report card，转引导用户补料（参 docs/api/sse-events.md §5.5）。
+    识别后不渲染 report card，转引导用户补料（参 docs/architecture/sse-events.md §5.5）。
 
     Returns:
     dict 含 is_fallback=True、fallback_reason、空 directions/tags、引导 summary。

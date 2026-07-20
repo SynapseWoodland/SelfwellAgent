@@ -139,7 +139,7 @@ Security Agent
 ### Agent 冲突解决
 
 - **规范冲突**：以 `.cursor/rules/coding-standards.mdc` 为 alwaysApply 速查真源
-- **技术选型冲突**：查阅 `docs/adr/` 目录的 ADR 决策记录
+- **技术选型冲突**：查阅 `docs/architecture/adr/` 目录的 ADR 决策记录
 - **测试与实现冲突**：以测试用例（QA Agent 输出）为准，Backend Agent 修复实现
 
 ---

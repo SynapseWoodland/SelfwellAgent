@@ -4,7 +4,7 @@ import '../core/theme/color_tokens.dart';
 import '../core/theme/spacing.dart';
 
 /// SSE 8-stage progress bar for the diagnosis loading page.
-/// The 8 stages come from `docs/api/sse-events.md` (Stage 1..8).
+/// The 8 stages come from `docs/architecture/sse-events.md` (Stage 1..8).
 ///
 /// Per §17 hard-constraint #16: on transport failure the parent must
 /// schedule exponential reconnect (1s → 2s → 4s capped at 30s, 5 fails

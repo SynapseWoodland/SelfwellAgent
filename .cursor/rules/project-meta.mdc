@@ -155,5 +155,5 @@ alwaysApply: true
 - 工程红线：`.cursor/rules/project-prohibitions.mdc`
 - 工具铁则：`.cursor/rules/file-operation-stability.mdc`
 - 多 Agent 协作编排：`AGENTS.md`
-- 19 份 ADR 索引：`docs/adr/README.md`
+- 19 份 ADR 索引：`docs/architecture/adr/README.md`
 - 16 份 SPEC 索引：`docs/spec/SPEC-A0-MASTER-IA.md`

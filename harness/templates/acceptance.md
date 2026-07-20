@@ -65,7 +65,7 @@ Feature: <FR-ID> <FR-Title>
 
 ## 3. 论据：字段映射到 openapi.yaml
 
-> 每个验收点必须能映射到 `docs/api/openapi*.yaml` 中的字段，否则视为"幻觉字段"。
+> 每个验收点必须能映射到 `docs/architecture/api.yaml` 中的字段，否则视为"幻觉字段"。
 
 | Given/Then 字段 | openapi.yaml 路径 | 类型 | 必填 |
 |---|---|---|---|
@@ -97,5 +97,5 @@ evidence_ref: evidence/05-acceptance.md
 
 - 状态机：harness/workflow.yaml
 - 上下文：harness/context/phase-checklist.md
-- openapi 真源：docs/api/openapi*.yaml
+- openapi 真源：docs/architecture/api.yaml
 - 上游 Skill：.cursor/skills/ad-tdd/SKILL.md（Phase 2 ATDD）

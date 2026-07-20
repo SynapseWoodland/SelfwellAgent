@@ -1,6 +1,6 @@
 # Recall Safety Forbidden Keywords — ADR-0017 §3.3
 # ─────────────────────────────────────────────────────────────────
-# 真源：docs/adr/0017-recall-safety.md §3.3 三层 Safety 架构
+# 真源：docs/architecture/adr/0017-recall-safety.md §3.3 三层 Safety 架构
 # 设计意图：LLM 输出在送往前端前必须经过此词库扫描，命中 → 安全兜底文案替换
 #
 # ★ 4 分组目标命中数：
@@ -15,7 +15,7 @@
 #   - photos.before_after_compare
 
 version: "1.1.1"
-source: "docs/adr/0017-recall-safety.md §3.3"
+source: "docs/architecture/adr/0017-recall-safety.md §3.3"
 
 # ─────────────────────────────────────────────────────────────────
 # §1 前后评判（before_after_judge）— 40+

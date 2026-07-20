@@ -270,7 +270,7 @@ AI：在状态文件里记录跳过状态
 
 ### W4 P1（4 周内）
 
-- [ ] 错误码规范从 `coding-standards` 迁到 `docs/api/SKILL.md`
+- [ ] 错误码规范从 `coding-standards` 迁到 `docs/architecture/SKILL.md`
 - [ ] V1.6 → V2 切换（workflow-v2.yaml + 配套文件全部改完）
 - [ ] Eval Runner 接 CI（prompt 改动时自动触发）
 - [ ] V3 技术架构文档加目录 + H1 锚点

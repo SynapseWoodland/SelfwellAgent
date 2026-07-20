@@ -1,7 +1,7 @@
 """M8 主动回忆路由（``/api/v1/butler`` recall 部分）。
 
 V1.1.1：新增 ``GET /recall/history`` 与 ``GET /recall/{id}/messages``，
-对齐 ``docs/api/openapi.yaml``。
+对齐 ``docs/architecture/api.yaml``。
 
 错误处理约定：router 不做 ``XxxError -> AppBusinessError`` 的 re-wrap，
 所有 ``SelfwellError`` 子类（含 ``RecallError`` / ``RecallDailyLimitError`` /

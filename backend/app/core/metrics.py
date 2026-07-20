@@ -1,7 +1,7 @@
 """Prometheus metrics 模块（V4.1 Phase 3 Step 3.1 + V4.1.1 扩展指标）。
 
 真源：
-- ``docs/api/sse-events.md``（SSE 事件 schema）
+- ``docs/architecture/sse-events.md``（SSE 事件 schema）
 - ``docs/plan/assistant-smart-analyze-vision-pipeline_4_feasibility-benchmarks.md``
   §1（sliding window log）+ §6（vision LLM 灰度 4 档 promote gate）+
   §9（AI 自审 severity 分级）

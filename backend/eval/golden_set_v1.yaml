@@ -369,7 +369,7 @@ cases:
     code_match: exact
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §10xxx 智能管家助理
+  - docs/architecture/error-codes.md §10xxx 智能管家助理
   - backend/app/errors/codes.py E_ASSISTANT_MEDICAL_REJECT
   - backend/app/errors/envelope.py §ErrorDetail
   - backend/app/api/routers/assistant_v1.py POST /sessions/{id}/messages (AppBusinessError)
@@ -390,7 +390,7 @@ cases:
     http_status: 429
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §1xxx 通用错误 E_GENERAL_RATE_LIMIT → 429
+  - docs/architecture/error-codes.md §1xxx 通用错误 E_GENERAL_RATE_LIMIT → 429
   - backend/app/errors/codes.py E_GENERAL_RATE_LIMIT
   - backend/app/api/middleware/rate_limit.py
   - backend/app/errors/envelope.py RateLimitMiddleware integration
@@ -410,7 +410,7 @@ cases:
     http_status: 400
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §4xxx 上传 E_UPLOAD_INVALID_CONTENT_TYPE
+  - docs/architecture/error-codes.md §4xxx 上传 E_UPLOAD_INVALID_CONTENT_TYPE
   - backend/app/errors/codes.py E_UPLOAD_INVALID_CONTENT_TYPE
   - backend/app/api/routers/uploads_v1.py presign_upload_endpoint (AppBusinessError)
   llm_capability: text
@@ -429,7 +429,7 @@ cases:
     http_status: 429
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §11xxx 反馈 E_FEEDBACK_DAILY_LIMIT
+  - docs/architecture/error-codes.md §11xxx 反馈 E_FEEDBACK_DAILY_LIMIT
   - backend/app/errors/codes.py E_FEEDBACK_DAILY_LIMIT
   - backend/app/api/routers/feedback_v1.py FeedbackDailyLimitError path
   - backend/app/services/feedback_service.py daily quota enforcement
@@ -449,7 +449,7 @@ cases:
     http_status: 429
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §12xxx 主动回忆 E_RECALL_DAILY_LIMIT
+  - docs/architecture/error-codes.md §12xxx 主动回忆 E_RECALL_DAILY_LIMIT
   - backend/app/errors/codes.py E_RECALL_DAILY_LIMIT
   - backend/app/api/routers/butler_v1.py RecallDailyLimitError (AppBusinessError)
   - backend/app/services/recall_service.py daily quota enforcement
@@ -468,7 +468,7 @@ cases:
     code_match: exact
     confidence_min: 0.0
   real_data_anchors:
-  - docs/api/error-codes.md §9xxx 合规 E_COMPLIANCE_MEDICAL_CLAIM
+  - docs/architecture/error-codes.md §9xxx 合规 E_COMPLIANCE_MEDICAL_CLAIM
   - backend/app/errors/codes.py E_COMPLIANCE_MEDICAL_CLAIM
   - backend/services/compliance/checker.py check_input medical_claim group
   llm_capability: text

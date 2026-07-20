@@ -8,14 +8,14 @@
 #
 # 规则（2026-07-19 W4 P4 §5.1.2 启用）：
 #   1. ADR freeze 字段检查
-#      如果 docs/adr/ADR-*.md 顶部含 `freeze: true`（v2 引入），
+#      如果 docs/architecture/adr/ADR-*.md 顶部含 `freeze: true`（v2 引入），
 #      则 PR 不允许修改该 ADR（除非 PR 标题含 ADR-AMENDMENT）
 #   2. ADR 引用一致性
 #      PR 涉及的功能改动应该在 PR body 中引用相关 ADR
 #   3. 新增 ADR 必须包含 status / date / decider / consequences 4 字段
 #
 # 例外（豁免）：
-#   - 仅修改 docs/adr/ 自身（维护类改动）
+#   - 仅修改 docs/architecture/adr/ 自身（维护类改动）
 #   - 仅修改 harness/ / .cursor/ / .github/ 目录
 
 set -e
@@ -34,7 +34,7 @@ fi
 CHANGED=$(git diff --name-only "$BASE_REF"...$HEAD_REF 2>/dev/null || true)
 
 # 3. 例外：仅维护类改动
-if echo "$CHANGED" | grep -qvE '^(docs/adr/|harness/|\.cursor/|\.github/)'; then
+if echo "$CHANGED" | grep -qvE '^(docs/architecture/adr/|harness/|\.cursor/|\.github/)'; then
   # 有非维护类改动 → 严格检查
   :
 
@@ -63,7 +63,7 @@ for adr in $FROZEN_ADRS; do
 done
 
 # 5. 检查新增 ADR 的必备字段
-NEW_ADRS=$(git diff --name-only "$BASE_REF"...$HEAD_REF 2>/dev/null | grep -E '^docs/adr/ADR-[0-9]+.*\.md$' || true)
+NEW_ADRS=$(git diff --name-only "$BASE_REF"...$HEAD_REF 2>/dev/null | grep -E '^docs/architecture/adr/ADR-[0-9]+.*\.md$' || true)
 for adr in $NEW_ADRS; do
   for field in status date decider consequences; do
     if ! grep -qE "^${field}:" "$adr"; then

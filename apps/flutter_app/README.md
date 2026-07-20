@@ -50,8 +50,8 @@ flutter_app/
 | `docs/design/figma-pixso-spec/dist/tokens-flat.json` | `lib/core/theme/color_tokens.dart` + `spacing.dart` + `text_styles.dart` |
 | `docs/design/ia-and-wireframe.md` §4 | 每个 page 顶部 `/// IA-REF:` 注释 |
 | `docs/design/figma-pixso-spec/pages/*.html` | 每个 page 顶部 `/// 设计稿:` 注释 |
-| `docs/api/openapi.yaml` (38 endpoints) | 每个 page 顶部 `/// 后端端点:` 注释引用 `tag=[..] operationId=..` |
-| `docs/api/error-codes.md` | `_FallbackCodes` + `ErrorSeverity` 映射 |
+| `docs/architecture/api.yaml` (38 endpoints) | 每个 page 顶部 `/// 后端端点:` 注释引用 `tag=[..] operationId=..` |
+| `docs/architecture/error-codes.md` | `_FallbackCodes` + `ErrorSeverity` 映射 |
 
 ---
 

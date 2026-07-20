@@ -1,6 +1,6 @@
 """ObjectStorage 抽象（Sprint 0 骨架）。
 
-真源：ADR-0009 + ``docs/api/openapi.yaml#/components/responses/StorageCallback``。
+真源：ADR-0009 + ``docs/architecture/api.yaml#/components/responses/StorageCallback``。
 """
 
 from __future__ import annotations

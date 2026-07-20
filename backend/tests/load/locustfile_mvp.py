@@ -1,6 +1,6 @@
 """Selfwell Backend MVP 11 模块端到端压测 locustfile。
 
-真源：``docs/plan/mvp-implementation-plan.md`` §1.5 + ``docs/api/openapi.yaml`` V1.1.0
+真源：``docs/plan/mvp-implementation-plan.md`` §1.5 + ``docs/architecture/api.yaml`` V1.1.0
 + facts-anchor §3（11 个端点 tag）+ Sprint 1-5 路由清单。
 
 覆盖端点（按 PRD §1.5 critical path）：

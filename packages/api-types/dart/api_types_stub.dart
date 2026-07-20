@@ -1,6 +1,6 @@
 // Auto-generated stub. Sprint SF1 will produce real OpenAPI types via:
 //   openapi-generator-cli generate \
-//     -i ../../docs/api/openapi.yaml \
+//     -i ../../docs/architecture/api.yaml \
 //     -g dart \
 //     -o .
 //

@@ -2,7 +2,7 @@
 
 真源：
 - ``docs/spec/TDS-M8-recall.md`` §3.10
-- ``docs/adr/0017-recall-safety.md`` §3.5
+- ``docs/architecture/adr/0017-recall-safety.md`` §3.5
 - Sprint A 已 commit `1c5db1e`：原 service 在 ``app/services/recall_service.py:get_recall_by_day``
 
 本测试覆盖新增强约束（M8 主动回忆的 SPD Sprint D 增强）：

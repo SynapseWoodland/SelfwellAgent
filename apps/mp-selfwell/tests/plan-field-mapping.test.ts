@@ -2,7 +2,7 @@
  * FE-FIX-07 · services/plan.ts 字段映射层单测
  * ──────────────────────────────────────────────────────────────
  * 真源：docs/plan/frontend-fix-plan.md §FE-FIX-07
- * 真源：docs/api/openapi.yaml §PlanDay
+ * 真源：docs/architecture/api.yaml §PlanDay
  *
  * 验收标准：
  *  - mapPlanDay 把后端 PlanDay（day_index/duration_minutes/task/title/source/status）

@@ -359,7 +359,7 @@
 | P2-3 | `report_uploads` 表(S03) | 诊断原图元数据 | 2 h |
 | P2-4 | Compliance Checker W3(LLM + 共享词库) | S14 W3 | 4 h |
 | P2-5 | SPEC-M1~M12 + SPEC-A0-* 实体文档建立 | 文档可追溯 | 8 h |
-| P2-6 | ADR 实体文档 `docs/adr/ADR-*.md` 建立 | ADR 真名回填 | 8 h |
+| P2-6 | ADR 实体文档 `docs/architecture/adr/ADR-*.md` 建立 | ADR 真名回填 | 8 h |
 | P2-7 | 14 场景文档 vs 代码 vs DB 三方对齐 Review | 文档可信度 | 8 h |
 | **P2-8** | **评估 `users_copy1`(2 行)是否合并回 `users` 主表** | 项目决策 | 1 h |
 

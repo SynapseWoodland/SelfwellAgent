@@ -1,6 +1,6 @@
 """app.api.middleware — FastAPI 中间件集合（Sprint 0）。
 
-真源：``docs/api/openapi.yaml`` + ``docs/api/error-codes.md``。
+真源：``docs/architecture/api.yaml`` + ``docs/architecture/error-codes.md``。
 """
 
 from app.api.middleware.exception_handler import ExceptionHandlerMiddleware

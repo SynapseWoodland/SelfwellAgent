@@ -1,6 +1,6 @@
 """Unit test — CORS 中间件（ADR-0018）。
 
-真源：``docs/adr/0018-cors-policy.md`` §3.5 测试覆盖矩阵。
+真源：``docs/architecture/adr/0018-cors-policy.md`` §3.5 测试覆盖矩阵。
 
 测试矩阵（5 条）：
 1. ``test_cors_dev_wildcard_origin_allowed``

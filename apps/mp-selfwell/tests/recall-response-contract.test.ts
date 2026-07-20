@@ -2,7 +2,7 @@
  * FE-FIX-09 · RecallResponse.referenced_feedbacks 内联对象结构变更适配
  * ──────────────────────────────────────────────────────────────
  * 真源：docs/plan/frontend-fix-plan.md §FE-FIX-09
- * 真源：docs/api/openapi.yaml §RecallResponse（V1.1.1 BE-FIX-09 落地）
+ * 真源：docs/architecture/api.yaml §RecallResponse（V1.1.1 BE-FIX-09 落地）
  *
  * 验收标准：
  *  - recall-flow/index.ts RecallResult 接口与 openapi.yaml RecallResponse 1:1 锁值

@@ -632,7 +632,7 @@ _loguru = _loguru.patch(_scrub_pii)
 
 ## 十五、API 错误码规范（对外契约）
 
-> **唯一真源**：`docs/api/error-codes.md`。
+> **唯一真源**：`docs/architecture/error-codes.md`。
 > 本节定义编码规则与对外契约，所有码值/i18n 文案以该字典为准。
 
 ### 命名规则
@@ -694,7 +694,7 @@ E_<MODULE>_<VERB_OR_NOUN>
 
 ### 枚举管理与禁止项
 
-- **唯一源**：`docs/api/error-codes.md`（人类可读）+ `openapi.yaml#/components/responses/*`（机器可读），必须同 PR 修改
+- **唯一源**：`docs/architecture/error-codes.md`（人类可读）+ `openapi.yaml#/components/responses/*`（机器可读），必须同 PR 修改
 - **新增**：必须先在字典申请编号，经 PR review 后入库；编号即被永久固定
 - **冻结策略**：已进入的业务码**禁止**变更语义；如必须变更，应新增码并标注旧码为 `DEPRECATED`
 
@@ -705,8 +705,8 @@ E_<MODULE>_<VERB_OR_NOUN>
 | 在 `agents/` / `nodes/` / `api/` 内硬编码 `E_*` 字符串 | `from app.errors.codes import E_USER_INVALID_INPUT` |
 | `error-codes.md` 与 `openapi.yaml` 单边修改 | 两个文件必须同 PR |
 
-> **迁移说明**：本节（§十四）已迁移至 `docs/api/error-codes-spec.md`，保留作为参考。
-> 规范真源：`docs/api/error-codes.md`（码值字典）+ `docs/api/error-codes-spec.md`（编码规则）。
+> **迁移说明**：本节（§十四）已迁移至 `docs/architecture/error-codes-spec.md`，保留作为参考。
+> 规范真源：`docs/architecture/error-codes.md`（码值字典）+ `docs/architecture/error-codes-spec.md`（编码规则）。
 
 ---
 
@@ -2011,7 +2011,7 @@ grep -rn "response_model=UserModel" backend/app/api/ && echo "FAIL" || echo "PAS
 - 文件操作铁则：`.cursor/rules/file-operation-stability.mdc`
 - Skill 索引：`.cursor/rules/skills.mdc`
 - 项目元信息：`.cursor/rules/project-meta.mdc`
-- 错误码字典（唯一真源）：`docs/api/error-codes.md`
-- OpenAPI 契约：`docs/api/openapi.yaml`
+- 错误码字典（唯一真源）：`docs/architecture/error-codes.md`
+- OpenAPI 契约：`docs/architecture/api.yaml`
 - REST API 规范：见 §二十五
 - DDD 设计规范：见 §二十六

@@ -1,7 +1,7 @@
 """assistant `_stream_smart_analyze` 5 阶段 SSE 契约测试（V1.1.1 BE-FIX-08 新增）。
 
 真源：
-- ``docs/api/sse-events.md`` —— SSE 事件 schema
+- ``docs/architecture/sse-events.md`` —— SSE 事件 schema
 - ``docs/plan/decision-018-vision-fallback-rename.md`` —— BE-FIX-04 决策
 - V5.2.1-PR3 T17/T18/T19 + PR4 F4：end 事件 7 字段（ok/reply/persona_state/
   is_fallback/medical_guarded/is_quick_reply/level）

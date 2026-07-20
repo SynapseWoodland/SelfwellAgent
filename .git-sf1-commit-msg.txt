@@ -7,7 +7,7 @@ SF1 deliverable: P00 启动 + P01 微信登录 + P02 首页（打卡）+ P05 打
 - apps/mp-selfwell/miniprogram/utils/request.js
   plan §15.3 文档口径入口别名（实际实现由 request.ts 承载）
 - apps/mp-selfwell/miniprogram/utils/error-code.ts
-  ERR_LABEL 错误码 → 中文 toast 映射（与 docs/api/error-codes.md 1:1）
+  ERR_LABEL 错误码 → 中文 toast 映射（与 docs/architecture/error-codes.md 1:1）
 - apps/mp-selfwell/miniprogram/utils/config.ts
   STORAGE_KEYS 扩 4 项（openidE / privacyAgreed / meCached）
 - apps/mp-selfwell/miniprogram/pages/splash/{index.ts,index.wxml}

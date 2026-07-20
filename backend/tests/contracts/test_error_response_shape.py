@@ -1,7 +1,7 @@
 """Sprint A 契约测试：前后端 ErrorResponse 形状 100% 对齐 OpenAPI。
 
-真源：``docs/api/openapi.yaml#/components/schemas/ErrorResponse`` +
-``docs/api/error-codes.md``。
+真源：``docs/architecture/api.yaml#/components/schemas/ErrorResponse`` +
+``docs/architecture/error-codes.md``。
 
 Sprint 0 的 middleware（``ExceptionHandlerMiddleware``）只在抛出
 ``SelfwellError`` 时返回 ``{error: {code, message_zh, message_en}}``；

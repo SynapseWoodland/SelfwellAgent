@@ -7,7 +7,7 @@
 - 本模块提供 Pydantic envelope + 自定义 ``AppBusinessError`` + FastAPI
   ``exception_handler``，并把 ``request_id`` 从 ``request.state`` 注入。
 
-Envelope 形状（与 ``docs/api/openapi.yaml#/components/schemas/ErrorEnvelope`` 对齐）：
+Envelope 形状（与 ``docs/architecture/api.yaml#/components/schemas/ErrorEnvelope`` 对齐）：
 ::
 
     {

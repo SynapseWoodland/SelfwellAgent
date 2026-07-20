@@ -1,7 +1,7 @@
 """M1 用户档案路由（``/api/v1/users``）。
 
 真源：``docs/spec/TDS-M1-wechat-login.md`` §4.3 + §4.4
-+ ``docs/api/openapi.yaml`` tag ``users``。
++ ``docs/architecture/api.yaml`` tag ``users``。
 """
 
 from __future__ import annotations

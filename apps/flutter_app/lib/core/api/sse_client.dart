@@ -9,7 +9,7 @@
 ///   caller can show "网络异常，请稍后查看报告" and let the user re-open
 ///   the page later.
 ///
-/// **Heartbeat** (per `docs/api/sse-events.md` §3): the server sends a
+/// **Heartbeat** (per `docs/architecture/sse-events.md` §3): the server sends a
 /// `: heartbeat` line every 15s. We treat >30s of silence as a transport
 /// failure and trigger the backoff timer.
 ///

@@ -1,6 +1,6 @@
 """Trace 上下文中间件（Sprint 0 骨架）。
 
-真源：``docs/api/openapi.yaml`` + ``docs/api/error-codes.md`` §十 §5
+真源：``docs/architecture/api.yaml`` + ``docs/architecture/error-codes.md`` §十 §5
 （5xx 响应必须带 ``traceparent`` / ``X-Request-ID`` 头）
 
 职责：

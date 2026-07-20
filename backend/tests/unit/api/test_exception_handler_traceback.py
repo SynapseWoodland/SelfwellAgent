@@ -1,6 +1,6 @@
 """验证 ExceptionHandlerMiddleware 捕获异常时的日志级别策略。
 
-真源：docs/api/openapi.yaml + error-codes.md + RULES.md §5 +
+真源：docs/architecture/api.yaml + error-codes.md + RULES.md §5 +
 coding-standards.mdc §九-日志（业务异常不打 traceback，未预期异常打 traceback）。
 
 业务异常（``SelfwellError``）一律用结构化字段 ``logger.warning``：每条 4xx

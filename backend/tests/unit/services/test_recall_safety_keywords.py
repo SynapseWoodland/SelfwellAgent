@@ -1,7 +1,7 @@
 """Unit tests for Recall Safety 关键词拦截 — ADR-0017 §3.3 强约束。
 
 真源：
-- ``docs/adr/0017-recall-safety.md`` §3.3 三层 Safety 架构
+- ``docs/architecture/adr/0017-recall-safety.md`` §3.3 三层 Safety 架构
 - ``docs/data/recall-forbidden-words.yaml`` (Sprint D 新建)
 - ``app/services/recall_service.py`` ``_scan_safety``
 

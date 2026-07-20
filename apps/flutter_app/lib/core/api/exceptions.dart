@@ -23,7 +23,7 @@ class ApiException implements Exception {
     this.cause,
   });
 
-  /// Backend error code, e.g. `E_USER_INVALID_INPUT`. See `docs/api/error-codes.md`.
+  /// Backend error code, e.g. `E_USER_INVALID_INPUT`. See `docs/architecture/error-codes.md`.
   final String code;
 
   /// Localized message (zh by default).
@@ -32,7 +32,7 @@ class ApiException implements Exception {
   /// Optional English fallback. Flutter may switch locales and re-render.
   final String? messageEn;
 
-  /// HTTP status code from `docs/api/openapi.yaml`.
+  /// HTTP status code from `docs/architecture/api.yaml`.
   final int? httpStatus;
 
   /// Computed client-side severity. Drives toast vs modal.
@@ -50,7 +50,7 @@ class ApiException implements Exception {
 }
 
 /// Derives a severity from an HTTP status code when backend doesn't ship
-/// one. Per `docs/api/error-codes.md` §3 the mapping is stable.
+/// one. Per `docs/architecture/error-codes.md` §3 the mapping is stable.
 ErrorSeverity severityFromHttp(int? status) {
   if (status == null) return ErrorSeverity.transient;
   if (status >= 500 && status < 600) {

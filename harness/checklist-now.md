@@ -27,7 +27,7 @@
 | 1.1.3 | Harness 说明文档（含架构图） | `harness/README-V2.md`（10 章） | ✅ | 2026-07-18 |
 | 1.1.4 | PR-Gate CI 工作流（6 项硬卡口） | `.github/workflows/pr-gate.yml`（291 行） | ✅ | 2026-07-18 |
 | 1.1.5 | 业务追问 Skill | `.cursor/skills/harness-business-interview/SKILL.md` | ✅ | 2026-07-18 |
-| 1.1.6 | 错误码迁移清单 | `docs/api/migration-checklist.md` | ✅ | 2026-07-18 |
+| 1.1.6 | 错误码迁移清单 | `docs/architecture/migration-checklist.md` | ✅ | 2026-07-18 |
 | 1.1.7 | EXECUTORS verifier 修复（`--fix` → `--check`） | `agents/harness/EXECUTORS.md` §2.3 | ✅ | 2026-07-18 |
 | 1.1.8 | ad-tdd P0 修复（RED 验证 + 循环 commit + 7 步自审） | `.cursor/skills/ad-tdd/SKILL.md` | ✅ | 2026-07-18 |
 | 1.1.9 | R-4 真源严谨化 | `.cursor/rules/project-prohibitions.mdc` | ✅ | 2026-07-18 |
@@ -49,7 +49,7 @@
 | 1.3.5 | **skill-navigation.mdc → rule-navigation.mdc**：改名 + 概念替换（Skill → Rule）| ✅ | 2026-07-18 | 消除与 `skills/` 目录的命名混淆 |
 | 1.3.6 | **project-prohibitions.mdc R-3**：指向 `rules/coding-standards.mdc` | `.cursor/rules/project-prohibitions.mdc` | ✅ | 依赖 1.3.1 ✅，已完成 |
 | 1.3.7 | **V3 技术架构文档** | ✅ | 2026-07-18 | 已有目录，无需修改 |
-| 1.3.8 | **错误码规范**：从 coding-standards §迁 `docs/api/error-codes-spec.md` | ✅ | 2026-07-18 |
+| 1.3.8 | **错误码规范**：从 coding-standards §迁 `docs/architecture/error-codes-spec.md` | ✅ | 2026-07-18 |
 
 ### 1.4 真实流程跑通（已移除）
 

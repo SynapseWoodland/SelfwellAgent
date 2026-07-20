@@ -18,7 +18,7 @@ disable-model-invocation: true
 | 1 | `evidence/11-signoff.md` | SIGN_OFF phase 产出，确认最后稳定版本 |
 | 2 | `evidence/09-deploy.md` | DEPLOY phase 产出，确认部署配置 |
 | 3 | `docs/observability/dashboard.md` | 监控看板（若已落地） | W12 P2 3.2.4 前此项可跳过
-| 4 | `docs/api/error-codes-spec.md` | 错误码规范，确认错误分类 |
+| 4 | `docs/architecture/error-codes-spec.md` | 错误码规范，确认错误分类 |
 
 ## 二、禁止
 

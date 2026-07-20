@@ -17,7 +17,7 @@ disable-model-invocation: true
 | 1 | `evidence/06-code.md` | CODE phase 产出，确认代码范围 |
 | 2 | `evidence/07-verify.md` | VERIFY phase 结果，确认基础测试通过 |
 | 3 | `.cursor/rules/coding-standards/RULES.md` | 安全规则部分 |
-| 4 | `docs/adr/README.md` | 确认技术选型合规性 |
+| 4 | `docs/architecture/adr/README.md` | 确认技术选型合规性 |
 
 ## 二、禁止
 

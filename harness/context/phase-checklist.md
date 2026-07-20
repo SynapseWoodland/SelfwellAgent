@@ -17,7 +17,7 @@ disable-model-invocation: true
 | 阶段 | 必读（≤4 项） | 禁用 | 必产物 | 退出 |
 |------|--------------|------|--------|------|
 | **PRD** | `docs/PRD/*`、`SELFWELL-MVP-SRS.md`、`SPEC-A0`、`workflow-v2.yaml` | 写代码 / 改 state.json / 读其他 context | `evidence/01-requirement.md` + state.json 更新 | FR 编号全覆盖 + 每个 FR ≥1 场景 |
-| **ARCH_DESIGN** | `evidence/01-requirement.md`、`SPEC-A0`、`SPEC-HEADER-TEMPLATE`、`docs/adr/README` | 写代码 / 改 state.json / 读 PRD 原文 | TDS 骨架 + `evidence/02-tech-design.md` + ADR 草案 | 引用 ≥1 ADR + FR 一一映射 + frontmatter 8 字段 |
+| **ARCH_DESIGN** | `evidence/01-requirement.md`、`SPEC-A0`、`SPEC-HEADER-TEMPLATE`、`docs/architecture/adr/README` | 写代码 / 改 state.json / 读 PRD 原文 | TDS 骨架 + `evidence/02-tech-design.md` + ADR 草案 | 引用 ≥1 ADR + FR 一一映射 + frontmatter 8 字段 |
 | **PRE_MORTEM** | `evidence/0[1-2]-*.md`、`TDS-M*.md`、3 份模板 | 写代码 / 改 state.json / 跨 phase evidence | `evidence/03-pre-mortem.md`（3 必签 + 2 触发签字） | 3 评审签字 + orchestrator 合成 |
 | **ATDD** | `evidence/01-04*.md`、`TDS-M*.md`、3 份模板 | 写代码 / 改 state.json | `evidence/04-atdd.md`（≥1 Gherkin 三态覆盖） | ATDD 字段映射 openapi |
 | **PLAN** | `evidence/04-atdd.md`、`TDS-M*.md`、`coding-standards` | 写代码 / 改 state.json | `evidence/05-plan.md` | 实施计划含时间估算 |

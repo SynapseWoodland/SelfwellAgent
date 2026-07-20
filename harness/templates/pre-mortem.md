@@ -120,7 +120,7 @@ schema_version: "1.0"
 - **下一步动作**：
   - [ ] 更新 `evidence/02-tech-design.md`
   - [ ] 更新 `docs/spec/TDS-M*.md`
-  - [ ] 新增 ADR（`docs/adr/ADR-<NNNN>-<slug>.md`）
+  - [ ] 新增 ADR（`docs/architecture/adr/ADR-<NNNN>-<slug>.md`）
   - [ ] 其它：...
 
 ## 4. 3 评审签字（A 档精简版）

@@ -5,7 +5,7 @@
  * 行为：
  *   - onLoad 默认 days_offset=7，从 options 读 trigger/days_offset
  *   - 用户切换 chip → POST /butler/recall { trigger, days_offset }
- *   - 响应解析对齐 docs/api/openapi.yaml §RecallResponse（V1.1.1）
+ *   - 响应解析对齐 docs/architecture/api.yaml §RecallResponse（V1.1.1）
  *
  * FE-FIX-09 字段映射（与 openapi.yaml RecallResponse 1:1）：
  *   - recall_id（替代旧 id）

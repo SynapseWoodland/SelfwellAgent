@@ -227,7 +227,7 @@ class CORSConfig(BaseModel):
     3. ``max_age=600``（prod）：浏览器 10 分钟内不重发 OPTIONS，prod 友好。
     4. ``prod fail-fast``：``APP_ENV=prod`` + ``CORS_ORIGINS=""`` → ``raise ValueError``，不静默。
 
-    真源：``docs/adr/0018-cors-policy.md`` §3.1 / §3.2 / §3.5。
+    真源：``docs/architecture/adr/0018-cors-policy.md`` §3.1 / §3.2 / §3.5。
     """
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
@@ -378,7 +378,7 @@ class StorageCallbackConfig(BaseSettings):
 class AuditConfig(BaseSettings):
     """合规审计伪 ID 加盐（HMAC-SHA256）。
 
-    真源：ADR-0017 §3.3 + ``docs/api/error-codes.md`` 审计事件字段约束。
+    真源：ADR-0017 §3.3 + ``docs/architecture/error-codes.md`` 审计事件字段约束。
 
     说明：
     - ``audit_pseudo_salt`` 用于把 user_id 哈希成不可逆伪 ID（写入 audit log）

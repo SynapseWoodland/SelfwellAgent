@@ -100,7 +100,7 @@ disable-model-invocation: false
 1. 改 freeze ADR（顶部 `freeze: true`）必须 PR 标题含 `ADR-AMENDMENT`
 2. 新增 ADR 必须含 4 字段：`status` / `date` / `decider` / `consequences`
 
-**当前豁免**：仅 docs/adr/ + harness/ + .cursor/ + .github/ 维护类改动不检查
+**当前豁免**：仅 docs/architecture/adr/ + harness/ + .cursor/ + .github/ 维护类改动不检查
 
 ### Gate 5: 覆盖率硬卡 ≥ 60%
 

@@ -1,7 +1,7 @@
 /**
  * FE-FIX-07 · PlanData.days 字段映射层
  * ──────────────────────────────────────────────────────────────
- * 真源：docs/api/openapi.yaml §PlanDay
+ * 真源：docs/architecture/api.yaml §PlanDay
  * 真源：docs/plan/frontend-fix-plan.md §FE-FIX-07
  *
  * 设计要点：

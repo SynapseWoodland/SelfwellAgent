@@ -4,7 +4,7 @@
  * 真实项目应有 packages/api-types/ts/，但 monorepo 化尚未落地；
  * 在 types/api.d.ts 中以本文件为唯一定义，被所有 page / component 引用。
  *
- * 字段名严格对齐 docs/api/openapi.yaml V1.1.0；变更前必须 PR 至 §17.10 接口冻结窗口外。
+ * 字段名严格对齐 docs/architecture/api.yaml V1.1.0；变更前必须 PR 至 §17.10 接口冻结窗口外。
  *
  * 重大约定：
  *  - 用户标识：user_id_pseudo（后端给前端用的伪 ID，§17.10）
@@ -448,7 +448,7 @@ export interface PushSubscribeReportResp {
   server_received_at: ISODateTime;
 }
 
-/* ─────────── 通用错误码（精简版，与 docs/api/error-codes.md 对齐） ─────────── */
+/* ─────────── 通用错误码（精简版，与 docs/architecture/error-codes.md 对齐） ─────────── */
 
 export const E_USER_INVALID_INPUT = 'E_USER_INVALID_INPUT';
 export const E_AUTH_WX_CODE_INVALID = 'E_AUTH_WX_CODE_INVALID';

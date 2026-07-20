@@ -2,7 +2,7 @@
  * Selfwell 自愈 · 前端契约测试（Vitest）
  * ─────────────────────────────────────────────
  * 验证 ``miniprogram/utils/request.ts`` 解析后端 ErrorResponse 的行为
- * 与 ``docs/api/openapi.yaml#/components/schemas/ErrorResponse`` 100% 对齐。
+ * 与 ``docs/architecture/api.yaml#/components/schemas/ErrorResponse`` 100% 对齐。
  *
  * 真源：backend/app/errors/codes.py 的 E_* 常量。
  * 架构契约：后端返回 ``{"error": {"code": "E_*", "message_zh": "...", "message_en": "..."}}``；

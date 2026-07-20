@@ -5,7 +5,7 @@
 /// pages share the same instance and can `ref.read(authRepositoryProvider)`
 /// without prop-drilling.
 ///
-/// **Auth flow** (per `docs/api/openapi.yaml` `wxMpLogin`):
+/// **Auth flow** (per `docs/architecture/api.yaml` `wxMpLogin`):
 ///   1. Client (Flutter) calls `wx.login` (we simulate with a code arg in MVP)
 ///   2. POST /auth/wx-login with `{ code, nickName, avatarUrl }`
 ///   3. Server returns `{ access_token, user_id, user_id_pseudo }`

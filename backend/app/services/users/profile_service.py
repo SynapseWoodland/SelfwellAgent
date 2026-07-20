@@ -186,7 +186,7 @@ def _has_minimum_profile(user: User) -> bool:
 def _serialize_user(user: User) -> dict[str, Any]:
     """User ORM -> 响应 dict。
 
-    字段名对齐 ``docs/api/openapi.yaml`` V1.1 + 前端 ``UserMe`` 类型。
+    字段名对齐 ``docs/architecture/api.yaml`` V1.1 + 前端 ``UserMe`` 类型。
     PR-2（V2 IA）增量：响应顶层加 ``badges_summary`` + ``streak_days``（PR-3 today/profile-new 用）。
     """
     cache = user.report_cache if isinstance(user.report_cache, dict) else {}

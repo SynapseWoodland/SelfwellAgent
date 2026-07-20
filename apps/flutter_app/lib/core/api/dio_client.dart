@@ -165,7 +165,7 @@ Dio buildDio({
 /// Translates a Dio failure into an [ApiException].
 ///
 /// Fallback error codes use the `E_GENERAL_*` family defined in
-/// `docs/api/error-codes.md`. They're listed here as constants so a
+/// `docs/architecture/error-codes.md`. They're listed here as constants so a
 /// single grep surfaces every hard-coded fallback and so a future linter
 /// can refuse any inline `E_*` literals (mirrors §13 backend rule).
 class _FallbackCodes {

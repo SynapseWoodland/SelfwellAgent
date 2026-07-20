@@ -53,7 +53,7 @@ signed: true                                # PRE_MORTEM / SIGN_OFF 必填 true
 ## 二、冲突条目（需 orchestrator 裁决 / 用户确认）
 
 > reviewer 视角分歧时**必须**留条目，**不**允许 orchestrator 单方面拍板；
-> 裁决建议只引用已有 ADR 或建议新增 ADR（ADR 起草动作另起 `docs/adr/ADR-XXXX.md`，此处仅占位）。
+> 裁决建议只引用已有 ADR 或建议新增 ADR（ADR 起草动作另起 `docs/architecture/adr/ADR-XXXX.md`，此处仅占位）。
 
 | # | 冲突点 | 视角 A | 视角 B | 裁决建议 | 状态 |
 |---|--------|--------|--------|----------|:----:|

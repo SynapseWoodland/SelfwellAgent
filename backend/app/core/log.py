@@ -1,6 +1,6 @@
 """loguru 工厂 + 合规审计 3 事件接口（Sprint 0 骨架 · v2 配色版）。
 
-真源：``docs/spec/facts-anchor.md`` §7 合规红线 §10.4 第 9 条 + ``docs/api/error-codes.md`` §九合规
+真源：``docs/spec/facts-anchor.md`` §7 合规红线 §10.4 第 9 条 + ``docs/architecture/error-codes.md`` §九合规
 + ``docs/data/recall-forbidden-words.yaml`` + ``docs/data/ack-pool.yaml`` forbidden_tokens
 
 风格真源：D:\\agent-project\\SemanticMind\\backend\\app\\core\\log.py

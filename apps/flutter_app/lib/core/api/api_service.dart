@@ -1,5 +1,5 @@
 /// Thin typed wrapper around [Dio] for the 41 endpoints in
-/// `docs/api/openapi.yaml`. Pages import this instead of Dio directly
+/// `docs/architecture/api.yaml`. Pages import this instead of Dio directly
 /// so test doubles can override individual endpoints.
 library;
 

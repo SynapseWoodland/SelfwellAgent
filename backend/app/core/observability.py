@@ -7,7 +7,7 @@
 1. **Failure-isolated**：任何埋点失败都不能影响主流程，所以全部 ``try/except`` 包住
    （即便 metrics 模块未加载、SSE 已经断流、DB pool 关闭了，也最多"少一次"打点）。
 2. **Label contract 保留**：``is_mock`` / ``is_fallback`` 是已存在的 label 名
-   （``docs/api/openapi.yaml`` + Golden Set 都引用了），一律兼容。
+   （``docs/architecture/api.yaml`` + Golden Set 都引用了），一律兼容。
 3. **不依赖 Prometheus 默认 registry**：全部走 ``app.core.metrics.METRICS_REGISTRY``，
    与现有 LLM/SSE 指标同源。
 

@@ -116,4 +116,4 @@ alwaysApply: false
 - PR 守门：`.cursor/skills/pr-gate/SKILL.md`
 - AD-TDD：`.cursor/skills/ad-tdd/SKILL.md`
 - 项目架构文档：`docs/architecture/`（按需）
-- ADR 决策记录：`docs/adr/`（按需）
+- ADR 决策记录：`docs/architecture/adr/`（按需）
