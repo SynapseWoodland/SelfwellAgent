@@ -1,5 +1,5 @@
 ---
-phase: PRD
+phase: REQUIREMENT
 run_id: FR-PILOT-M1-20260719
 role: requirement-analyst
 fr_refs: [FR-M1-01-20260719, FR-M1-02-20260719, FR-M1-03-20260719]
@@ -7,13 +7,18 @@ adr_refs: [ADR-0001, ADR-0007]
 signed: true
 interrupt_budget: 5
 replay_session_id: null
+
+# 文档来源字段
+source_doc: docs/requirements/SELFWELL-MVP-SRS.md   # 已有需求文档路径
+created_from_scratch: false                            # true=从0创建，false=引用已有
+source_doc_sections: [§3.2.1 微信登录, §3.2.3 草稿用户]  # 本轮涉及已有文档的章节
 ---
 
-# 01-requirement.md - PRD phase（FR 拆解）
+# 01-requirement.md - REQUIREMENT phase（FR 拆解）
 
 > **对应 ATDD**: `harness/atdd/ATDD-M1-AC.md`（M1 微信 OAuth 登录验收标准）
 > **对应真源**: `docs/spec/TDS-M1-wechat-login.md` V1.1
-> **PRD**: `docs/PRD/Selfwell-PRD-V1.1.md` §1.1 微信 OAuth 登录
+> **REQUIREMENT**: `docs/REQUIREMENT/Selfwell-REQUIREMENT-V1.1.md` §1.1 微信 OAuth 登录
 
 ## 1. 观点
 
@@ -54,12 +59,12 @@ replay_session_id: null
 |---|---|---|---|
 | 1 | pilot FR 选 M1-01 单条还是 M1 全集 6 条？ | (a) 单 FR / (b) 6 FR 一起 | (b) 6 FR 一起（pipeline 短，复用 `wx_login_service`） |
 | 2 | 是否复用现有 wx_login_service？还是 TDD 重写？ | (a) 复用 / (b) 重写 | (a) 复用（已实现 + 单测待补） |
-| 3 | phase PRD 完成后是否直接进入 ARCH_DESIGN？ | (a) 是 / (b) 跳 ATDD 直接 CODE | (a) 是（demo 跑全 phase） |
+| 3 | phase REQUIREMENT 完成后是否直接进入 ARCH_DESIGN？ | (a) 是 / (b) 跳 ATDD 直接 CODE | (a) 是（demo 跑全 phase） |
 | 4 | 单测目标覆盖率 | ≥ 60%（CI 硬卡） / ≥ 80%（自查） | ≥ 80%（规则见 coding-standards §18） |
 
 ## 4. 下一步
 
-1. dispatcher 校验 `exit_criteria_met[0]`（PRD evidence 存在 + 8 字段 frontmatter 齐全）→ PASS
+1. dispatcher 校验 `exit_criteria_met[0]`（REQUIREMENT evidence 存在 + 8 字段 frontmatter 齐全）→ PASS
 2. dispatcher 校验 `exit_criteria_met[1]`（FR 列表 ≥ 1 条 + 关联 ATDD）→ PASS
 3. orchestrator 切换 current_phase = ARCH_DESIGN
 4. 进入 Phase 2（架构设计）—— 生成 `evidence/02-tech-design.md`

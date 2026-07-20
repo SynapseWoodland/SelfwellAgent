@@ -12,7 +12,7 @@
 ```yaml
 task_types:
   feature:       # 完整功能开发
-    phases: [PRD, ARCH_DESIGN, PRE_MORTEM, ATDD, PLAN, CODE, VERIFY, SECURITY_TEST, DEPLOY, REGRESSION, SIGN_OFF, DATA_REPLAY, INCIDENT_RESPONSE, OPS_LOOP, SKILL_UPDATE]
+    phases: [REQUIREMENT, ARCH_DESIGN, PRE_MORTEM, ATDD, PLAN, CODE, VERIFY, SECURITY_TEST, DEPLOY, REGRESSION, SIGN_OFF, DATA_REPLAY, INCIDENT_RESPONSE, OPS_LOOP, SKILL_UPDATE]
   bugfix:        # Bug 修复
     phases: [CODE, VERIFY, DEPLOY, REGRESSION, SIGN_OFF]
   refactor:      # 代码重构
@@ -47,7 +47,7 @@ task_types:
     },
     "current_phase": {
       "type": "string",
-      "enum": ["PRD", "ARCH_DESIGN", "PRE_MORTEM", "ATDD", "PLAN", "CODE", "VERIFY", "SECURITY_TEST", "DEPLOY", "REGRESSION", "SIGN_OFF", "DATA_REPLAY", "INCIDENT_RESPONSE", "OPS_LOOP", "SKILL_UPDATE", "INTERRUPT_REVIEW"],
+      "enum": ["REQUIREMENT", "ARCH_DESIGN", "PRE_MORTEM", "ATDD", "PLAN", "CODE", "VERIFY", "SECURITY_TEST", "DEPLOY", "REGRESSION", "SIGN_OFF", "DATA_REPLAY", "INCIDENT_RESPONSE", "OPS_LOOP", "SKILL_UPDATE", "INTERRUPT_REVIEW"],
       "description": "当前 phase（受 task_type 约束，只执行 task_type.phases 中的 phase）"
     },
     "current_agent": {

@@ -247,6 +247,72 @@ jobs:
           echo "✅ L0-L6 文档一致性扫描 PASS"
 
   # ============================================
+  # 卡口 9：DDD 目录结构一致性扫描
+  # ============================================
+  ddd-directory-consistency:
+    name: Gate 9 — DDD 目录结构一致性
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: DDD 目录结构一致性扫描
+        run: |
+          set -e
+          FAIL=0
+          echo "🔍 扫描非真源文档是否重写 DDD 目录结构..."
+
+          # 真源文件
+          TRUTH=".cursor/rules/ddd-bounded-context.mdc"
+
+          # 白名单（真源 + DDD 详细文档 + 归档文件）
+          WHITELIST=(
+            ".cursor/rules/ddd-bounded-context.mdc"
+            "docs/architecture/ddd-bounded-context.md"
+            "docs/architecture/ddd-bounded-context-spec.md"
+            "harness/L0-L6-TRUTH.md"
+            ".github/workflows/pr-gate-ci.yml"
+            ".github/workflows/backend-ci.yml"
+          )
+
+          # 检查变更的文档是否重写了 backend/app/ 目录结构
+          for f in $(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD); do
+            # 跳过白名单
+            skip=0
+            for w in "${WHITELIST[@]}"; do
+              if [ "$f" = "$w" ]; then skip=1; break; fi
+            done
+            [ $skip -eq 1 ] && continue
+
+            # 只扫 .md / .mdc 文件
+            case "$f" in
+              *.md|*.mdc) ;;
+              *) continue ;;
+            esac
+
+            # 检测：如果文件含完整 backend/app 目录树（≥15 行），视为重写
+            if [ -f "$f" ]; then
+              # 计算目录树行数（以 ├── 或 └── 或 └── 开头）
+              count=$(grep -cE '^\s*[├└││]*\s*(backend|app|contexts|services|domain|application|infrastructure|interfaces)' "$f" 2>/dev/null || echo 0)
+              if [ "$count" -ge 15 ]; then
+                echo "::error::$f 重写了 backend/app/ 目录结构（≥15 行）"
+                echo "::error::修复方式：删除目录结构，改为 '详见 .cursor/rules/ddd-bounded-context.mdc §五'"
+                FAIL=1
+              fi
+            fi
+          done
+
+          if [ $FAIL -eq 1 ]; then
+            echo "::error::DDD 目录结构一致性扫描失败"
+            echo "::error::修复方式：引用 .cursor/rules/ddd-bounded-context.mdc §五，不重写目录结构"
+            exit 1
+          fi
+          echo "✅ DDD 目录结构一致性扫描 PASS"
+
+  # ============================================
   # Gate 8（软警告）：Harness exit_criteria 跨平台脚本兜底
   # 真源：harness/scripts/check_phase.py
   # 任务：harness/checklist.md W4 P4 §5.5.3
@@ -297,6 +363,7 @@ jobs:
       - coverage-gate
       - pr-size
       - l0-l6-consistency
+      - ddd-directory-consistency
       - harness-exit-criteria
     if: always()
     steps:
@@ -312,7 +379,8 @@ jobs:
           echo "Gate 5 coverage-gate:     ${{ needs.coverage-gate.result }}"
           echo "Gate 6 pr-size:           ${{ needs.pr-size.result }}"
           echo "Gate 7 l0-l6-consistency: ${{ needs.l0-l6-consistency.result }}"
-          echo "Gate 8 harness-exit-criteria (软警告): ${{ needs.harness-exit-criteria.result }}"
+          echo "Gate 8 ddd-directory-consistency: ${{ needs.ddd-directory-consistency.result }}"
+          echo "Gate 9 harness-exit-criteria (软警告): ${{ needs.harness-exit-criteria.result }}"
 
           # Gate 8 是软警告，不计入总闸失败
           if [ "${{ needs.commitlint.result }}" != "success" ] || \
@@ -321,7 +389,8 @@ jobs:
              [ "${{ needs.adr-conflict.result }}" != "success" ] || \
              [ "${{ needs.coverage-gate.result }}" != "success" ] || \
              [ "${{ needs.pr-size.result }}" != "success" ] || \
-             [ "${{ needs.l0-l6-consistency.result }}" != "success" ]; then
+             [ "${{ needs.l0-l6-consistency.result }}" != "success" ] || \
+             [ "${{ needs.ddd-directory-consistency.result }}" != "success" ]; then
             echo "::error::PR Gate 至少 1 项失败（Gate 8 是软警告，不计入），PR 拒绝合入"
             exit 1
           fi

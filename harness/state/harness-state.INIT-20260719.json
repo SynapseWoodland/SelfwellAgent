@@ -1,7 +1,7 @@
 {
   "run_id": "FR-INIT-00-20260719",
   "version": "2.0",
-  "current_phase": "PRD",
+  "current_phase": "REQUIREMENT",
   "current_agent": "requirement-analyst",
   "phase_started_at": "2026-07-19T12:19:00+08:00",
   "exit_criteria_met": [false, false, false],
@@ -25,7 +25,7 @@
   },
   "phase_history": [
     {
-      "phase": "PRD",
+      "phase": "REQUIREMENT",
       "agent": "requirement-analyst",
       "entered_at": "2026-07-19T12:19:00+08:00",
       "exited_at": null,

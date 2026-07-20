@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """check_phase.py — 跨平台 phase exit_criteria 判定脚本.
 
 真源：harness/checklist.md W4 P4 §5.5.1
@@ -24,6 +23,7 @@
   - Windows PowerShell / WSL bash / macOS bash / Linux bash 全部可用
   - 不依赖 bash/grep/test，仅用 Python 标准库
 """
+
 from __future__ import annotations
 
 import argparse
@@ -63,7 +63,7 @@ def find_phase(workflow: dict, phase_id: str) -> dict[str, Any]:
     raise ValueError(f"phase_id '{phase_id}' 不在 workflow-v2.yaml 中")
 
 
-def _builtin_test(args: list[str], cwd: Path) -> tuple[int, str]:
+def _builtin_test(args: list[str], cwd: Path) -> tuple[int, str]:  # noqa: PLR0911
     """实现 bash 'test' 内置命令的 Python 版本（POSIX 兼容子集）.
 
     支持的表达式：
@@ -77,6 +77,7 @@ def _builtin_test(args: list[str], cwd: Path) -> tuple[int, str]:
 
     Returns:
         (returncode, stderr): 0 表示 PASS, 1 表示 FAIL
+
     """
     if not args:
         return 1, "test: missing argument"
@@ -103,7 +104,7 @@ def _builtin_test(args: list[str], cwd: Path) -> tuple[int, str]:
     return 2, f"test: unsupported expression: {' '.join(args)}"
 
 
-def _builtin_grep(args: list[str], cwd: Path, stdin: str = "") -> tuple[int, str]:
+def _builtin_grep(args: list[str], cwd: Path, stdin: str = "") -> tuple[int, str]:  # noqa: PLR0915
     """实现 bash 'grep' 内置的 Python 版本（POSIX 兼容子集）.
 
     支持：
@@ -114,8 +115,20 @@ def _builtin_grep(args: list[str], cwd: Path, stdin: str = "") -> tuple[int, str
 
     Returns:
         (returncode, output): 0=找到匹配, 1=未找到, 2=错误
+
     """
     import re
+
+    # 预处理：展开合并的参数如 -qE → -q -E
+    processed_args = []
+    for arg in args:
+        if arg.startswith("-") and len(arg) > 2:
+            # -qE → -q -E
+            for ch in arg[1:]:
+                processed_args.append("-" + ch)
+        else:
+            processed_args.append(arg)
+    args = processed_args
 
     # 解析参数
     quiet = False
@@ -145,11 +158,10 @@ def _builtin_grep(args: list[str], cwd: Path, stdin: str = "") -> tuple[int, str
     if pattern is None:
         return 2, "grep: missing pattern"
 
-    flags = re.IGNORECASE  # 默认大小写敏感先不管
     if extended_regex:
-        regex_flags = re.IGNORECASE if "-i" in args else 0
+        regex_flags = re.MULTILINE | (re.IGNORECASE if "-i" in args else 0)
     else:
-        regex_flags = 0
+        regex_flags = re.MULTILINE
 
     # 编译正则
     try:
@@ -184,7 +196,7 @@ def _builtin_grep(args: list[str], cwd: Path, stdin: str = "") -> tuple[int, str
     return 0, (matches[0] if isinstance(matches[0], str) else "\n".join(matches[0]))[:200]
 
 
-def run_exit_criterion(cmd: str, cwd: Path) -> tuple[bool, str]:
+def run_exit_criterion(cmd: str, cwd: Path) -> tuple[bool, str]:  # noqa: PLR0911
     """执行单条 exit_criteria 命令，返回 (pass, message).
 
     支持的语法（POSIX 子集）：
@@ -199,6 +211,7 @@ def run_exit_criterion(cmd: str, cwd: Path) -> tuple[bool, str]:
     Returns:
         (True, "PASS: ..."): 命令成功
         (False, "FAIL: ..."): 命令失败
+
     """
     try:
         cmd_parts = shlex.split(cmd, posix=(os.name != "nt"))
@@ -220,14 +233,23 @@ def run_exit_criterion(cmd: str, cwd: Path) -> tuple[bool, str]:
 
     # bash builtin: grep
     if prog == "grep" or prog.endswith("/grep") or prog == "/usr/bin/grep":
-        rc, output = _builtin_grep(args, cwd)
+        # Windows shlex 在 posix=False 时会保留引号，需要预处理移除
+        processed_args = []
+        for arg in args:
+            if (arg.startswith('"') and arg.endswith('"')) or (
+                arg.startswith("'") and arg.endswith("'")
+            ):
+                processed_args.append(arg[1:-1])
+            else:
+                processed_args.append(arg)
+        rc, output = _builtin_grep(processed_args, cwd)
         if rc == 0:
             return True, f"PASS (rc=0): {cmd}"
         return False, f"FAIL (rc={rc}): {cmd}" + (f" | {output}" if output else "")
 
     # 兜底：subprocess 跨平台执行
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             cmd_parts,
             cwd=str(cwd),
             shell=False,
@@ -252,6 +274,7 @@ def check_phase(phase_id: str, workflow: dict, verbose: bool = False) -> bool:
 
     Returns:
         True = 全部 PASS, False = 任一 FAIL
+
     """
     try:
         phase = find_phase(workflow, phase_id)
@@ -291,7 +314,8 @@ def list_all_phases(workflow: dict) -> None:
     for p in phases:
         n_criteria = len(p.get("exit_criteria", []))
         auto = "auto" if p.get("auto_mode") else "manual"
-        print(f"  - {p['id']:20s} ({auto:6s}) entry={p['entry_agent']:25s} exit_criteria={n_criteria}")
+        entry = p.get("entry_agent", "")
+        print(f"  - {p['id']:20s} ({auto:6s}) entry={entry:25s} exit_criteria={n_criteria}")
     print()
 
 
