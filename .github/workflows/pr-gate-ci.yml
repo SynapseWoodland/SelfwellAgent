@@ -280,18 +280,18 @@ jobs:
           # 检查是否有 HIGH/MEDIUM 严重性 + 高置信度的漏洞
           if [ -f /tmp/bandit_report.json ]; then
             HIGH_SEVERITY=$(python -c "
-import json
-data = json.load(open('/tmp/bandit_report.json'))
-issues = data.get('results', [])
-high_issues = [i for i in issues if i.get('issue_severity') in ('HIGH', 'MEDIUM') and i.get('issue_confidence') in ('HIGH', 'MEDIUM')]
-print(len(high_issues))
-if high_issues:
-    print('=== 高危/中危漏洞 ===')
-    for i in high_issues[:5]:
-        print(f\"  {i.get('filename')}:{i.get('line_number')} - {i.get('issue_text')}\")
-    if len(high_issues) > 5:
-        print(f\"  ... 还有 {len(high_issues) - 5} 个漏洞\")
-")
+          import json
+          data = json.load(open('/tmp/bandit_report.json'))
+          issues = data.get('results', [])
+          high_issues = [i for i in issues if i.get('issue_severity') in ('HIGH', 'MEDIUM') and i.get('issue_confidence') in ('HIGH', 'MEDIUM')]
+          print(len(high_issues))
+          if high_issues:
+              print('=== 高危/中危漏洞 ===')
+              for i in high_issues[:5]:
+                  print(f\"  {i.get('filename')}:{i.get('line_number')} - {i.get('issue_text')}\")
+              if len(high_issues) > 5:
+                  print(f\"  ... 还有 {len(high_issues) - 5} 个漏洞\")
+          ")
             if [ "$HIGH_SEVERITY" != "0" ]; then
               echo "::error::Bandit 发现 $HIGH_SEVERITY 个高危/中危漏洞，请修复后重试"
               exit 1
