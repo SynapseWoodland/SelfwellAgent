@@ -10,7 +10,7 @@ name: pr-gate-ci
 # 真源（人类检查）：.cursor/skills/pr-gate-human/SKILL.md
 # 真源（CI 描述）：.cursor/skills/pr-gate-ci/SKILL.md
 #
-# 7 项硬卡口：
+# 10 项卡口（8 硬 + 2 软）：
 #   1. Commit 格式（commitlint）
 #   2. FR 编号关联
 #   3. ATDD 验收测试存在性（GitHub 脚本）
@@ -18,6 +18,9 @@ name: pr-gate-ci
 #   5. 覆盖率（硬卡 ≥ 60%）
 #   6. PR Diff 大小（≤ 600 行）
 #   7. L0-L6 文档一致性扫描
+#   8. 安全扫描（bandit）
+#   9. DDD 目录结构一致性扫描
+#  10. Harness exit_criteria（软警告）
 
 "on":
   pull_request:
@@ -247,7 +250,57 @@ jobs:
           echo "✅ L0-L6 文档一致性扫描 PASS"
 
   # ============================================
-  # 卡口 9：DDD 目录结构一致性扫描
+  # Gate 8：安全扫描（bandit）
+  # 对齐 workflow-v2.yaml SECURITY_TEST phase exit_criteria
+  # bandit 无 S/F 高危漏洞才 PASS（INFO/WARNING 允许）
+  # ============================================
+  security-scan:
+    name: Gate 8 — 安全扫描（bandit）
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install bandit
+        run: pip install bandit
+
+      - name: Bandit 安全扫描
+        run: |
+          set -e
+          echo "🔍 运行 bandit 安全扫描..."
+          bandit -r backend/app/ -f json -o /tmp/bandit_report.json || true
+
+          # 检查是否有 HIGH/MEDIUM 严重性 + 高置信度的漏洞
+          if [ -f /tmp/bandit_report.json ]; then
+            HIGH_SEVERITY=$(python -c "
+import json
+data = json.load(open('/tmp/bandit_report.json'))
+issues = data.get('results', [])
+high_issues = [i for i in issues if i.get('issue_severity') in ('HIGH', 'MEDIUM') and i.get('issue_confidence') in ('HIGH', 'MEDIUM')]
+print(len(high_issues))
+if high_issues:
+    print('=== 高危/中危漏洞 ===')
+    for i in high_issues[:5]:
+        print(f\"  {i.get('filename')}:{i.get('line_number')} - {i.get('issue_text')}\")
+    if len(high_issues) > 5:
+        print(f\"  ... 还有 {len(high_issues) - 5} 个漏洞\")
+")
+            if [ "$HIGH_SEVERITY" != "0" ]; then
+              echo "::error::Bandit 发现 $HIGH_SEVERITY 个高危/中危漏洞，请修复后重试"
+              exit 1
+            fi
+          fi
+          echo "✅ Bandit 安全扫描 PASS（无 HIGH/MEDIUM 高置信度漏洞）"
+
+  # ============================================
+  # Gate 9：DDD 目录结构一致性扫描
   # ============================================
   ddd-directory-consistency:
     name: Gate 9 — DDD 目录结构一致性
@@ -363,6 +416,7 @@ jobs:
       - coverage-gate
       - pr-size
       - l0-l6-consistency
+      - security-scan
       - ddd-directory-consistency
       - harness-exit-criteria
     if: always()
@@ -379,10 +433,11 @@ jobs:
           echo "Gate 5 coverage-gate:     ${{ needs.coverage-gate.result }}"
           echo "Gate 6 pr-size:           ${{ needs.pr-size.result }}"
           echo "Gate 7 l0-l6-consistency: ${{ needs.l0-l6-consistency.result }}"
-          echo "Gate 8 ddd-directory-consistency: ${{ needs.ddd-directory-consistency.result }}"
-          echo "Gate 9 harness-exit-criteria (软警告): ${{ needs.harness-exit-criteria.result }}"
+          echo "Gate 8 security-scan:     ${{ needs.security-scan.result }}"
+          echo "Gate 9 ddd-directory:     ${{ needs.ddd-directory-consistency.result }}"
+          echo "Gate 10 harness-exit-criteria (软警告): ${{ needs.harness-exit-criteria.result }}"
 
-          # Gate 8 是软警告，不计入总闸失败
+          # Gate 10 是软警告，不计入总闸失败
           if [ "${{ needs.commitlint.result }}" != "success" ] || \
              [ "${{ needs.fr-required.result }}" != "success" ] || \
              [ "${{ needs.atdd-required.result }}" != "success" ] || \
@@ -390,13 +445,14 @@ jobs:
              [ "${{ needs.coverage-gate.result }}" != "success" ] || \
              [ "${{ needs.pr-size.result }}" != "success" ] || \
              [ "${{ needs.l0-l6-consistency.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
              [ "${{ needs.ddd-directory-consistency.result }}" != "success" ]; then
-            echo "::error::PR Gate 至少 1 项失败（Gate 8 是软警告，不计入），PR 拒绝合入"
+            echo "::error::PR Gate 至少 1 项失败（Gate 10 是软警告，不计入），PR 拒绝合入"
             exit 1
           fi
 
           if [ "${{ needs.harness-exit-criteria.result }}" != "success" ]; then
-            echo "::warning::Gate 8 (harness-exit-criteria) 软警告失败，请检查 check_phase.py 是否仍可用"
+            echo "::warning::Gate 10 (harness-exit-criteria) 软警告失败，请检查 check_phase.py 是否仍可用"
           fi
 
           echo "✅ 所有硬性 Gate PASS（Gate 8 软警告不计），PR 可合入"
