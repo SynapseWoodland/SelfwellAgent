@@ -1,0 +1,933 @@
+# Harness V3 state machine; supersedes V2 workflow.yaml.
+version: "3.0"
+deprecates: "workflow-v2.yaml"
+initial_phase: REQUIREMENT
+
+# ============================================================
+# 6 种任务类型定义，每种类型指定不同的 phase 子集
+# ============================================================
+task_types:
+  feature:
+    description: "完整功能开发"
+    phases:
+      - REQUIREMENT          # 需求分析 → SRS
+      - REVIEW_SRS          # Review: SRS 质量审查
+      - ARCH_DESIGN         # 架构设计
+      - REVIEW_ARCH         # Review: 架构审查（重度，涉及变更需与用户澄清）
+      - ATDD               # 验收测试用例
+      - REVIEW_ATDD         # Review: ATDD 审查（轻量）
+      - TDS                # 技术设计规范
+      - REVIEW_TDS         # Review: TDS 审查（中等）
+      - PLAN               # 实施计划
+      - REVIEW_PLAN         # Review: PLAN 审查（轻量）V3 新增
+      - PRE_MORTEM         # 风险评审
+      - CODE               # 编码实现
+      - DEPLOY             # 部署
+      - VERIFY             # 质量验证
+      - SECURITY_TEST      # 安全测试（并行）
+      - REGRESSION         # 回归测试
+      - SIGN_OFF           # 最终签字
+      - DATA_REPLAY        # 数据回流
+      - INCIDENT_RESPONSE  # 故障响应
+      - OPS_LOOP           # 持续运营
+      - SKILL_UPDATE       # 经验沉淀
+    initial_phase: REQUIREMENT
+
+  bugfix:
+    description: "Bug 修复"
+    phases:
+      - CODE
+      - DEPLOY
+      - VERIFY
+      - SECURITY_TEST
+      - REGRESSION
+      - SIGN_OFF
+    initial_phase: CODE
+
+  refactor:
+    description: "代码重构"
+    phases:
+      - PLAN
+      - CODE
+      - DEPLOY
+      - VERIFY
+      - SECURITY_TEST
+      - REGRESSION
+      - SIGN_OFF
+    initial_phase: PLAN
+
+  doc-fix:
+    description: "文档修复"
+    phases:
+      - DOC_FIX
+      - SIGN_OFF
+    initial_phase: DOC_FIX
+
+  perf-optimize:
+    description: "性能优化"
+    phases:
+      - PLAN
+      - CODE
+      - DEPLOY
+      - VERIFY
+      - SECURITY_TEST
+      - REGRESSION
+      - SIGN_OFF
+    initial_phase: PLAN
+
+# ============================================================
+# 中断策略
+# ============================================================
+interruption_policy:
+  budget_per_run: 5
+  escalation: "AskUser"
+  review_phase: INTERRUPT_REVIEW
+  budget_field: interrupt_budget
+  replay_field: replay_session_id
+
+# Review 打回策略（3次机制）
+review_policy:
+  max_rejections: 3                    # 单个 Review 节点最多打回 3 次
+  escalation_on_exhausted: "ARCH_CLARIFICATION"  # 3次打回后触发架构澄清
+  track_in_state: true                 # 在 state 中追踪打回次数
+
+# ============================================================
+# 架构澄清机制（3次打回后触发）
+# ============================================================
+arch_clarification:
+  trigger: "3次 Review 打回后无法对齐"
+  responsible_agent: tech-architect
+  output: "架构澄清提案 + 选项建议"
+  escalation_to: "user"
+  evidence_file: "harness/evidence/templates/arch-clarification.md"
+
+# ============================================================
+# 一人模式配置
+# ============================================================
+auto_mode_supported: true
+one_person_mode:
+  enabled: true
+  behavior: "跳过 PRE_MORTEM/SIGN_OFF 的 5 reviewer 串行，改为 orchestrator 自动摘要"
+
+# ============================================================
+# Phase 定义
+# ============================================================
+phases:
+
+  # ------------------------------------------------------------
+  # 1. REQUIREMENT: 需求分析 → SRS 文档
+  # ------------------------------------------------------------
+  - id: REQUIREMENT
+    next: [REVIEW_SRS]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    description: "需求分析阶段：根据 PRD 创建或更新 SRS 文档"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/01-requirement.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/01-requirement.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/templates/phase/01-requirement.md'
+      - 'grep -qE "source_doc:|created_from_scratch:" harness/evidence/templates/phase/01-requirement.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: REQUIREMENT
+        run_id: "<uuid>"
+        role: requirement-analyst
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        source_doc: null
+        created_from_scratch: false
+        source_doc_sections: []
+        review_rejections: 0  # 打回次数追踪
+
+  # ------------------------------------------------------------
+  # 2. REVIEW_SRS: SRS 文档审查（中等深度）
+  # 负责角色: requirement-analyst
+  # ------------------------------------------------------------
+  - id: REVIEW_SRS
+    next: [ARCH_DESIGN]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    review_depth: "medium"           # 中等深度
+    reviews_document: "SRS"         # 审查 SRS 文档
+    description: "Review: SRS 质量审查 - 检查 FR 编号完整、场景覆盖、唯一真源"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/review/review-srs.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/review/review-srs.md'
+      - 'grep -qE "review_depth: medium" harness/evidence/templates/review/review-srs.md'
+      - 'grep -qE "alignment_check: (PASS|ARCH_CLARIFICATION)" harness/evidence/templates/review/review-srs.md'
+      - 'grep -qE "唯一真源检查: (PASS|WARN|FAIL)" harness/evidence/templates/review/review-srs.md'
+      - 'grep -qE "业务对齐检查: (PASS|WARN|FAIL)" harness/evidence/templates/review/review-srs.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    failure_handler: "ARCH_CLARIFICATION"  # 3次打回后触发架构澄清
+    evidence_schema:
+      frontmatter:
+        phase: REVIEW_SRS
+        run_id: "<uuid>"
+        role: requirement-analyst
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        review_depth: "medium"
+        reviews_document: "SRS"
+        alignment_check: null           # PASS | WARN | FAIL | ARCH_CLARIFICATION
+        rejection_reason: null
+        rejection_count: 0
+        source_doc_verified: false
+        review_checkpoints:
+          唯一真源检查: null          # PASS | WARN | FAIL
+          业务对齐检查: null           # PASS | WARN | FAIL
+
+  # ------------------------------------------------------------
+  # 3. ARCH_DESIGN: 架构设计
+  # ------------------------------------------------------------
+  - id: ARCH_DESIGN
+    next: [REVIEW_ARCH]
+    entry_agent: tech-architect
+    auto_mode: true
+    description: "架构设计阶段：根据 SRS 创建或更新架构设计文档"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/02-tech-design.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/02-tech-design.md'
+      - 'grep -qE "adr_refs:.*ADR-[0-9]" harness/evidence/templates/phase/02-tech-design.md'
+      - 'grep -qE "source_sds:|source_tds_modules:|created_tds_modules:|involved_architecture:" harness/evidence/templates/phase/02-tech-design.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: ARCH_DESIGN
+        run_id: "<uuid>"
+        role: tech-architect
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        source_sds: null
+        source_tds_modules: []
+        created_tds_modules: []
+        new_adrs: []
+        involved_architecture: []
+        involved_data: []
+        arch_change_type: null         # CORE_CHANGE | SIGNIFICANT_REF_CHANGE | MINOR_REF_CHANGE | null
+        requires_user_clarification: false
+        review_rejections: 0
+
+  # ------------------------------------------------------------
+  # 4. REVIEW_ARCH: 架构审查（重度）
+  # 负责角色: tech-architect
+  # 架构变更必须与用户澄清
+  # ------------------------------------------------------------
+  - id: REVIEW_ARCH
+    next: [ATDD]
+    entry_agent: tech-architect
+    auto_mode: true
+    review_depth: "heavy"            # 重度深度
+    reviews_document: "ARCH_DESIGN"  # 审查架构文档
+    description: "Review: 架构审查（重度）- 架构方案选择，涉及变更需与用户澄清"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/review/review-arch.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/review/review-arch.md'
+      - 'grep -qE "review_depth: heavy" harness/evidence/templates/review/review-arch.md'
+      - 'grep -qE "alignment_check: (PASS|ARCH_CLARIFICATION)" harness/evidence/templates/review/review-arch.md'
+      - 'grep -qE "技术对齐检查: (PASS|WARN|FAIL)" harness/evidence/templates/review/review-arch.md'
+      # 架构变更必须已完成澄清或确认无变更
+      - >-
+        grep -qE "(arch_change_type: null|arch_change_type: MINOR_REF_CHANGE|arch_change_type: SIGNIFICANT_REF_CHANGE|requires_user_clarification: false)" harness/evidence/templates/review/review-arch.md
+        || grep -qE "arch_clarification_approved: true" harness/evidence/templates/review/review-arch.md
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    failure_handler: "ARCH_CLARIFICATION"
+    evidence_schema:
+      frontmatter:
+        phase: REVIEW_ARCH
+        run_id: "<uuid>"
+        role: tech-architect
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        review_depth: "heavy"
+        reviews_document: "ARCH_DESIGN"
+        alignment_check: null
+        rejection_reason: null
+        rejection_count: 0
+        arch_change_type: null        # CORE_CHANGE | SIGNIFICANT_REF_CHANGE | MINOR_REF_CHANGE | null
+        requires_user_clarification: false
+        arch_clarification_approved: false
+        arch_options_provided: []
+        review_checkpoints:
+          唯一真源检查: null
+          技术对齐检查: null
+          架构变更评估: null
+
+  # ------------------------------------------------------------
+  # 5. ATDD: 验收测试用例
+  # ------------------------------------------------------------
+  - id: ATDD
+    next: [REVIEW_ATDD]
+    entry_agent: quality-guardian
+    auto_mode: true
+    description: "ATDD 阶段：根据架构设计文档和 SRS 创建或更新 ATDD 文档"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/04-atdd.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/04-atdd.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/templates/phase/04-atdd.md'
+      - 'grep -qE "tds_ref:.*TDS-" harness/evidence/templates/phase/04-atdd.md'
+      - 'grep -qE "atdd_docs:" harness/evidence/templates/phase/04-atdd.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: ATDD
+        run_id: "<uuid>"
+        role: quality-guardian
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        tds_ref: null
+        atdd_docs: []
+        review_rejections: 0
+
+  # ------------------------------------------------------------
+  # 6. REVIEW_ATDD: ATDD 审查（轻量）
+  # 负责角色: quality-guardian
+  # ------------------------------------------------------------
+  - id: REVIEW_ATDD
+    next: [TDS]
+    entry_agent: quality-guardian
+    auto_mode: true
+    review_depth: "light"            # 轻量深度
+    reviews_document: "ATDD"        # 审查 ATDD 文档
+    description: "Review: ATDD 审查（轻量）- 场景格式、Given-When-Then、覆盖度"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/review/review-atdd.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/review/review-atdd.md'
+      - 'grep -qE "review_depth: light" harness/evidence/templates/review/review-atdd.md'
+      - 'grep -qE "alignment_check: PASS" harness/evidence/templates/review/review-atdd.md'
+      - 'grep -qE "scenario_format: PASS" harness/evidence/templates/review/review-atdd.md'
+      - 'grep -qE "coverage_check: PASS" harness/evidence/templates/review/review-atdd.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    failure_handler: "ARCH_CLARIFICATION"
+    evidence_schema:
+      frontmatter:
+        phase: REVIEW_ATDD
+        run_id: "<uuid>"
+        role: quality-guardian
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        review_depth: "light"
+        reviews_document: "ATDD"
+        alignment_check: null
+        rejection_reason: null
+        rejection_count: 0
+        review_checkpoints:
+          scenario_format: null      # PASS | WARN | FAIL
+          coverage_check: null       # PASS | WARN | FAIL
+          gwt_syntax_check: null     # PASS | WARN | FAIL
+
+  # ------------------------------------------------------------
+  # 7. TDS: 技术设计规范（新增阶段）
+  # ------------------------------------------------------------
+  - id: TDS
+    next: [REVIEW_TDS]
+    entry_agent: tech-architect
+    auto_mode: true
+    description: "TDS 阶段：根据架构设计、SRS 和 ATDD 创建或更新 TDS 文档"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/04-tds.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/04-tds.md'
+      - 'grep -qE "tds_modules:" harness/evidence/templates/phase/04-tds.md'
+      - 'grep -qE "atdd_refs:.*ATDD-" harness/evidence/templates/phase/04-tds.md'
+      - 'grep -qE "arch_refs:.*ARCH-" harness/evidence/templates/phase/04-tds.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: TDS
+        run_id: "<uuid>"
+        role: tech-architect
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        tds_modules: []
+        atdd_refs: []
+        arch_refs: []
+        review_rejections: 0
+
+  # ------------------------------------------------------------
+  # 8. REVIEW_TDS: TDS 审查（中等）
+  # 负责角色: tech-architect
+  # ------------------------------------------------------------
+  - id: REVIEW_TDS
+    next: [PLAN]
+    entry_agent: tech-architect
+    auto_mode: true
+    review_depth: "medium"           # 中等深度
+    reviews_document: "TDS"         # 审查 TDS 文档
+    description: "Review: TDS 审查（中等）- 与 ATDD 对齐、技术可行、架构一致"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/review/review-tds.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/review/review-tds.md'
+      - 'grep -qE "review_depth: medium" harness/evidence/templates/review/review-tds.md'
+      - 'grep -qE "alignment_check: PASS" harness/evidence/templates/review/review-tds.md'
+      - 'grep -qE "技术可行性检查: PASS" harness/evidence/templates/review/review-tds.md'
+      - 'grep -qE "架构一致性检查: PASS" harness/evidence/templates/review/review-tds.md'
+      - 'grep -qE "atdd_alignment: PASS" harness/evidence/templates/review/review-tds.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    failure_handler: "ARCH_CLARIFICATION"
+    evidence_schema:
+      frontmatter:
+        phase: REVIEW_TDS
+        run_id: "<uuid>"
+        role: tech-architect
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        review_depth: "medium"
+        reviews_document: "TDS"
+        alignment_check: null
+        rejection_reason: null
+        rejection_count: 0
+        review_checkpoints:
+          atdd_alignment: null       # PASS | WARN | FAIL
+          技术可行性检查: null
+          架构一致性检查: null
+
+  # ------------------------------------------------------------
+  # 9. PLAN: 实施计划
+  # ------------------------------------------------------------
+  - id: PLAN
+    next: [REVIEW_PLAN]
+    entry_agent: plan-generator
+    auto_mode: true
+    description: "PLAN 阶段：根据用户指令和 ARCH_DESIGN/ATDD/TDS 文档生成实施计划"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/05-plan.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/05-plan.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/templates/phase/05-plan.md'
+      - 'grep -qE "tds_refs:" harness/evidence/templates/phase/05-plan.md'
+      - 'grep -qE "atdd_refs:" harness/evidence/templates/phase/05-plan.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: PLAN
+        run_id: "<uuid>"
+        role: plan-generator
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        tds_refs: []
+        atdd_refs: []
+        review_rejections: 0
+
+  # ------------------------------------------------------------
+  # 10. REVIEW_PLAN: PLAN 审查（轻量）
+  # 负责角色: plan-generator
+  # ------------------------------------------------------------
+  - id: REVIEW_PLAN
+    next: [PRE_MORTEM]
+    entry_agent: plan-generator
+    auto_mode: true
+    review_depth: "light"            # 轻量深度
+    reviews_document: "PLAN"        # 审查 PLAN 文档
+    description: "Review: PLAN 审查（轻量）- 实施步骤可落地性、依赖关系、DDD规范"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/review/review-plan.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/review/review-plan.md'
+      - 'grep -qE "review_depth: light" harness/evidence/templates/review/review-plan.md'
+      - 'grep -qE "alignment_check: PASS" harness/evidence/templates/review/review-plan.md'
+      - 'grep -qE "实施可行性检查: PASS" harness/evidence/templates/review/review-plan.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    failure_handler: "ARCH_CLARIFICATION"
+    evidence_schema:
+      frontmatter:
+        phase: REVIEW_PLAN
+        run_id: "<uuid>"
+        role: plan-generator
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        review_depth: "light"
+        reviews_document: "PLAN"
+        alignment_check: null
+        rejection_reason: null
+        rejection_count: 0
+        review_checkpoints:
+          实施可行性检查: null
+          依赖关系检查: null
+          ddd规范检查: null
+
+  # ------------------------------------------------------------
+  # 11. PRE_MORTEM: 风险评审（合并 Review 功能）
+  # V3: REVIEW_PLAN 之后进入 PRE_MORTEM（V2 中 PRE_MORTEM 在 ARCH_DESIGN 后）
+  # ------------------------------------------------------------
+  - id: PRE_MORTEM
+    next: [CODE]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    one_person_synthesis: true
+    dispatch:
+      mode: serial
+      reviewers: [requirement-analyst, tech-architect]
+      synthesis_agent: orchestrator
+      synthesis_evidence: harness/evidence/templates/phase/03-pre-mortem.md
+      all_reviewers_required: true
+      one_person_synthesis_enabled: true
+    description: "PRE_MORTEM: 多视角风险评审（风险识别 + 应对策略，与文档质量 Review 分离）"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/03-pre-mortem.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/03-pre-mortem.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/06-pre-mortem.md'
+      - 'grep -qE "risk_assessment:.*(COMPLETE|PARTIAL)" harness/evidence/06-pre-mortem.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: PRE_MORTEM
+        run_id: "<uuid>"
+        role: "<reviewer-role>"
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        risk_assessment: null        # COMPLETE | PARTIAL
+
+  # ------------------------------------------------------------
+  # 12. CODE: 编码实现
+  # ------------------------------------------------------------
+  - id: CODE
+    next: [DEPLOY]
+    entry_agent: developer
+    auto_mode: true
+    description: "CODE 阶段：TDD 开发（RED → GREEN → REFACTOR）"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/06-code.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/06-code.md'
+      # L0-L2：全量快速检查（秒级）
+      - >-
+        cd backend && uv run ruff check app/ && uv run ruff format --check app/
+        && uv run mypy --strict app/
+        && uv run ruff check app/ --select=F401,F811,S608,S307,SEC,B,B003
+      # L3 增量 unit 测试：基于 git diff 确定增量测试文件
+      - >-
+        changed=$(git diff --name-only HEAD~1...HEAD | grep "^backend/tests/unit" | sed 's|^backend/||' | tr '\n' ' ')
+        && if [ -n "$changed" ]; then uv run pytest $changed -x -q --tb=no
+        else uv run pytest tests/unit -x -q --tb=no; fi
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: CODE
+        run_id: "<uuid>"
+        role: developer
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        tdd_cycles_completed: 0
+        test_files_created: []
+
+  # ------------------------------------------------------------
+  # 13. DEPLOY: 部署
+  # ------------------------------------------------------------
+  - id: DEPLOY
+    next: [VERIFY]
+    entry_agent: deployer
+    auto_mode: true
+    description: "DEPLOY 阶段：部署预发（条件触发）"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/09-deploy.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/09-deploy.md'
+      - 'grep -qE "(deploy.*success|部署成功|skipped|跳过)" harness/evidence/09-deploy.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: DEPLOY
+        run_id: "<uuid>"
+        role: deployer
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        deploy_status: null         # success | skipped | failed
+
+  # ------------------------------------------------------------
+  # 14. VERIFY: 质量验证
+  # ------------------------------------------------------------
+  - id: VERIFY
+    next: [REGRESSION]
+    entry_agent: verifier
+    auto_mode: true
+    description: "VERIFY 阶段：L0-L6 质量门禁"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/07-verify.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/07-verify.md'
+      # L0-L2 + L4a：全量快速检查
+      - >-
+        cd backend && uv run ruff check app/ && uv run ruff format --check app/
+        && uv run mypy --strict app/
+        && uv run ruff check app/ --select=F401,F811,S608,S307,SEC,B,B003
+      # L3 增量 pytest：基于 git diff 确定增量文件
+      - >-
+        changed=$(git diff --name-only HEAD~1...HEAD | grep "^backend/tests/" | sed 's|^backend/||' | tr '\n' ' ')
+        && if [ -n "$changed" ]; then uv run pytest $changed -x -q
+        else echo "NO_TEST_CHANGES"; fi
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: VERIFY
+        run_id: "<uuid>"
+        role: verifier
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        gate_results:
+          l0: null
+          l1: null
+          l2: null
+          l4: null
+
+  # ------------------------------------------------------------
+  # 15. SECURITY_TEST: 安全测试（并行）
+  # ------------------------------------------------------------
+  - id: SECURITY_TEST
+    next: [REGRESSION]
+    entry_agent: security-reviewer
+    auto_mode: true
+    parallel_with: [VERIFY]
+    description: "SECURITY_TEST 阶段：独立安全评审 + bandit 扫描"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/11-security-test.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/11-security-test.md'
+      # bandit 安全扫描：无 HIGH/MEDIUM 高置信度漏洞
+      - >-
+        cd backend && pip install -q bandit >/dev/null 2>&1
+        && bandit -r app/ --severity-level=HIGH,MEDIUM --confidence-level=HIGH,MEDIUM
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: SECURITY_TEST
+        run_id: "<uuid>"
+        role: security-reviewer
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        bandit_issues: []
+
+  # ------------------------------------------------------------
+  # 16. DOC_FIX: 文档修复
+  # ------------------------------------------------------------
+  - id: DOC_FIX
+    next: [SIGN_OFF]
+    entry_agent: developer
+    auto_mode: true
+    description: "DOC_FIX 阶段：文档修复"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/12-doc-fix.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/12-doc-fix.md'
+      - >-
+        grep -qE "(markdownlint|typos|ruff.*format|broken-link|格式检查.*PASS)"
+        harness/evidence/17-doc-fix.md
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: DOC_FIX
+        run_id: "<uuid>"
+        role: developer
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+
+  # ------------------------------------------------------------
+  # 17. REGRESSION: 回归测试
+  # ------------------------------------------------------------
+  - id: REGRESSION
+    next: [SIGN_OFF]
+    entry_agent: tester
+    auto_mode: true
+    description: "REGRESSION 阶段：全量回归 + Golden Set"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/10-regression.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/10-regression.md'
+      # L3 integration + e2e + smoke + Golden Set intercept
+      - >-
+        cd backend && uv run pytest tests/integration tests/e2e tests/smoke tests/intercept
+        -x -q --tb=no
+      # L6 coverage：整体 ≥ 60%
+      - >-
+        cd backend && uv run pytest --cov=app --cov-fail-under=60
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: REGRESSION
+        run_id: "<uuid>"
+        role: tester
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        golden_set_result: null
+        coverage_result: null
+
+  # ------------------------------------------------------------
+  # 18. SIGN_OFF: 最终签字
+  # ------------------------------------------------------------
+  - id: SIGN_OFF
+    next: [INCIDENT_RESPONSE]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    one_person_synthesis: true
+    dispatch:
+      mode: serial
+      reviewers: [requirement-analyst, tech-architect]
+      synthesis_agent: orchestrator
+      synthesis_evidence: harness/evidence/templates/phase/11-signoff.md
+      all_reviewers_required: true
+      one_person_synthesis_enabled: true
+    description: "SIGN_OFF 阶段：最终签字（合并所有评审意见）"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/11-signoff.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/11-signoff.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/13-signoff.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: SIGN_OFF
+        run_id: "<uuid>"
+        role: "<reviewer-role>"
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+
+  # ------------------------------------------------------------
+  # 19. DATA_REPLAY: 数据回流
+  # ------------------------------------------------------------
+  - id: DATA_REPLAY
+    next: [REQUIREMENT]
+    entry_agent: requirement-analyst
+    auto_mode: true
+    description: "DATA_REPLAY 阶段：数据回流到下一轮 PRD"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/13-data-replay.md'
+      - 'grep -qE "replay_session_id: [a-f0-9-]{36}" harness/evidence/templates/phase/13-data-replay.md'
+      - 'grep -qE "fr_refs:.*FR-[A-Z0-9-]+" harness/evidence/14-data-replay.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: DATA_REPLAY
+        run_id: "<uuid>"
+        role: requirement-analyst
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+
+  # ------------------------------------------------------------
+  # 20. INCIDENT_RESPONSE: 故障响应
+  # ------------------------------------------------------------
+  - id: INCIDENT_RESPONSE
+    next: [OPS_LOOP]
+    entry_agent: deployer
+    auto_mode: true
+    description: "INCIDENT_RESPONSE 阶段：线上故障响应"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/14-incident-response.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/14-incident-response.md'
+      - 'grep -qE "(fr_refs|incident_id).*FR-|INC-" harness/evidence/15-incident-response.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: INCIDENT_RESPONSE
+        run_id: "<uuid>"
+        role: deployer
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        incident_id: null
+
+  # ------------------------------------------------------------
+  # 21. OPS_LOOP: 持续运营
+  # ------------------------------------------------------------
+  - id: OPS_LOOP
+    next: [SKILL_UPDATE]
+    entry_agent: tester
+    auto_mode: true
+    description: "OPS_LOOP 阶段：灰度/A/B/持续运营"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/15-ops-loop.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/15-ops-loop.md'
+      - 'grep -qE "(A/B|灰度|gradual)" harness/evidence/16-ops-loop.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: OPS_LOOP
+        run_id: "<uuid>"
+        role: tester
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        rollout_strategy: null       # A/B | gradual | stable
+
+  # ------------------------------------------------------------
+  # 22. SKILL_UPDATE: 经验沉淀
+  # ------------------------------------------------------------
+  - id: SKILL_UPDATE
+    next: [INTERRUPT_REVIEW]
+    entry_agent: quality-guardian
+    auto_mode: true
+    description: "SKILL_UPDATE 阶段：lesson → pattern → instinct 沉淀"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/16-skill-update.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/16-skill-update.md'
+      - 'ls harness/lessons/ | wc -l | grep -qE "[1-9]"'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    evidence_schema:
+      frontmatter:
+        phase: SKILL_UPDATE
+        run_id: "<uuid>"
+        role: quality-guardian
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        lessons_extracted: 0
+
+  # ------------------------------------------------------------
+  # 23. ARCH_CLARIFICATION: 架构澄清（新增 - 3次打回后触发）
+  # ------------------------------------------------------------
+  - id: ARCH_CLARIFICATION
+    next: null                       # 由澄清结果决定下一步
+    entry_agent: tech-architect
+    auto_mode: true
+    description: "ARCH_CLARIFICATION: 架构澄清阶段 - 3次 Review 打回后触发"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/arch-clarification.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/arch-clarification.md'
+      - 'grep -qE "clarification_type:.*(CORE|significant|minor)" harness/evidence/templates/arch-clarification.md'
+      - 'grep -qE "user_approved: (true|false)" harness/evidence/templates/arch-clarification.md'
+      - 'grep -qE "options_provided:.*\\[" harness/evidence/templates/arch-clarification.md'
+    context: harness/context/phase-checklist.md
+    interruptible: true
+    interrupt_route: INTERRUPT_REVIEW
+    escalation_to: "user"           # 必须升级给用户确认
+    evidence_schema:
+      frontmatter:
+        phase: ARCH_CLARIFICATION
+        run_id: "<uuid>"
+        role: tech-architect
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        clarification_type: null      # CORE_CHANGE | SIGNIFICANT_REF_CHANGE | MINOR_REF_CHANGE
+        triggering_review: null      # REVIEW_SRS | REVIEW_ARCH | REVIEW_ATDD | REVIEW_TDS | REVIEW_PLAN
+        rejection_count: 0
+        options_provided: []
+        user_approved: false
+        user_selected_option: null
+        resolution: null             # ACCEPTED | MODIFIED | REJECTED
+
+  # ------------------------------------------------------------
+  # 24. INTERRUPT_REVIEW: 中断处理
+  # ------------------------------------------------------------
+  - id: INTERRUPT_REVIEW
+    next: null                      # 恢复回被中断的 phase
+    entry_agent: quality-guardian
+    resume_from: "$interrupted_phase"
+    auto_mode: true
+    description: "INTERRUPT_REVIEW: 用户追问中断处理"
+    exit_criteria:
+      - 'test -f harness/evidence/templates/phase/17-interrupt-review.md'
+      - 'grep -q "^signed: true" harness/evidence/templates/phase/17-interrupt-review.md'
+      - 'grep -qE "(resume|continue|推迟|defer)" harness/evidence/18-interrupt-review.md'
+    context: harness/context/phase-checklist.md
+    interruptible: false
+    evidence_schema:
+      frontmatter:
+        phase: INTERRUPT_REVIEW
+        run_id: "<uuid>"
+        role: quality-guardian
+        fr_refs: []
+        adr_refs: []
+        signed: false
+        interrupt_budget: 5
+        replay_session_id: "<uuid>"
+        interrupted_phase: null
+        interrupt_reason: null
