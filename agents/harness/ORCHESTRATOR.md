@@ -5,18 +5,18 @@ r2_compliance: documented
 owner: harness-orchestrator
 ---
 
-# ORCHESTRATOR — Harness 合成协议（V2）
+# ORCHESTRATOR — Harness 合成协议（V3）
 
-> **V2 更新**：16 phase（新增 SECURITY_TEST / INCIDENT_RESPONSE / OPS_LOOP / SKILL_UPDATE / DATA_REPLAY / INTERRUPT_REVIEW）。
+> **V3 更新**：新增 5 个 Review 节点 + TDS phase；证据路径迁移到 `templates/`。
 > Orchestrator **不评审、不写代码、不调度**——只把多角色 evidence **合成**为可执行决策。
-> PRE_MORTEM / SIGN_OFF 仍为强制合成阶段；V2 新 phase 由各 entry_agent 独立产出 evidence，无需 orchestrator 合成。
+> PRE_MORTEM / SIGN_OFF 仍为强制合成阶段；其他 phase 由各 entry_agent 独立产出 evidence，无需 orchestrator 合成。
 
 ## 一、职责边界
 
 | 维度 | 做 | 不做 |
 |------|----|------|
-| 读 | `evidence/*-<topic>.md`（多评审角色产物） | 业务代码（`backend/`、`apps/`）、`workflow-v2.yaml` 内部细节 |
-| 写 | `evidence/<phase>-synthesis.md`（PRE_MORTEM / SIGN_OFF） | 业务代码、`harness-state.json`（由 dispatcher 负责） |
+| 读 | `templates/phase/*-<topic>.md`（多评审角色产物） | 业务代码（`backend/`、`apps/`）、`workflow-v3.yaml` 内部细节 |
+| 写 | `templates/phase/03-pre-mortem.md`（PRE_MORTEM）、`templates/phase/11-signoff.md`（SIGN_OFF） | 业务代码、`harness-state.json`（由 dispatcher 负责） |
 | 决策 | 三段式合成（共识/冲突/待确认） | 单方面否决 reviewer 观点、直接拍板技术方案 |
 | 调用 | PRE_MORTEM / SIGN_OFF 两阶段必 Read | 在其他阶段越权调用 |
 
@@ -26,29 +26,30 @@ owner: harness-orchestrator
 
 | 输入 | 路径 | 触发阶段 |
 |------|------|---------|
-| 需求评审产物 | `evidence/01-requirement.md` | PRE_MORTEM |
-| 技术评审产物 | `evidence/02-tech-design.md` | PRE_MORTEM |
-| 质量评审产物 | `evidence/04-atdd.md` | PRE_MORTEM |
-| 安全评审产物 | `evidence/03b-security.md` | PRE_MORTEM（**触发式**） |
-| 部署评审产物 | `evidence/03c-devops.md` | PRE_MORTEM（**触发式**） |
-| 验证产物 | `evidence/07-verify.md` | SIGN_OFF |
-| 安全测试产物 | `evidence/08-security-test.md` | SIGN_OFF |
-| 部署产物 | `evidence/09-deploy.md` | SIGN_OFF |
-| 回归测试产物 | `evidence/10-regression.md` | SIGN_OFF |
+| 需求评审产物 | `templates/phase/01-requirement.md` | PRE_MORTEM |
+| 技术评审产物 | `templates/phase/02-tech-design.md` | PRE_MORTEM |
+| 质量评审产物 | `templates/phase/04-atdd.md` | PRE_MORTEM |
+| 安全评审产物 | `templates/phase/08-security-test.md` | PRE_MORTEM（**触发式**） |
+| 部署评审产物 | `templates/phase/09-deploy.md` | PRE_MORTEM（**触发式**） |
+| 验证产物 | `templates/phase/07-verify.md` | SIGN_OFF |
+| 安全测试产物 | `templates/phase/08-security-test.md` | SIGN_OFF |
+| 部署产物 | `templates/phase/09-deploy.md` | SIGN_OFF |
+| 回归测试产物 | `templates/phase/10-regression.md` | SIGN_OFF |
 | 上游基线 | `docs/spec/TDS-<id>.md` | 两阶段均需 |
 
-### V2 新增 phase 的 evidence（无需 orchestrator 合成）
+### V3 新增 phase 的 evidence（无需 orchestrator 合成）
 
 | phase | entry_agent | evidence 文件 |
-|-------|-------------|-------------|
-| SECURITY_TEST | security-reviewer | `evidence/08-security-test.md` |
-| INCIDENT_RESPONSE | deployer | `evidence/13-incident-response.md` |
-| OPS_LOOP | tester | `evidence/14-ops-loop.md` |
-| SKILL_UPDATE | quality-guardian | `evidence/15-skill-update.md` |
-| DATA_REPLAY | requirement-analyst | `evidence/12-data-replay.md` |
-| INTERRUPT_REVIEW | quality-guardian | `evidence/16-interrupt-review.md` |
+|-------|-------------|---------------|
+| `REVIEW_SRS` | requirement-analyst | `templates/review/review-srs.md` |
+| `REVIEW_ARCH` | tech-architect | `templates/review/review-arch.md` |
+| `REVIEW_ATDD` | quality-guardian | `templates/review/review-atdd.md` |
+| `REVIEW_TDS` | tech-architect | `templates/review/review-tds.md` |
+| `REVIEW_PLAN` | plan-generator | `templates/review/review-plan.md` |
+| `TDS` | tech-architect | `templates/phase/04-tds.md` |
+| `ARCH_CLARIFICATION` | tech-architect | `templates/arch-clarification.md` |
 
-## 三、输出契约：`<phase>-synthesis.md` 三段结构（V2 8 字段 frontmatter）
+## 三、输出契约：三段结构
 
 ```yaml
 ---
@@ -58,15 +59,15 @@ role: orchestrator
 fr_refs: [<FR-XXX-XX>, ...]
 adr_refs: [<ADR-XXXX>, ...]
 synthesis_inputs:
-  - 01-requirement.md
-  - 02-tech-design.md
-  - 04-atdd.md
-  - 03b-security.md     # 触发式
-  - 03c-devops.md       # 触发式
+  - templates/phase/01-requirement.md
+  - templates/phase/02-tech-design.md
+  - templates/phase/04-atdd.md
+  - templates/phase/08-security-test.md     # 触发式
+  - templates/phase/09-deploy.md           # 触发式
 tds_ref: <docs/spec/TDS-<id>.md>
 signed: true
-interrupt_budget: <integer>   # V2：从 state.json 同步
-replay_session_id: <uuid|null> # V2：DATA_REPLAY 时同步
+interrupt_budget: <integer>   # 从 state.json 同步
+replay_session_id: <uuid|null> # DATA_REPLAY 时同步
 ---
 ```
 
@@ -78,16 +79,13 @@ replay_session_id: <uuid|null> # V2：DATA_REPLAY 时同步
 | **二、冲突条目** | reviewer 分歧；orchestrator 给"裁决建议"（引用 ADR 或建议新增 ADR），**不**写"最终结论" |
 | **三、待用户确认条目** | 涉及 ADR 新增/破坏性变更/商业敏感；必须 `AskUser` |
 
-> 模板与示例见 `harness/templates/synthesis.md`（含 2 个内嵌示例）。
-
 ## 四、触发时机（强制约束）
 
 | 阶段 | 强制走 orchestrator? | 理由 |
 |------|:---:|------|
 | `PRE_MORTEM` | ✅ **强制** | 5 评审产物齐全，必须跨视角合成 |
 | `SIGN_OFF` | ✅ **强制** | 跨角色签字 + PR 摘要，必须合成 |
-| V2 新增 6 phase | ❌ | 各 entry_agent 独立产出 evidence，无需合成 |
-| 其它 10 阶段 | ❌ | 单角色即可（见 §二） |
+| 其他 19 个 phase | ❌ | 各 entry_agent 独立产出 evidence，无需合成 |
 
 **实现**：dispatcher 在 PRE_MORTEM / SIGN_OFF 的 `next_agent` 唯一指向 orchestrator；其它阶段不会路由。
 
@@ -121,7 +119,7 @@ replay_session_id: <uuid|null> # V2：DATA_REPLAY 时同步
 |------|---------|
 | 共识 ≥ 1 + 冲突全部裁决 + 待确认全部答复 | 写完 synthesis → 通知 dispatcher 推进 |
 | 存在未答复的待确认 | **阻塞**，不写 synthesis，等用户 |
-| evidence 缺失（如 03b-security 缺但已触发） | 返回错误，要求 dispatcher 触发对应 reviewer 补出 |
+| evidence 缺失（如 security-test 缺但已触发） | 返回错误，要求 dispatcher 触发对应 reviewer 补出 |
 | 评审产物矛盾到无法合成 | 返回错误，附"建议拆 FR / 重做 PRE_MORTEM" |
 
 ### 硬禁止
@@ -149,7 +147,7 @@ EXECUTORS → 单角色执行（"我负责做这件事"）
 
 - 评审角色清单：`agents/harness/REVIEWERS.md`
 - 执行角色清单：`agents/harness/EXECUTORS.md`
-- 合成模板：`harness/templates/synthesis.md`
-- evidence schema：`harness/evidence/README.md`（V2 8 字段）
-- workflow-v2.yaml：`harness/workflow-v2.yaml`（V2 唯一真源）
+- 合成模板：`harness/evidence/templates/phase/03-pre-mortem.md`
+- evidence schema：`harness/evidence/README.md`（V3 结构）
+- workflow-v3.yaml：`harness/workflow-v3.yaml`
 - 红线：`.cursor/rules/project-prohibitions.mdc` R-2
