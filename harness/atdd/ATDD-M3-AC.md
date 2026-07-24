@@ -12,45 +12,42 @@
 ### Background
 ```gherkin
 Background:
-  Given 用户已完成 M2 智能分析，获得 7-14 个标签
+  Given 用户已完成 M2 智能分析
+  And distinct 部位数 N = 1 或 2 或 3
   And 用户持有有效 JWT
 ```
 
-### Scenario: 基于智能分析标签生成 21 天方案（M3-FR-01）
+### Scenario: 基于 distinct 部位数生成 N 个视频，21 天循环（M3-FR-01）
 ```gherkin
-Given 用户已完成 M2 智能分析，获得 7-14 个标签
+Given 用户已完成 M2 distinct，得到 N 个部位（N ∈ {1, 2, 3}）
 When 用户点击"生成 21 天方案"
-Then 系统返回 21 天每日任务清单
-And 每天包含至少 1 个视频任务
-And 21 天内同一 video_id 不重复出现
-And 响应时间 P95 < 2 秒
+Then 系统生成 N 个视频（每个部位对应 1 个视频）
+And 每天任务 = N 个视频（循环播放）
+And 21 天内每天任务相同
 ```
 
-### Scenario: 阶段 1（第 1-7 天）每天仅 1 个任务（M3-FR-02）
+### Scenario: N=1 时每天仅 1 个任务（M3-FR-02）
 ```gherkin
-Given 方案已生成
-When 用户查看第 1-7 天任务
+Given M2 distinct 部位数 N=1
+When 方案已生成
 Then 每天仅有 1 个视频任务
-And 每任务时长 5-15 分钟
-And 阶段 1 视频难度为 L1（轻柔）
+And 21 天每天都是这同一个视频
 ```
 
-### Scenario: 阶段 2（第 8-14 天）每天 1-2 个任务（M3-FR-02）
+### Scenario: N=2 时每天 2 个任务（M3-FR-02）
 ```gherkin
-Given 方案已生成
-When 用户查看第 8-14 天任务
-Then 每天有 1-2 个视频任务
-And 每任务时长 10-25 分钟
-And 视频来源为 L1 + 用户档案自适应
+Given M2 distinct 部位数 N=2
+When 方案已生成
+Then 每天有 2 个视频任务
+And 21 天每天都是这 2 个视频
 ```
 
-### Scenario: 阶段 3（第 15-21 天）每天 2-3 个任务（M3-FR-02）
+### Scenario: N=3 时每天 3 个任务（M3-FR-02）
 ```gherkin
-Given 方案已生成
-When 用户查看第 15-21 天任务
-Then 每天有 2-3 个视频任务
-And 每任务时长 15-30 分钟
-And 视频来源包含用户已打卡动作回看
+Given M2 distinct 部位数 N=3
+When 方案已生成
+Then 每天有 3 个视频任务
+And 21 天每天都是这 3 个视频
 ```
 
 ### Scenario: 方案可一键进入首页（M3-FR-01）
@@ -107,6 +104,7 @@ And 记录降级日志
 ```gherkin
 Background:
   Given 用户已激活方案 plan_id='xxx'
+  And 方案包含 N 个视频（N = distinct 部位数）
   And 当前日期为方案开始后第 N 天
 ```
 
@@ -114,9 +112,9 @@ Background:
 ```gherkin
 Given 用户已激活方案
 When 用户 GET /api/v1/plans/today
-Then 返回今日任务（day / phase / tasks）
-And phase ∈ [1, 2, 3]
-And tasks 包含 video_id / title / source / thumbnail / duration_sec
+Then 返回今日任务（day / tasks）
+And tasks 包含 N 个视频（对应 N 个部位）
+And tasks 包含 video_id / title / source / thumbnail / duration_sec / body_part
 ```
 
 ### Scenario: 方案生成超时返回降级（M3-FR-03）

@@ -17,14 +17,31 @@ Background:
   And 用户未在 7 天内完成过智能分析
 ```
 
+### Scenario: 用户上传照片后 LLM 自动识别部位（M2-FR-01）
+```gherkin
+Given 用户上传 1-3 张照片（无 body_part 标注）
+When 用户点击"开始智能分析"
+Then 后端 LLM 分析每张照片，自动识别 body_part（face/head/shoulder_neck）
+And 对识别结果做 distinct，得到 N ∈ {1, 2, 3}
+And 返回 N 个部位对应的改善方向
+```
+
+### Scenario: N=1 时 LLM 识别出 1 个部位（M2-FR-01）
+```gherkin
+Given 用户上传 [照片A, 照片A, 照片A]（3 张相同）
+When LLM 自动识别 body_part
+Then 识别结果可能都是 face → distinct 后 N=1
+And 报告仅生成 1 个部位的改善方向
+```
+
 ### Scenario: 用户完成照片上传后在 20 秒内看到智能分析报告（M2-FR-01）
 ```gherkin
-Given 用户已上传 3 张照片（正面脸 / 侧面体态 / 头顶发质）
+Given 用户已上传 1-3 张照片
 And 用户档案完整
 When 用户点击"开始智能分析"
 Then 系统在 20 秒内返回智能分析报告（P95 ≤ 20s）
-And 报告包含至少 3 条改善方向
-And 报告包含 7-14 个智能分析标签
+And 报告包含至少 N 条改善方向（N = distinct 部位数）
+And 每条方向对应 1 个部位
 ```
 
 ### Scenario: 智能分析报告包含合规的改善方向（M2 合规红线）
@@ -57,13 +74,23 @@ And 不触发 LLM 调用
 And llm_cost=0
 ```
 
-### Scenario: LLM 失败时降级为标准方案（M2-FR-03）
+### Scenario: LLM 失败时降级链（M2-FR-03）
 ```gherkin
-Given LLM 服务不可用（或调用超时 >20s）
+Given LLM 服务不可用（MULTI_MODEL 超时 30s 或 HTTP 500）
 When 用户发起智能分析
-Then 系统返回基于档案标签的标准方案
-And 记录降级日志（llm_error=true）
+Then 系统切换到 BACKUP_MULTI_MODEL（轻量多模态）
+And 记录降级日志（llm_error=true, tier=1, model=BACKUP_MULTI_MODEL）
 And 报告标记 fallback=true
+```
+
+### Scenario: BACKUP_MULTI_MODEL 也失败时返回 Fallback ACK（M2-FR-03）
+```gherkin
+Given BACKUP_MULTI_MODEL 也不可用（超时或 HTTP 500）
+When 用户发起智能分析
+Then 系统返回 Fallback ACK 模板 + 24h 人工跟进承诺
+And 记录降级日志（llm_error=true, tier=2, model=null）
+And 报告标记 fallback=true
+And 照片保留供后续重试
 ```
 
 ### Scenario: 连续 2 次 LLM 失败锁定智能分析功能（M2-FR-03）
@@ -80,10 +107,19 @@ And 锁定智能分析入口
 
 ### Scenario: 照片数量不足被拦截（M2-FR-01）
 ```gherkin
-Given 用户上传照片数组长度 < 3
+Given 用户上传照片数组长度 < 1
 When 用户点击"开始智能分析"
 Then 返回业务码 E_DIAGNOSIS_INVALID_INPUT
-And 提示"照片数量不足（需要 3 张）"
+And 提示"请至少上传 1 张照片"
+And 不调用 LLM
+```
+
+### Scenario: 照片数量超过 3 张被拦截（M2-FR-01）
+```gherkin
+Given 用户上传照片数组长度 > 3
+When 用户点击"开始智能分析"
+Then 返回业务码 E_DIAGNOSIS_INVALID_INPUT
+And 提示"最多上传 3 张照片"
 And 不调用 LLM
 ```
 

@@ -1,11 +1,14 @@
 # ATDD-Push: 推送调度
 
-> **版本**: V1.0
+> **版本**: V1.1
 > **状态**: Draft
 > **对应模块**: M13
 > **对应 TDS**: `docs/architecture/TDS/TDS-M13-push-scheduler.md`
 > **对应 SRS**: `docs/requirements/SELFWELL-MVP-SRS.md`
 > **对应 PRD**: `docs/PRD/Selfwell-PRD-V1.1.md`
+>
+> **修订记录**:
+> - V1.1: 锚点修正为 plan.started_at；推送类型精简为 2 类；补充打卡完成 ACK 推送；关心推送时间调整为 19:00
 
 ---
 
@@ -27,6 +30,16 @@ And 使用微信服务通知通道（wx_subscribe）
 And 邮件兜底送达率 ≥ 98%
 ```
 
+### Scenario: 打卡完成后 ACK 推送（M13-FR-01）
+```gherkin
+Given 用户完成当日打卡
+When 系统检测到打卡成功
+Then 立即发送打卡完成 ACK 推送
+And 内容从 30 条 ACK 话术池随机选取一条（≤ 30 字）
+And 不重复：连续 3 条 feedback 不出现相同 ACK
+And 推送通道同用户端（wx_subscribe / apns / fcm / hms）
+```
+
 ### Scenario: 推送 8:00 后 10 分钟未送达即报警（M13-FR-01）
 ```gherkin
 Given 8:00 CST 推送任务执行
@@ -38,7 +51,7 @@ And 运营介入处理
 
 ### Scenario: Day 7/14/21 主动回忆推送（M13-FR-01）
 ```gherkin
-Given 用户注册已满 N 天（7/14/21）
+Given active plan.started_at 已满 N 天（7/14/21）
 And 用户已连续打卡满 N 天
 When APScheduler 执行 push_day{N}_recall
 Then 发送主动回忆通知
@@ -46,11 +59,12 @@ And 内容包含回顾邀请
 And 附带小程序码
 ```
 
-### Scenario: 连续 3 日未打卡关心推送（M13-FR-01）
+### Scenario: 连续未打卡关心推送（M13-FR-01）
 ```gherkin
-Given 用户连续 3 日未打卡
-When APScheduler 执行 send_streak_care（每日 9:00 CST）
-Then 发送关心推送
+Given 用户连续未打卡
+When 每日 19:00 CST 扫描发现连续未打卡用户
+Then APScheduler 执行 send_streak_care
+And 发送关心推送
 And 内容为柔和话术（"今天累了就休息，明天的你还在这里。"）
 ```
 
@@ -107,6 +121,7 @@ When 系统发送通知
 Then 邮件兜底送达率 ≥ 98%
 And 使用阿里云 DirectMail
 And 月免费额度 2000 封
+And 三通道加权综合送达率 ≥ 95%（主通道 wx/apns/fcm/hms）
 ```
 
 ---
@@ -164,8 +179,8 @@ Background:
 ### Scenario: 用户可设置推送偏好（M13-FR-04）
 ```gherkin
 Given 用户请求 PUT /api/v1/push/settings
-When 用户设置推送开关（方案提醒 / 主动回忆 / 社区互动 / 活动推送）
-Then 4 类推送各自独立开关
+When 用户设置推送开关（方案提醒 / 主动回忆）
+Then 2 类推送各自独立开关
 And 设置写入 user_push_preferences 表
 And 返回更新成功
 ```
@@ -174,7 +189,7 @@ And 返回更新成功
 ```gherkin
 Given 用户请求 GET /api/v1/push/settings
 When 系统处理请求
-Then 返回当前 4 类推送的开关状态
+Then 返回当前 2 类推送的开关状态
 And 包含推送通道信息
 And 返回 DND 时段设置
 ```
@@ -273,7 +288,7 @@ And misfire_grace_time=300
 
 ### Scenario: push_day{N}_recall date 配置（M13-FR-01）
 ```gherkin
-Given 用户注册时间为 T
+Given 用户 active plan.started_at 为 T
 When 到达 T+N 天 8:00 CST
 Then trigger date 执行 push_day{N}_recall
 And 仅执行一次
@@ -283,9 +298,9 @@ And 仅执行一次
 ```gherkin
 Given APScheduler 配置
 When job_id='send_streak_care'
-Then cron 表达式为每日 9:00 CST
+Then cron 表达式为每日 19:00 CST
 And 时区 Asia/Shanghai
-And 扫描连续 3 日未打卡用户
+And 扫描连续未打卡用户
 ```
 
 ---
@@ -317,6 +332,7 @@ And 不超出 LLM 月预算
 ### 相关定义
 - 降级策略：详见 [ATDD-Shared.md §五.3](../ATDD-Shared.md#五降级策略唯一真源m2m5m8共享)
 - 错误码定义：详见 [ATDD-Shared.md §四](../ATDD-Shared.md#四错误码字典)
+- ACK 话术池：详见 `docs/data/ack-pool.yaml`（30 条 `valid=true`）
 
 ---
 
@@ -325,3 +341,4 @@ And 不超出 LLM 月预算
 | 日期 | 版本 | 改动 |
 |------|------|------|
 | 2026-07-21 | V1.0 | 初次创建 |
+| 2026-07-24 | V1.1 | 1. §一：修正 Recall 锚点为 active plan.started_at<br>2. §一：补充打卡完成 ACK 推送类型<br>3. §一：关心推送时间调整为每日 19:00<br>4. §二：送达率指标统一为三通道 ≥ 95%、邮件 ≥ 98%<br>5. §四：推送类型从 4 类精简为 2 类（方案提醒/主动回忆）<br>6. §七：send_streak_care 时间修正为 19:00 |

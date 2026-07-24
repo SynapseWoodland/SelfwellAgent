@@ -1,6 +1,6 @@
 # ATDD-Share: 分享卡
 
-> **版本**: V1.0
+> **版本**: V1.1
 > **状态**: Draft
 > **对应模块**: M10
 > **对应 TDS**: `docs/architecture/TDS/TDS-M10-share-card.md`
@@ -15,33 +15,33 @@
 ```gherkin
 Background:
   Given 用户已登录并持有有效 JWT
-  And 用户累计打卡满 7/14/21 天
+  And 用户 streak_days 达到 7/14/21
 ```
 
 ### Scenario: 第 7 天自动出现抱抱卡入口（M10-FR-01）
 ```gherkin
-Given 用户累计打卡 7 天
+Given 用户 streak_days 达到 7
 And 当天打卡已完成
-When 用户进入首页
-Then 首页显示"分享你的坚持"入口
+When 打卡完成
+Then 系统显示抱抱卡入口弹窗
 And 用户可点击生成抱抱卡
 ```
 
 ### Scenario: 第 14 天自动出现抱抱卡入口（M10-FR-01）
 ```gherkin
-Given 用户累计打卡 14 天
+Given 用户 streak_days 达到 14
 And 当天打卡已完成
-When 用户进入首页
-Then 首页显示"分享你的坚持"入口
+When 打卡完成
+Then 系统显示抱抱卡入口弹窗
 And 用户可点击生成抱抱卡
 ```
 
 ### Scenario: 第 21 天方案完成抱抱卡（M10-FR-01）
 ```gherkin
-Given 用户累计打卡 21 天
+Given 用户 streak_days 达到 21
 And 当天打卡已完成
-When 用户进入首页
-Then 首页显示"方案完成"抱抱卡入口
+When 打卡完成
+Then 系统显示抱抱卡入口弹窗
 And 用户可点击生成抱抱卡
 ```
 
@@ -58,7 +58,7 @@ And 返回海报 URL
 Given 抱抱卡已生成
 When 用户查看海报
 Then 海报包含累计天数（"和你走过的 {n} 天" / "和你一起 · 第 {n} 天"）
-And 海报包含鼓励话术（来自 ACK_POOL 30 条池）
+And 海报包含鼓励话术（来自 ACK 池 30 条）
 And 海报包含小程序码/APP 二维码
 And 海报包含 Selfwell 品牌标识
 ```
@@ -77,7 +77,7 @@ Background:
 ```gherkin
 Given 抱抱卡已生成
 When 系统校验文案
-Then 不含：坚持 / 进步 / 改善 / 变好 / 真的棒 / 打卡 / 好棒 / 分数 / 排名 / 颜值 / 好看
+Then 不含禁用词（详见 docs/data/recall-forbidden-words.yaml numeric_judge 分组）
 And 天数仅以"和你走过的 {n} 天" 形式呈现
 And 不出现"已坚持 {n} 天"
 And 字面命中 CI 拦截，红牌拒绝
@@ -101,12 +101,13 @@ And 模板不包含任何禁用词
 And 合规团队人工审核通过
 ```
 
-### Scenario: 海报 URL 有效期 7 天（M10-FR-02）
+### Scenario: 海报 URL 有效期 7 天（CDN 缓存）（M10-FR-02）
 ```gherkin
 Given 抱抱卡已生成
 When 系统返回 URL
-Then expires_at = created_at + 7 天
-And 过期后需重新生成
+Then CDN 缓存有效期 = 7 天
+And 用户可随时重新生成新海报
+And expires_at 字段仅供参考
 ```
 
 ---
@@ -136,6 +137,7 @@ Given 用户在小程序端
 When 用户点击"转发表情包"
 Then 可通过 shareElement 转为表情包分享
 And 表情包含 Selfwell 品牌水印
+And APP 端不支持此功能
 ```
 
 ### Scenario: APP 端可分享至微信好友（M10-FR-04）
@@ -143,7 +145,8 @@ And 表情包含 Selfwell 品牌水印
 Given 用户在 APP 端
 When 用户点击分享按钮
 Then 可通过 share_plus 分享至微信好友
-And 分享文本包含 hashtag #Selfwell
+And 分享文本不包含天数数字
+And 分享文本不包含禁用词
 ```
 
 ### Scenario: APP 端可分享至朋友圈（M10-FR-04）
@@ -188,7 +191,7 @@ And 返回 days_until_trigger
 Given 用户累计打卡 5 天（未达 7/14/21）
 When 用户尝试 POST /api/v1/share/poster
 Then 返回业务码 E_SHARE_ELIGIBLE_NOT_MET
-And 提示"还差 {n} 天解锁抱抱卡"
+And 提示"再走 {n} 天就有惊喜"
 ```
 
 ### Scenario: plan 不属于当前用户被拒绝（M10-FR-02）
@@ -245,3 +248,4 @@ And expires_at 不变
 | 日期 | 版本 | 改动 |
 |------|------|------|
 | 2026-07-21 | V1.0 | 初次创建 |
+| 2026-07-24 | V1.1 | 1. 触发条件改为 streak_days（实际打卡天数）<br>2. 入口触发时机改为打卡完成后立即显示弹窗<br>3. 禁用词引用外部词表 recall-forbidden-words.yaml<br>4. URL 有效期区分 CDN 缓存 vs 业务永久有效<br>5. 分享入口文案移除"坚持"禁用词<br>6. 未达标提示文案改为"再走 {n} 天就有惊喜"<br>7. ACK 命名统一为"ACK 池"<br>8. 表情包分享明确为小程序端专属 |
