@@ -68,6 +68,8 @@ disable-model-invocation: true
 | 文档 | 说明 | 来源 |
 |------|------|------|
 | `docs/frontend-design/figma-pixso-spec/pages-v2/00-phone-prototype-v1.html` | **前端原型真源**（唯一） | V2 原型 |
+| `docs/frontend-design/figma-pixso-spec/pages-v2/cursor-dev-spec.md` | **前端还原规范**（颜色/字号/布局 token） | AI 还原参考 |
+| `docs/frontend-design/figma-pixso-spec/pages-v2/cursor-api-contract.md` | **API 接口契约**（前端调用规范） | 前端开发参考 |
 | `docs/frontend-design/design-spec.md` | 设计规范 | 前端规范 |
 
 ### G. Evidence 文档来源字段说明
@@ -91,10 +93,10 @@ disable-model-invocation: true
 | **REVIEW_ATDD** | `templates/phase/04-atdd.md` | — | 写代码 / 改 state.json | `templates/review/review-atdd.md` | alignment_check: PASS |
 | **TDS** | `templates/phase/02-tech-design.md`、`templates/phase/04-atdd.md` | — | 写代码 / 改 state.json | `templates/phase/04-tds.md` | tds_modules 已定义 |
 | **REVIEW_TDS** | `templates/phase/04-tds.md` | — | 写代码 / 改 state.json | `templates/review/review-tds.md` | alignment_check: PASS |
-| **PLAN** | `templates/phase/04-tds.md`、`templates/phase/04-atdd.md` | — | 写代码 / 改 state.json | `templates/phase/05-plan.md` | 实施计划含时间估算 |
+| **PLAN** | `templates/phase/04-tds.md`、`templates/phase/04-atdd.md` | `cursor-dev-spec.md`（前端 FR 时） | 写代码 / 改 state.json | `templates/phase/05-plan.md` | 实施计划含时间估算 |
 | **REVIEW_PLAN** | `templates/phase/05-plan.md` | — | 写代码 / 改 state.json | `templates/review/review-plan.md` | alignment_check: PASS |
 | **PRE_MORTEM** | `templates/phase/0[1-5]-*.md` | — | 写代码 / 改 state.json | `templates/phase/03-pre-mortem.md`（orchestrator 合成） | 3 评审签字 |
-| **CODE** | `templates/phase/05-plan.md`、`coding-standards`、`ad-tdd` Skill | — | 读 REQUIREMENT 原文 / 改 state.json | `templates/phase/06-code.md` | L0-L6 门禁全 PASS |
+| **CODE** | `templates/phase/05-plan.md`、`coding-standards`、`ad-tdd` Skill | `cursor-dev-spec.md`（前端 token） + `cursor-api-contract.md`（API 调用） | 读 REQUIREMENT 原文 / 改 state.json | `templates/phase/06-code.md` | L0-L6 门禁全 PASS |
 | **DEPLOY** | `templates/phase/06-code.md` | — | 读 REQUIREMENT 原文 | `templates/phase/09-deploy.md` | 部署成功/跳过 |
 | **VERIFY** | `templates/phase/06-code.md`、`EXECUTORS.md`（verifier） | — | 读 REQUIREMENT 原文 | `templates/phase/07-verify.md` | L0-L6 全 PASS |
 | **SECURITY_TEST** | `templates/phase/06-code.md`、`coding-standards/RULES.md` | — | 写代码 | `templates/phase/08-security-test.md` | bandit 无 S/F |
