@@ -1,0 +1,346 @@
+---
+date: 2026-07-22
+description: >
+  操作所有含中文的文档文件（新增/查询/更新）时，必须确保中文正常显示、不出现乱码。
+  覆盖：原生工具优先、PowerShell 编码陷阱、验证方法、损坏恢复路径。
+  适用：backend/docs/、harness/、.cursor/rules/、.cursor/skills/、scripts/ 等所有含中文的文档。
+alwaysApply: true
+tags: [chinese, utf-8, encoding, powershell, windows, documentation]
+reviewed_by: harness/lessons/2026-07-19-powershell-utf8-chinese-corruption.md
+reviewed_by: docs/cursor_experience/windows-powershell-unicode-and-large-html-file-pitfalls.md
+---
+
+# 中文文档 UTF-8 操作规范
+
+> **唯一真源**：`.cursor/rules/chinese-doc-utf8-handling.mdc`
+>
+> **背景**：2026-07-19 C-14 迁移实操证明：Windows PowerShell 5.x `Set-Content` 默认 GBK/CP936 编码，
+> 会把 UTF-8 中文字节序列拆碎写入，导致中文变 `?` 或乱码。已造成 41 份 harness/ 文件大规模损坏，
+> `git diff` 净减 1228 行。详见 `harness/lessons/2026-07-19-powershell-utf8-chinese-corruption.md`。
+
+---
+
+## 一、核心原则（5 条铁律）
+
+| # | 原则 | 工具 | 备注 |
+|---|------|------|------|
+| **A** | 优先用 Read / StrReplace / Write 原生工具 | Cursor 原生文件工具 | Node.js/Python 底层，UTF-8 兼容，无 PowerShell 编码 bug |
+| **B** | 必须用 shell 时，强制 UTF-8 + 不用 Set-Content | `Get-Content -Raw -Encoding utf8` + Python heredoc | 避免 PowerShell 默认 ANSI |
+| **C** | 验证段：每次大改动后跑 `git diff --stat` 对比"改动行数 vs 预期" | `git diff --cached --stat` | 异常大行数（如净减 1000+ 行）= 编码损坏信号 |
+| **D** | 从 git 恢复损坏文件时，从 blob 读取而非 `git checkout --` | `git cat-file -p <blob_hash>` | `git checkout --` 恢复的是暂存区损坏内容 |
+| **E** | 批量替换用 Python 脚本，通过 `.ps1` 包装调用，不用 PowerShell 管道符 | Python 脚本 | PS 5.x 不支持 `&&` Sequential Operator |
+
+---
+
+## 二、操作规范（按场景）
+
+### 2.1 读取中文文档
+
+```python
+# ✅ Python 永远是真 UTF-8
+content = Path('docs/xxx.md').read_text(encoding='utf-8')
+```
+
+```powershell
+# ⚠️ PowerShell 必须加 -Encoding utf8（但 PSCore 7+ 才无 BOM）
+Get-Content -Path 'docs/xxx.md' -Raw -Encoding utf8
+```
+
+**禁止**：
+- 用 `cat` / `type` 在 PowerShell 管道里读取中文文件后传 Python（管道经过 GBK stdout）
+- 用 `grep` / `rg` 搜索中文路径文件（在 PowerShell 下 stdout 有同样编码问题）
+
+### 2.2 新增中文文档
+
+**✅ 正确做法**：
+
+1. 用 Write 工具直接写入（Cursor 原生工具，真 UTF-8）
+
+```python
+# Python 备选（当 Write 工具不可用时）
+content = "# 中文文档\n这里是中文内容"
+with open('docs/new-doc.md', 'w', encoding='utf-8', newline='\n') as f:
+    f.write(content)
+```
+
+**禁止**：
+- 用 `Set-Content -Path 'docs/new-doc.md' -Value '中文内容'`（PS 5.x 默认 GBK）
+- 用 PowerShell `Out-File` 写中文文档（默认 UTF-16 LE 或带 BOM UTF-8）
+- 用 `echo "中文" > file.md`（PowerShell 重定向同受编码影响）
+
+### 2.3 更新中文文档（StrReplace）
+
+**✅ 正确做法**：
+
+1. 用 Read 工具完整读取文件（确认原文无误）
+2. 用 StrReplace 工具做精确增量替换（底层 Node.js，UTF-8 安全）
+3. Python 备选（字节级替换，不过编码层）：
+
+```python
+# 字节级替换，保持原始编码
+with open('docs/xxx.md', 'rb') as f:
+    content = f.read()
+new_content = content.replace(b'old_text', b'new_text')
+with open('docs/xxx.md', 'wb') as f:
+    f.write(new_content)
+```
+
+**禁止**：
+- 用 PowerShell `-replace` 操作符配合 `Set-Content` 重写文件（即使替换逻辑正确，写入端仍是 GBK）
+
+### 2.4 批量替换中文文档
+
+**✅ 正确做法**：
+
+```python
+# fix_paths.py - 批量替换脚本
+import subprocess
+import re
+from pathlib import Path
+
+ROOT = Path(r'd:/agent-project/SelfwellAgent')
+
+def git_cat_file(blob_hash: str) -> bytes:
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'cat-file', '-p', blob_hash],
+        capture_output=True
+    )
+    return result.stdout
+
+def get_blob_hash(rel_path: str) -> str | None:
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'ls-tree', '-r', 'HEAD', '--', rel_path],
+        capture_output=True
+    )
+    if result.returncode != 0:
+        return None
+    parts = result.stdout.decode().strip().split()
+    if len(parts) >= 2 and parts[1] == 'blob':
+        return parts[2]
+    return None
+
+REPLACEMENTS = [
+    ('docs/old/', 'docs/new/'),
+    # ('harness/', 'harness_v2/'),
+]
+
+extensions = ['.py', '.ts', '.tsx', '.dart', '.yaml', '.yml', '.md', '.mdc', '.sh', '.sql']
+exclude_dirs = {'node_modules', '.git', 'venv', 'dist', '.venv', '__pycache__'}
+
+for ext in extensions:
+    for file_path in ROOT.rglob(f'*{ext}'):
+        if any(e in file_path.parts for e in exclude_dirs):
+            continue
+        rel_path = str(file_path.relative_to(ROOT)).replace('\\', '/')
+        blob_hash = get_blob_hash(rel_path)
+        if not blob_hash:
+            continue
+        original_bytes = git_cat_file(blob_hash)
+        content = original_bytes.decode('utf-8', errors='replace')
+        modified = False
+        for old, new in REPLACEMENTS:
+            if old in content:
+                content = content.replace(old, new)
+                modified = True
+        if modified:
+            # 强制 LF 换行（避免 CRLF 问题）
+            new_bytes = content.replace('\r\n', '\n').replace('\r', '\n').encode('utf-8')
+            file_path.write_bytes(new_bytes)
+            print(f"Updated: {rel_path}")
+```
+
+**禁止**：
+- 用 PowerShell 脚本直接 `Get-Content | ForEach-Object { $_ -replace 'old', 'new' } | Set-Content`
+- 用 PowerShell `&&` Sequential Operator（PS 5.x 不支持，会报 `InvalidEndOfLine`）
+
+### 2.5 删除中文文档
+
+**✅ 正确做法**：
+- 用 Delete 工具删除文件
+- 或 Python：`Path('docs/xxx.md').unlink()`
+
+**禁止**：
+- PowerShell `Remove-Item` 后立即 `git checkout --` 恢复（恢复的是暂存区损坏内容）
+
+---
+
+## 三、验证方法
+
+### 3.1 改动后必做的验证
+
+```bash
+# 1. 对比 git diff 行数是否符合预期
+git diff --cached --stat
+
+# 期望：如果是小改动，应该是几十行增减
+# 异常信号：净减 1000+ 行 = 编码损坏
+
+# 2. 用 Python 验证中文是否正常
+python -c "
+from pathlib import Path
+ROOT = Path('d:/agent-project/SelfwellAgent')
+for f in ['docs/xxx.md', 'harness/xxx.md']:
+    content = Path(ROOT / f).read_text(encoding='utf-8', errors='replace')
+    chinese = [c for c in content if '\u4e00' <= c <= '\u9fff']
+    print(f'{f}: {len(chinese)} chinese chars')
+    if chinese:
+        # 显示前5个包含中文的词
+        import re
+        for line in content.split('\n')[:5]:
+            if re.search(r'[\u4e00-\u9fff]', line):
+                print(f'  Sample: {line[:80]}')
+                break
+"
+```
+
+### 3.2 验证清单
+
+| 步骤 | 命令 | 期望 |
+|------|------|------|
+| 改动前后对比 | `git diff --cached --stat` | 增减行数在预期范围内 |
+| 中文内容校验 | Python 脚本读文件 + 统计中文字符 | 中文字符数量合理（> 0 表示未丢失） |
+| Git blob 校验 | `git cat-file -p HEAD:<path>` vs 工作区文件 | 字节级完全一致（无 CRLF 差异） |
+
+---
+
+## 四、损坏恢复路径
+
+> **核心原则**：永远从 git blob 读取原始内容，不要用 `git checkout --`。
+
+### 4.1 从 git blob 恢复（正确方法）
+
+```python
+import subprocess
+from pathlib import Path
+
+ROOT = Path('d:/agent-project/SelfwellAgent')
+
+def git_cat_file(blob_hash: str) -> bytes:
+    """从 git 对象库获取 blob 原始内容（绕过工作区损坏）"""
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'cat-file', '-p', blob_hash],
+        capture_output=True
+    )
+    return result.stdout
+
+def restore_from_blob(rel_path: str, target_path: Path | None = None) -> bool:
+    """从 HEAD blob 恢复文件到正确 UTF-8"""
+    result = subprocess.run(
+        ['git', '-C', str(ROOT), 'ls-tree', '-r', 'HEAD', '--', rel_path],
+        capture_output=True
+    )
+    if result.returncode != 0:
+        print(f"Not in git: {rel_path}")
+        return False
+    parts = result.stdout.decode().strip().split()
+    if len(parts) < 3 or parts[1] != 'blob':
+        print(f"Not a blob: {rel_path}")
+        return False
+    blob_hash = parts[2]
+    original_bytes = git_cat_file(blob_hash)
+    # 强制 LF 换行 + 真 UTF-8 写入
+    content = original_bytes.decode('utf-8', errors='replace')
+    new_bytes = content.replace('\r\n', '\n').replace('\r', '\n').encode('utf-8')
+    dest = target_path or (ROOT / rel_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(new_bytes)
+    print(f"Restored: {rel_path} ({len(new_bytes)} bytes)")
+    return True
+```
+
+### 4.2 `git checkout --` 的陷阱
+
+```
+磁盘文件（损坏）: 6205 bytes (GBK 编码，含中文字节已损坏)
+Git blob（原始）:  5998 bytes (纯 LF UTF-8，原始中文完整)
+暂存区（损坏）:   6205 bytes (git add 后写入暂存区的是损坏版本)
+
+git checkout -- file.md  ← 恢复的是暂存区（损坏版），不是 blob（原始版）
+```
+
+**永远不要**在 `git add` 损坏文件**之后**执行 `git checkout --`。
+
+---
+
+## 五、PowerShell 编码链路说明
+
+### 5.1 PowerShell 5.x 两套编码问题
+
+| 场景 | 默认行为 | 结果 |
+|------|---------|------|
+| `Set-Content -Path 'file.md' -Value '中文'` | `[System.Text.Encoding]::Default` = GBK | 中文字节被 GBK 重新编码 |
+| `Out-File 'file.md'` | UTF-16 LE | 文件带 BOM，字节翻倍 |
+| `python print('中文')` 在 PS 终端 | `sys.stdout.encoding` = GBK | 中文被 `?` 替换或抛 `UnicodeEncodeError` |
+
+### 5.2 PowerShell 7+ vs PS 5.x 对比
+
+| 操作 | PS 5.x | PS Core 7+ |
+|------|--------|------------|
+| `Set-Content -Encoding utf8` | UTF-8 BOM（`0xEF 0xBB 0xBF` 开头） | 无 BOM 真 UTF-8 |
+| `&&` Sequential Operator | **不支持**，报 `InvalidEndOfLine` | 支持 |
+| `$OutputEncoding` 默认 | GBK/CP936 | UTF-8 |
+
+**结论**：本项目面向 Windows 10/11（内置 PS 5.x），所有中文文档操作必须绕过 PowerShell 编码层。
+
+---
+
+## 六、自审检查命令
+
+```bash
+# 1. 检测 PowerShell 写文件命令（应只在临时脚本里，不应在业务脚本）
+grep -rn "Set-Content\|Out-File" docs/ harness/ .cursor/rules/ .cursor/skills/ 2>&1 | grep -v ".md"
+
+# 2. 检测未指定 -Encoding utf8 的 PowerShell 操作
+grep -rEn "Set-Content|Out-File" scripts/ 2>&1 | grep -v "Encoding utf8"
+
+# 3. 检测 CRLF 换行（应全部是 LF）
+# 对所有 .md/.mdc/.py/.yaml 文件
+file $(git ls-files | grep -E '\.(md|mdc|py|yaml|yml)$') | grep "CRLF"
+
+# 4. 验证中文文档完整性（Python）
+python -c "
+from pathlib import Path
+import sys
+ROOT = Path('d:/agent-project/SelfwellAgent')
+files = [
+    'docs/architecture/TDS/TDS-M5-persona-chat.md',
+    'harness/atdd/v2/ATDD-Journey.md',
+]
+for f in files:
+    p = ROOT / f
+    if not p.exists():
+        continue
+    content = p.read_text(encoding='utf-8', errors='replace')
+    chinese = sum(1 for c in content if '\u4e00' <= c <= '\u9fff')
+    print(f'{f}: {chinese} chinese chars')
+    if chinese == 0:
+        print(f'  WARNING: No Chinese characters found - possible encoding corruption')
+        sys.exit(1)
+"
+```
+
+---
+
+## 七、相关文档索引
+
+| 文件 | 用途 |
+|------|------|
+| `harness/lessons/2026-07-19-powershell-utf8-chinese-corruption.md` | 根因分析 + 修复路径（核心参考） |
+| `docs/cursor_experience/windows-powershell-unicode-and-large-html-file-pitfalls.md` | 7 类实战坑（Grep/Read 大文件/Unicode 同形字等） |
+| `.cursor/rules/file-operation-stability.mdc` | 文件操作工具优先级（Read/StrReplace/Write 优先，shell 禁止文本重写） |
+| `.cursor/rules/project-prohibitions.mdc` | R-5：禁止用 shell 跳级操作文件 |
+
+---
+
+## 八、总结速查表
+
+| 场景 | 正确做法 | 禁止 |
+|------|---------|------|
+| 读中文文档 | Read 工具 / Python `read_text(encoding='utf-8')` | PowerShell 管道 `cat` / `type` |
+| 写中文文档 | Write 工具 / Python `open(..., 'utf-8')` | `Set-Content` / `Out-File` |
+| 增量替换 | StrReplace 工具 / Python `str.replace()` | PowerShell `-replace` + `Set-Content` |
+| 批量替换 | Python 脚本（`.ps1` 包装调用） | PowerShell 直接脚本 |
+| 从 git 恢复 | `git cat-file -p <blob>` → Python 写入 | `git checkout --`（恢复暂存区损坏版） |
+| 验证改动 | `git diff --stat` + Python 中文统计 | 信任终端显示（GBK 解码可能欺骗眼睛） |
+| 换行符 | 统一 LF（`\n`） | CRLF（`\r\n`）导致 git diff 误报 |
+| PowerShell 操作符 | 分步执行（不用 `&&`） | `&&` Sequential Operator（PS 5.x 不支持） |

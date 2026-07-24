@@ -12,6 +12,9 @@ alwaysApply: true
 > 本文件是 alwaysApply 速查表，AI 每条消息都会看到。
 > 本文件由 Cursor 规则系统根据 frontmatter 的 `alwaysApply: true` 自动注入。
 
+> ⚠️ 废弃声明（2026-07-24）：本文件 §二"后端目录结构"已废弃。
+> 后端 `backend/app/` 目录结构唯一真源：`.cursor/rules/ddd-bounded-context.mdc` §五。
+
 ## 一、技术栈（V3 对齐 §2.1）
 
 | 维度 | 选型 | V3 变化 |
@@ -35,24 +38,7 @@ alwaysApply: true
 
 ## 二、后端目录结构（V3 对齐 §2.3）
 
-| 路径 | 用途 | V3 子目录 |
-|------|------|-----------|
-| `backend/app/api/` | API 路由 + middleware（exception_handler） | routers / middleware |
-| `backend/app/core/` | 基础设施（errors / log / config） | — |
-| `backend/app/services/` | 业务服务层 | **6 个：user / diagnosis / checkin / video / community / notification** |
-| `backend/app/agents/` | Agent 编排（仅放图，**业务规则禁入此目录**） | 拆 5 子目录见下 |
-| ├─ `agents/llm_factory.py` | LLM 多模型工厂 | — |
-| ├─ `agents/mcp/` | MCP 工具桥接（bridge / registry） | V3 新增 |
-| ├─ `agents/memory/` | **三层记忆**（short_term / medium_term / long_term） | V3 新增 |
-| ├─ `agents/safety/` | 合规四层（guard / audit） | V3 强化 |
-| ├─ `agents/scheduler/` | 推送 / 任务调度（jobs.py） | V3 新增 |
-| └─ `agents/graph/` | LangGraph 主图 + 子图（assistant / diagnosis / recall / community） | V3 全量重写 |
-| `backend/app/db/` | DB session / 模型基类 | — |
-| `backend/app/utils/` | 通用工具 | — |
-| `backend/app/main.py` | FastAPI 入口 | — |
-| `backend/services/` | 通用基础服务（无业务编排），如合规检查器 | V3 拆分 |
-| `backend/tests/` | pytest 测试（unit / contracts / nodes / integration / e2e / smoke / state） | QA |
-| `backend/eval/` | Golden Set（YAML + Runner + baseline） | QA |
+> 后端 `backend/app/` 目录结构（含 6 个 Bounded Context、events/、core/）：见 `.cursor/rules/ddd-bounded-context.mdc` §五
 
 ## 三、前端目录结构（V3 对齐 §2.4）
 

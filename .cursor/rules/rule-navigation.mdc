@@ -25,6 +25,7 @@ alwaysApply: false
 | Python 设计模式 / 反模式速查 / Result 类型 / Interrupt 幂等性 | `.cursor/rules/python-patterns.mdc`（alwaysApply，PATTERNS.md 全部内容已内联） |
 | Python 测试代码示例（Pydantic 契约 / Mock / VCR.py / Async） | `.cursor/rules/coding-standards.mdc`（alwaysApply，测试规范、TDD 循环、Fixture 示例已内联） |
 | 编写 / 审查 / 重构 Flutter 或 微信小程序代码（`.dart` / `.wxml` / `.wxss` / `.ts`） | `.cursor/rules/frontend-standards.mdc`（alwaysApply，状态管理/WXSS 规范/审核标准速查） |
+| 操作含中文的文档（新增/查询/更新），涉及 backend/docs/、harness/、.cursor/rules/、.cursor/skills/、scripts/ | `.cursor/rules/chinese-doc-utf8-handling.mdc`（alwaysApply，UTF-8 编码规范/PowerShell 陷阱/验证方法/损坏恢复） |
 | 维护 Golden Set / 跑 Eval Runner / 调 prompt / tuner.py | `.cursor/skills/golden-set/SKILL.md` |
 | 提交 PR / MR 前自检（FR 关联 / 验收测试 / ADR 冲突 / 覆盖率 / CI） | `.cursor/skills/pr-gate/SKILL.md` |
 | 基于 SDD 设计方案做 TDD 开发（生成 TDS → ATDD → RED → GREEN → REFACTOR） | `.cursor/skills/ad-tdd/SKILL.md` |
@@ -71,6 +72,7 @@ alwaysApply: false
 | `rules/project-meta.mdc` | 项目元信息（技术栈 / 目录结构） | alwaysApply，每条消息注入 |
 | `rules/file-operation-stability.mdc` | 文件与目录操作工具优先级铁则 | alwaysApply，每条消息注入 |
 | `rules/frontend-standards.mdc` | Flutter / 微信小程序规范速查（WXSS 中文禁止 / 审核标准） | alwaysApply，每条消息注入 |
+| `rules/chinese-doc-utf8-handling.mdc` | 中文文档 UTF-8 操作规范（PowerShell 编码陷阱 / Write/StrReplace 优先 / 损坏恢复） | alwaysApply，每条消息注入 |
 
 ---
 
@@ -108,6 +110,7 @@ alwaysApply: false
   - [rules/coding-standards.mdc](./coding-standards.mdc)（L0-L6 命令、复杂度约束、命名规范、禁止项、节点规范、错误处理、API 错误码、测试规范、14 条 Checklist）
   - [rules/python-patterns.mdc](./python-patterns.mdc)（反模式速查、Result 类型、Async 安全、SQL 安全五层防线、Interrupt 幂等性、Persona 状态机、Feedback 白名单、SSE 契约、分页规范、DB 规范）
   - [rules/frontend-standards.mdc](./frontend-standards.mdc)（Flutter 状态管理、WXSS 中文禁止、微信小程序审核标准）
+  - [rules/chinese-doc-utf8-handling.mdc](./chinese-doc-utf8-handling.mdc)（中文文档 UTF-8 操作规范、PowerShell 编码陷阱、验证方法、损坏恢复）
 - 项目元信息（技术栈 / 目录）：[rules/project-meta.mdc](./project-meta.mdc)
 - 工程红线（5 条禁止项）：[rules/project-prohibitions.mdc](./project-prohibitions.mdc)
 - 文件与目录操作铁则：[rules/file-operation-stability.mdc](./file-operation-stability.mdc)

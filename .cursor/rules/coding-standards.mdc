@@ -1197,29 +1197,7 @@ async def get_export_status(job_id: str):
 
 ### 26.2 目录结构（DDD 分层）
 
-```
-backend/app/
-├── domain/                    # 领域层（纯 Python，无框架依赖）
-│   ├── entities/              # 实体定义
-│   ├── value_objects/         # 值对象定义
-│   ├── aggregates/             # 聚合根定义
-│   ├── events/                # 领域事件定义
-│   ├── repositories/          # Repository 接口定义
-│   └── services/              # 领域服务（无状态）
-├── application/               # 应用层（用例编排）
-│   ├── commands/              # Command（写操作）
-│   └── queries/               # Query（读操作）
-├── infrastructure/            # 基础设施层
-│   ├── persistence/           # Repository 实现（SQLAlchemy）
-│   ├── messaging/            # 事件发布/订阅
-│   └── external/             # 外部服务适配器
-└── api/                      # 接口层（FastAPI）
-    └── routers/
-```
-
-| **Domain Service** | 不属于任何实体的领域操作 | 无状态 Service 类 |
-| **DTO** | 数据传输对象（跨层传递） | Pydantic Model（请求）/ `@dataclass`（响应） |
-| **VO** | 值对象（Domain 层） | `@dataclass(frozen=True, slots=True)` |
+> 后端 `backend/app/` 目录结构：见 `.cursor/rules/ddd-bounded-context.mdc` §五
 
 ### 26.2 数据对象分层规范
 
@@ -1237,64 +1215,7 @@ backend/app/
 
 #### 26.2.2 目录结构（完整 DDD 分层 + Agent）
 
-```
-backend/app/
-├── api/
-│   ├── schemas/                    # API 层：Pydantic Request/Response DTO
-│   │   ├── user/
-│   │   │   ├── requests.py        # CreateUserRequest, UpdateUserRequest
-│   │   │   └── responses.py       # UserResponse, UserListResponse
-│   │   └── common.py              # PageRequest, ErrorResponse
-│   └── routers/
-│       └── user_router.py
-├── application/
-│   ├── commands/                   # 写操作用例
-│   │   ├── create_user_cmd.py    # CreateUserCommand
-│   │   └── update_user_cmd.py    # UpdateUserCommand
-│   ├── queries/                    # 读操作用例（可选 CQRS）
-│   │   └── get_user_qry.py        # GetUserQuery
-│   └── mappers/                    # Application ↔ Domain 转换
-│       └── user_mapper.py
-├── domain/
-│   ├── entities/                  # 领域实体
-│   │   └── user_entity.py
-│   ├── value_objects/              # 值对象
-│   │   └── email_vo.py
-│   ├── aggregates/                 # 聚合根
-│   │   └── user_aggregate.py
-│   ├── events/                     # 领域事件
-│   │   └── user_events.py
-│   ├── repositories/              # Repository 接口
-│   │   └── user_repository.py    # IUserRepository
-│   └── services/                   # 领域服务
-│       └── user_domain_service.py
-├── infrastructure/
-│   ├── persistence/
-│   │   ├── models/                # ORM 模型
-│   │   │   └── user_model.py     # SQLAlchemy UserModel
-│   │   ├── repositories/          # Repository 实现
-│   │   │   └── user_repository_impl.py
-│   │   └── mappers/               # Infrastructure ↔ Domain 转换
-│   │       └── user_orm_mapper.py
-│   └── external/                   # 外部服务适配器
-│       └── llm_adapter.py
-└── agents/                         # Agent 作为 Domain Service
-    ├── graph/
-    │   ├── state.py              # AgentState (TypedDict)
-    │   ├── assistant_graph.py    # 主图编排
-    │   └── routes/
-    │       └── conditional_routes.py
-    ├── nodes/
-    │   └── classify_intent_node.py
-    ├── tools/
-    │   └── user_tools.py
-    ├── memory/
-    │   ├── short_term.py         # 短期记忆（Redis）
-    │   ├── medium_term.py        # 中期记忆（PostgreSQL）
-    │   └── long_term.py         # 长期记忆（Qdrant）
-    └── services/
-        └── agent_domain_service.py
-```
+> 后端 `backend/app/` 目录结构：见 `.cursor/rules/ddd-bounded-context.mdc` §五
 
 ### 26.3 各层数据对象规范
 
